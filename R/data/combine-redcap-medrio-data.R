@@ -1,5 +1,8 @@
 library(REDCapTidieR)
+library(readr)
 library(dplyr)
+library(tidyr)
+library(lubridate)
 library(labelled)
 library(qs)
 
@@ -199,6 +202,46 @@ combine_birth_history <- function(st2_data, st1_path) {
   bh
 }
 
+combine_medical_history <- function() {
+  st2_mh <- extract_tibble(st2_data, "medical_history") |>
+    select(-redcap_event, -form_status_complete, -redcap_data_access_group, -mhplanspec) |>
+    mutate(mhenddat1 = as_date(mhenddat1, format = "%Y-%m-%d"))
+  st1_mh <- read_delim(
+    file.path(st1_path, "MH.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-c(
+      ends_with("_coded"),
+      visit, form, subjectvisitformid, formentrydate, subjectstatus, site, subjectid, mhstdat_p, mhenddat_p
+    )) |>
+    mutate(medrioid = as.character(medrioid))
+  st1_mh_1 <- st1_mh |>
+    filter(is.na(vargroup1row)) |>
+    select(medrioid, mhyn, mhplan) |>
+    mutate(mhyn = mhyn == "Yes", mhplan = mhplan == "Yes")
+  st1_mh_2 <- st1_mh |>
+    filter(!is.na(vargroup1row)) |>
+    select(-mhyn, -mhplan) |>
+    mutate(
+      mhstdat = as_date(mhstdat, format = "%d-%b-%Y"),
+      mhenddat = as_date(mhenddat, format = "%d-%b-%Y")
+    ) |>
+    mutate(mhnum = max(vargroup1row), .by = medrioid) |>
+    pivot_wider(
+      names_from = vargroup1row,
+      values_from = c(mhdistp, mhdiag, mhstat, mhstdat, mhenddat),
+      names_sep = "",
+      names_vary = "slowest"
+    )
+  st1_out <- left_join(st1_mh_1, st1_mh_2, join_by(medrioid)) |>
+    mutate(mhnum = if_else(is.na(mhnum), 0, mhnum)) |>
+    rename(record_id = medrioid)
+  st <- bind_rows(st2_mh, st1_out)
+  var_label(st) <- var_label(st2_mh)
+  st
+}
+
 combine_physical_exam_v1 <- function(st2_data, st1_path) {
   st2_pe <- extract_tibble(st2_data, "physical_examination_v1") |>
     select(-redcap_event, -form_status_complete, -redcap_data_access_group)
@@ -258,6 +301,7 @@ dat_rand <- combine_randomisation(st2_data, st1_path)
 dat_st <- combine_study_termination(st2_data, st1_path)
 dat_demo <- combine_demographics(st2_data, st1_path)
 dat_bh <- combine_birth_history(st2_data, st1_path)
+dat_mh <- combine_medical_history()
 dat_pe <- combine_physical_exam_v1(st2_data, st1_path)
 dat_food <- combine_food_household(st2_data, st1_path)
 
