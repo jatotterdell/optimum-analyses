@@ -1,0 +1,4 @@
+default:
+  raw_data_stage1_path: "data/raw/stage1"
+  raw_data_stage2_path: "data/raw/stage2"
+  raw_data_stage2_file: "redcap-labelled-2025-04-11.qs"
