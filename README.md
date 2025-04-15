@@ -38,3 +38,19 @@ Forms to be mapped between MedDRIO and REDCap (and their current status) are:
 - [ ] diary_card_data_page_1
 - [ ] diary_card_data_page_2
 - [ ] other_immunological_data
+
+## Reporting
+
+Immunogenicity and reactogenecity (IgE, IgG, and diary card solicited adverse reactions responses) have previously been reported elsewhere.
+The focus here is on summarising the characteristics of all sampled participants and analyses of the remaining outcomes to be reported.
+The relevant elements are (see [https://doi.org/10.1136/bmjopen-2020-042838](https://doi.org/10.1136/bmjopen-2020-042838)):
+
+- [ ] sample characteristics
+  - [ ] at baseline
+  - [ ] during follow-up
+- [ ] primary outcome of IgE mediated food allergy by 18 months of age
+- secondary outcomes:
+  - [ ] new onset eczema by 6 or 12 months of age with positive skin prick test
+  - [ ] sensitisation to at least one allergen by 12 months of age
+    - [ ] 1mm greater than negative control
+    - [ ] 3mm greater than negative control
