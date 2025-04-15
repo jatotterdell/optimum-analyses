@@ -16,7 +16,7 @@ st2_path <- file.path(
 )
 st2_data <- qread(st2_path)
 
-combine_randomisation <- function(st2_data, st1_path) {
+combine_randomisation <- function() {
   st2_rand <- extract_tibble(st2_data, "randomisation") |>
     select(-redcap_event, -form_status_complete) |>
     rename(site = redcap_data_access_group)
@@ -34,16 +34,17 @@ combine_randomisation <- function(st2_data, st1_path) {
       record_id = medrioid,
       subjid = subjectid
     )
-  rand <- bind_rows(st1_rand, st2_rand)
+  rand <- bind_rows(st1_rand, st2_rand) |>
+    mutate(rand = as.character(rand))
   var_label(rand) <- var_label(st2_rand)
   rand
 }
 
-combine_study_termination <- function(st2_data, st1_path) {
+combine_study_termination <- function() {
   st2_st <- extract_tibble(st2_data, "study_termination") |>
-    select(-redcap_event, -form_status_complete, -redcap_data_access_group, -deemail)
+    select(-redcap_event, -form_status_complete, -redcap_data_access_group)
   st1_st <- read_delim(
-    file.path(stage1_path, "ST.txt"),
+    file.path(st1_path, "ST.txt"),
     show_col_types = FALSE
   ) |>
     rename_with(tolower) |>
@@ -59,11 +60,11 @@ combine_study_termination <- function(st2_data, st1_path) {
   st
 }
 
-combine_demographics <- function(st2_data, st1_path) {
+combine_demographics <- function() {
   st2_demo <- extract_tibble(st2_data, "demographics") |>
     select(-redcap_event, -form_status_complete, -redcap_data_access_group, -deemail)
   st1_demo <- read_delim(
-    file.path(stage1_path, "DEMO.txt"),
+    file.path(st1_path, "DEMO.txt"),
     show_col_types = FALSE
   ) |>
     rename_with(tolower) |>
@@ -128,7 +129,7 @@ combine_demographics <- function(st2_data, st1_path) {
     "Bachelor-level university degree",
     "Post-graduate university qualification"
   )
-  demo <- bind_rows(st1_demo, st2_demo) |>
+  demo <- bind_rows(st2_demo, st1_demo) |>
     mutate(
       parinc = factor(parinc, levels = parinc_levels),
       edupar1 = factor(edupar1, levels = edupar_levels),
@@ -138,7 +139,7 @@ combine_demographics <- function(st2_data, st1_path) {
   demo
 }
 
-combine_birth_history <- function(st2_data, st1_path) {
+combine_birth_history <- function() {
   st2_bh <- extract_tibble(st2_data, "birth_history") |>
     select(-redcap_event, -form_status_complete, -redcap_data_access_group) |>
     mutate(
@@ -148,7 +149,7 @@ combine_birth_history <- function(st2_data, st1_path) {
       prevdat1 = as_date(prevdat1, format = "%Y-%m-%d")
     )
   st1_bh <- read_delim(
-    file.path(stage1_path, "BH.txt")
+    file.path(st1_path, "BH.txt")
   ) |>
     rename_with(tolower) |>
     select(-ends_with("_coded"))
@@ -158,6 +159,7 @@ combine_birth_history <- function(st2_data, st1_path) {
       medrioid, delt, mgrav, mpara, inmpertvp, gestwp, gestdp, vacad, prevpert, minfvp, gestwi, gestdi,
       gestadelw, gestadeld, ipab, neoab, aps1, aps5, wgt, len, inhc, sibna
     ) |>
+    rename(mpar = mpara) |>
     mutate(
       inmpertvp = inmpertvp == "Yes",
       prevpert = prevpert == "Yes",
@@ -195,8 +197,10 @@ combine_birth_history <- function(st2_data, st1_path) {
         sibna == "Not Applicable (No Siblings)" ~ "Not Applicable",
         sibna == "Unknown" ~ "Unknown",
         .default = as.character(sibnum)
-      ), levels = levels(st2_bh$sibnum))
-    )
+      ), levels = levels(st2_bh$sibnum)),
+      record_id = as.character(medrioid)
+    ) |>
+    select(-medrioid, -sibna)
   bh <- bind_rows(st2_bh, st1_out)
   var_label(bh) <- var_label(st2_bh)
   bh
@@ -476,29 +480,16 @@ combine_outcome_report <- function() {
   out
 }
 
-dat_rand <- combine_randomisation(st2_data, st1_path)
-dat_st <- combine_study_termination(st2_data, st1_path)
-dat_demo <- combine_demographics(st2_data, st1_path)
-dat_bh <- combine_birth_history(st2_data, st1_path)
+dat_rand <- combine_randomisation()
+dat_st <- combine_study_termination()
+dat_demo <- combine_demographics()
+dat_bh <- combine_birth_history()
 dat_mh <- combine_medical_history()
-dat_meds <- combine_medications()
-dat_vaxv1 <- combine_vax_admin_v1()
-dat_visits <- combine_participant_assessment()
-dat_outcome <- combine_outcome_report()
-dat_pe <- combine_physical_exam_v1(st2_data, st1_path)
-dat_food <- combine_food_household(st2_data, st1_path)
 
-optimum_data <- tibble(
-  form = c(
-    "randomisation",
-    "study_termination",
-    "demographics",
-    "birth_history"
-  ),
-  data = list(
-    dat_rand,
-    dat_st,
-    dat_demo,
-    dat_bh
-  )
+optimum_data <- list(
+  "randomisation" = dat_rand,
+  "demographics" = dat_demo,
+  "birth_history" = dat_bh,
+  "medical_history" = dat_mh
 )
+qsave(enframe(optimum_data, name = "form", value = "data"), file.path("data", "optimum-data.qs"))
