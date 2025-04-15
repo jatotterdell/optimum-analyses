@@ -17,7 +17,7 @@ Forms to be mapped between MedDRIO and REDCap (and their current status) are:
 - [x] study_termination
 - [x] birth_history
 - [x] medical_history
-- [ ] medications
+- [x] medications
 - [ ] family_history_of_atopy
 - [x] physical_examination_v1
 - [ ] vaccine_administration_v1

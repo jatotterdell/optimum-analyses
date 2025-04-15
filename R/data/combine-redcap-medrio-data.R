@@ -242,6 +242,22 @@ combine_medical_history <- function() {
   st
 }
 
+combine_medications <- function() {
+  st2_meds <- extract_tibble(st2_data, "medications") |>
+    select(record_id, cmyn, vacyn)
+  st1_meds <- read_delim(
+    file.path(st1_path, "MEDS.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(medrioid, cmedyn, vacyn) |>
+    mutate(record_id = as.character(medrioid), cmyn = cmedyn == "Yes", vacyn = vacyn == "Yes") |>
+    select(-medrioid, -cmedyn)
+  meds <- bind_rows(st2_meds, st1_meds)
+  var_label(meds) <- var_label(st2_meds)
+  meds
+}
+
 combine_physical_exam_v1 <- function(st2_data, st1_path) {
   st2_pe <- extract_tibble(st2_data, "physical_examination_v1") |>
     select(-redcap_event, -form_status_complete, -redcap_data_access_group)
@@ -302,6 +318,7 @@ dat_st <- combine_study_termination(st2_data, st1_path)
 dat_demo <- combine_demographics(st2_data, st1_path)
 dat_bh <- combine_birth_history(st2_data, st1_path)
 dat_mh <- combine_medical_history()
+dat_meds <- combine_medications()
 dat_pe <- combine_physical_exam_v1(st2_data, st1_path)
 dat_food <- combine_food_household(st2_data, st1_path)
 
