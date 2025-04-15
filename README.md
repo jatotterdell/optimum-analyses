@@ -21,7 +21,7 @@ Forms to be mapped between MedDRIO and REDCap (and their current status) are:
 - [ ] family_history_of_atopy
 - [x] physical_examination_v1
 - [x] vaccine_administration_v1
-- [ ] participant_assessment
+- [x] participant_assessment
   - visit 2, 3, and 4
 - [ ] food_and_household_questionnaire
   - visit 1, 2, and 3, 6-month, 9-month, 15-month phone contact

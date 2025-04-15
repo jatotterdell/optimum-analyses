@@ -359,6 +359,60 @@ combine_vax_admin_v1 <- function() {
   vaxv1
 }
 
+combine_participant_assessment <- function() {
+  st2_pa <- extract_tibble(st2_data, "participant_assessment") |>
+    mutate(
+      visit = gsub("visit_", "", redcap_event)
+    ) |>
+    select(-c(redcap_event, redcap_data_access_group, form_status_complete)) |>
+    mutate(
+      visdat = as_date(visdat, format = "%Y-%m-%d"),
+      visage = case_when(
+        visit == 2 ~ "12-month",
+        visit == 3 ~ "18-month",
+        visit == 4 ~ "19-month"
+      )
+    )
+  st1_pa <- read_delim(
+    file.path(st1_path, "V2-5.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -ends_with("_coded"),
+      -subjectid, -site, -subjectstatus, -form, -subjectvisitformid, -mthpostv5, -formentrydate
+    ) |>
+    mutate(
+      record_id = as.character(medrioid),
+      visit = gsub("Visit ", "", visit),
+      visdat = as_date(visdat, format = "%d-%b-%Y"),
+      visage = case_when(
+        visit == 2 ~ "4-month",
+        visit == 3 ~ "6-month",
+        visit == 4 ~ "6-month + 72 hrs",
+        visit == 5 ~ "7-month",
+        visit == 6 ~ "12-month",
+        visit == 7 ~ "18-month",
+        visit == 8 ~ "19-month"
+      ),
+      windyn = windyn == "Yes",
+      diaretyn = diaretyn == "Yes",
+      v4yn = v4yn == "Yes",
+      v6yn = v6yn == "Yes",
+      v6conyn = v6conyn == "Yes"
+    ) |>
+    select(-medrioid)
+  pa <- bind_rows(st2_pa, st1_pa)
+  v_labs <- var_label(st2_pa)
+  v_labs$visage <- "Scheduled visit age"
+  v_labs$v4yn <- "Visit 4 not applicable"
+  v_labs$v6yn <- "Visit 6 not attended"
+  v_labs$diaretyn <- "Has diary card been returned"
+  v_labs$diarespec <- "Reason diary card not returned"
+  var_label(pa) <- v_labs
+  pa
+}
+
 combine_food_household <- function(st2_data, st1_path) {
   st2_food <- st2_data |>
     extract_tibble("food_and_household_questionnaire")
@@ -398,6 +452,7 @@ dat_bh <- combine_birth_history(st2_data, st1_path)
 dat_mh <- combine_medical_history()
 dat_meds <- combine_medications()
 dat_vaxv1 <- combine_vax_admin_v1()
+dat_visits <- combine_participant_assessment()
 dat_pe <- combine_physical_exam_v1(st2_data, st1_path)
 dat_food <- combine_food_household(st2_data, st1_path)
 
