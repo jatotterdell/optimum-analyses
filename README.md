@@ -29,7 +29,7 @@ Forms to be mapped between MedDRIO and REDCap (and their current status) are:
 - [ ] physical_examination
 - [ ] vaccine_administration_v2
 - [ ] vaccine_administration_v3
-- [ ] outcome_report
+- [x] outcome_report
 - [ ] primary_outcome_status
 - [ ] nonstudy_vaccination_log
 - [ ] sae_reporting_log

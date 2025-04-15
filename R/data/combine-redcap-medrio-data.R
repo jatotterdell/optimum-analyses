@@ -445,6 +445,37 @@ combine_food_household <- function(st2_data, st1_path) {
   food_v1
 }
 
+combine_outcome_report <- function() {
+  st2_out <- extract_tibble(st2_data, "outcome_report") |>
+    select(-c(redcap_event, redcap_data_access_group, form_status_complete)) |>
+    rename(record_id_num = redcap_form_instance) |>
+    select(-outageval, -outageunit)
+  st1_out <- read_delim(
+    file.path(st1_path, "outcomes.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -ends_with("_coded"),
+      -subjectvisitformid, -subjectid, -site, -subjectstatus, -visit, -form, -formentrydate
+    ) |>
+    mutate(
+      record_id = as.character(medrioid),
+      outallyn = outallyn == "No",
+      outfraeldose = as.character(outfraeldose),
+      outfrarashyn = outfrarashyn == "Yes",
+      outfrasoth1yn = outfrasoth1yn == "Yes",
+      outeczmedyn = outeczmedyn == "Yes",
+      outeczscoryn = outeczscoryn == "Yes",
+      across(outrepdat:outbirthdat, ~ as_date(.x, format = "%d-%b-%Y"))
+    ) |>
+    mutate(record_id_num = row_number(), .by = record_id) |>
+    select(-medrioid, -outbirthdat, -ouagewk, -outagemnth, -outageyrs)
+  out <- bind_rows(st2_out, st1_out)
+  var_label(out) <- var_label(st2_out)
+  out
+}
+
 dat_rand <- combine_randomisation(st2_data, st1_path)
 dat_st <- combine_study_termination(st2_data, st1_path)
 dat_demo <- combine_demographics(st2_data, st1_path)
@@ -453,6 +484,7 @@ dat_mh <- combine_medical_history()
 dat_meds <- combine_medications()
 dat_vaxv1 <- combine_vax_admin_v1()
 dat_visits <- combine_participant_assessment()
+dat_outcome <- combine_outcome_report()
 dat_pe <- combine_physical_exam_v1(st2_data, st1_path)
 dat_food <- combine_food_household(st2_data, st1_path)
 
