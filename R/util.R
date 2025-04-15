@@ -27,7 +27,7 @@ read_stage2_randomisation_list <- function() {
     list.files(file.path(Sys.getenv("RDS_PATH"), "data", "rand"), full.names = TRUE),
     value = TRUE
   )
-  read_csv(fn) |>
+  read_csv(fn, show_col_types = FALSE) |>
     rename(
       rand = RANDNO,
       blockno = BLOCKNO,
