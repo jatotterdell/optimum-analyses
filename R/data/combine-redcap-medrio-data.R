@@ -317,6 +317,48 @@ combine_physical_exam_v1 <- function(st2_data, st1_path) {
   st
 }
 
+combine_vax_admin_v1 <- function() {
+  st2_vaxv1 <- extract_tibble(st2_data, "vaccine_administration_v1") |>
+    select(-redcap_event, -form_status_complete, -redcap_data_access_group, -sdadmnam) |>
+    mutate(sdadmdattim = as_datetime(paste(sdadmdat, sdadmtim), format = "%Y-%m-%d %H:%M:%S")) |>
+    select(-c(sdadmdat, sdadmtim)) |>
+    relocate(sdadmdattim, .after = record_id) |>
+    mutate(
+      vacblloc = "Right Thigh IM injection",
+      vacpnloc = "Left Thigh IM injection",
+      vacrort = if_else(vacrort___1, "Oral", NA)
+    ) |>
+    select(-c(vacblloc___1, vacblloc___99, vaciplocspec, vacpnloc___1, vacrort___1))
+  st1_vaxv1 <- read_delim(
+    file.path(st1_path, "VAX V1.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-c(
+      ends_with("_coded"),
+      subjectid, subjectstatus, site, visit, form, formentrydate, rand, subjectvisitformid
+    )) |>
+    mutate(
+      record_id = as.character(medrioid),
+      sdadmdattim = as_datetime(randdattim, format = "%d-%b-%Y %H:%M"),
+      vacpara = vacpara == "Yes",
+      vacblpentbat = as.character(vacblpentbat),
+      vacprotyn = vacprotyn == "Yes",
+      vacobyn = vacobyn == "Yes",
+      vacobae = vacobae == "Yes"
+    ) |>
+    select(-medrioid, -randdattim, -vacrottp) |>
+    rename(vacadyn = vacprotyn, vacadreas = vacprotreas)
+  vaxv1 <- bind_rows(st2_vaxv1, st1_vaxv1)
+  v_labs <- var_label(st2_vaxv1)
+  v_labs$sdadmdattim <- "Date of vaccine administration"
+  v_labs$vacblloc <- "Location of blinded study vaccine"
+  v_labs$vacpnloc <- "Location of Prevenar 13 (pneumococcal)"
+  v_labs$vacrort <- "Route of administration Rotarix"
+  var_label(vaxv1) <- v_labs
+  vaxv1
+}
+
 combine_food_household <- function(st2_data, st1_path) {
   st2_food <- st2_data |>
     extract_tibble("food_and_household_questionnaire")
@@ -355,6 +397,7 @@ dat_demo <- combine_demographics(st2_data, st1_path)
 dat_bh <- combine_birth_history(st2_data, st1_path)
 dat_mh <- combine_medical_history()
 dat_meds <- combine_medications()
+dat_vaxv1 <- combine_vax_admin_v1()
 dat_pe <- combine_physical_exam_v1(st2_data, st1_path)
 dat_food <- combine_food_household(st2_data, st1_path)
 

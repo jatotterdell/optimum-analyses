@@ -20,7 +20,7 @@ Forms to be mapped between MedDRIO and REDCap (and their current status) are:
 - [x] medications
 - [ ] family_history_of_atopy
 - [x] physical_examination_v1
-- [ ] vaccine_administration_v1
+- [x] vaccine_administration_v1
 - [ ] participant_assessment
   - visit 2, 3, and 4
 - [ ] food_and_household_questionnaire
