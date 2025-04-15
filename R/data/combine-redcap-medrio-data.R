@@ -258,6 +258,42 @@ combine_medications <- function() {
   meds
 }
 
+combine_family_history_atopy <- function() {
+  st2_fha <- extract_tibble(st2_data, "family_history_of_atopy") |>
+    select(-redcap_event, -redcap_data_access_group, -form_status_complete)
+  st1_fha <- read_delim(
+    file.path(st1_path, "FHA.txt"),
+    show_col_types = FALSE,
+    na = c("", "NA", "N/A")
+  ) |>
+    rename_with(tolower) |>
+    select(-c(ends_with("_coded"), subjectid, site, subjectstatus, visit, form, formentrydate))
+  st1_fha_1 <- st1_fha |>
+    filter(is.na(vargroup1row)) |>
+    select(medrioid:fhasib4fa) |>
+    rename(
+      fhasibast1 = fhasib1ast,
+      fhasibast2 = fhasib2ast,
+      fhasibast3 = fhasib3ast,
+      fhasibast4 = fhasib4ast,
+      fhasibecz1 = fhasib1ecz,
+      fhasibecz2 = fhasib2ecz,
+      fhasibecz3 = fhasib3ecz,
+      fhasibecz4 = fhasib4ecz,
+      fhasibar1 = fhasib1ar,
+      fhasibar2 = fhasib2ar,
+      fhasibar3 = fhasib3ar,
+      fhasibar4 = fhasib4ar,
+      fhasibfa1 = fhasib1fa,
+      fhasibfa2 = fhasib2fa,
+      fhasibfa3 = fhasib3fa,
+      fhasibfa4 = fhasib4fa,
+    )
+  fha <- bind_rows(st2_fha, st1_fha_1)
+  var_label(fha) <- var_label(st2_fha)
+  fha
+}
+
 combine_physical_exam_v1 <- function(st2_data, st1_path) {
   st2_pe <- extract_tibble(st2_data, "physical_examination_v1") |>
     select(-redcap_event, -form_status_complete, -redcap_data_access_group)
