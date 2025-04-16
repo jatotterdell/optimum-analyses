@@ -2,6 +2,8 @@ library(REDCapTidieR)
 library(readr)
 library(dplyr)
 library(tidyr)
+library(stringr)
+library(tibble)
 library(lubridate)
 library(labelled)
 library(qs)
@@ -480,16 +482,182 @@ combine_outcome_report <- function() {
   out
 }
 
+combine_skin_prick_test <- function() {
+  # There are two sources of skin prick tests:
+  #    - the scheduled visit at 12-months of age (visit 2 in REDCap, visit 6 in Medrio)
+  #    - at any unscheduled visit
+  # Each child should have a "scheduled" SPT, and may have none or multiple "unscheduled".
+  # When joining the two datasets, I will just refer to these as SPT's as
+  # "spt_occasion" with values of "scheduled" or "unscheduled"
+  #
+  # Note that there are some difference between Medrio and REDCap here.
+  # In REDCap, "prireact[1-11]" may be "Yes", "No", or "Not done"
+  # If it is "No", then "prires[1-11]" is "NA", but presumably would be
+  # considered "0" (no reaction)
+  # In Medrio, "prind" only indicates whether the test was not done
+  # confusingly, via a negative. So "No" means the test was done
+  # and "Yes" means the test was not done.
+  # If a test was done and "prires" is 0, then presumably this is equivalent
+  # to a "prireact" of "No" in REDCap.
+  # However, there are a couple of cases in REDCap where "prireact" is "Yes"
+  # but "prires" is 0.
+  # So, I will likely ignore "prireact" other than w.r.t "Not done" and just
+  # focus on the actual reported diameter in "prires", filling this to be 0
+  # if "prireact" was "No".
+  #
+  # Additional tested allergens may be added in REDCap, somewhat confusingly:
+  #  priallspec, prireact9, prires9 - relate to the first optional allergen
+  #  priallspec_2, prireact10, prires10 - relate to the second optional allergen
+  #  etc.
+  #  priallspec_5, prireact13, prires13 - relate to the 5th optional allergen
+  # I will rename these to avoid some confusion, e.g. priallspec9, priallspec10, etc.
+  #
+  # Extra allergens were rare in Medrio, only two subjects, each with one additiona allergen
+  # will map these to prireact9, prires9, and priallspec9
+  st2_spt <- extract_tibble(st2_data, "skin_prick_test") |>
+    filter((unvisyn & unvisreas___1) | is.na(unvisyn)) |>
+    mutate(spt_occasion = if_else(redcap_event == "visit_2", "scheduled", "unscheduled")) |>
+    select(-redcap_event, -redcap_data_access_group, -redcap_form_instance, -form_status_complete) |>
+    mutate(
+      prinegres = as.numeric(prinegres),
+      prireact8 = if_else(prireact8 == "N/A", "Not Done", prireact8)
+    ) |>
+    select(-c(unvisyn, unvisdat, unvisreas___1, unvisreas___2, unvisreas___99, unvisreasoth)) |>
+    rename(
+      priallspec9 = priallspec,
+      priallspec10 = priallspec_2,
+      priallspec11 = priallspec_3,
+      priallspec12 = priallspec_4,
+      priallspec13 = priallspec_5
+    )
+  # Per above, fill in "0" prires if prireact is "No"
+  st2_spt_fill <- st2_spt |>
+    mutate(
+      across(
+        starts_with("prires"),
+        ~ if_else(get(str_replace(cur_column(), "prires", "prireact")) == "No", 0, .)
+      )
+    )
+
+  var_label(st2_spt)$prinegres <- "Negative control mean wheal diameter (mm)"
+  var_label(st2_spt)$prireact8 <- "Sesame reaction"
+
+  st1_spt <- read_delim(
+    file.path(st1_path, "PRICK.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -ends_with("_coded"),
+      -subjectvisitformid, -subjectid, -site, -subjectstatus, -formentrydate, -visit, -form
+    ) |>
+    mutate(spt_occasion = "scheduled")
+
+  st1_un <- read_delim(
+    file.path(st1_path, "UN_VISIT.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -ends_with("_coded"),
+      -subjectvisitformid, -subjectid, -site, -subjectstatus, -formentrydate
+    ) |>
+    filter(any(unvisyn == "Yes" & unvisreas == "Skin Prick Test"), .by = medrioid) |>
+    mutate(spt_occasion = "unscheduled") |>
+    select(
+      medrioid, spt_occasion, priyn_un, prispec_un, pridat_un,
+      vargroup1row, priall_un, prind_un, priallspec_un, prires_un
+    ) |>
+    rename(
+      priyn = priyn_un,
+      prispec = prispec_un,
+      pridat = pridat_un,
+      priall = priall_un,
+      prind = prind_un,
+      priallspec = priallspec_un,
+      prires = prires_un
+    )
+
+  st1_spt_all <- bind_rows(st1_spt, st1_un) |>
+    mutate(spt_num = cumsum(is.na(vargroup1row)), .by = medrioid)
+
+  st1_spt_1 <- st1_spt_all |>
+    filter(is.na(vargroup1row)) |>
+    select(medrioid, spt_occasion, spt_num, priyn, prispec, pridat) |>
+    mutate(
+      priyn = priyn == "Yes",
+      pridat = as_date(pridat, format = "%d-%b-%Y")
+    ) |>
+    rename(prinspec = prispec)
+
+  st1_spt_2 <- st1_spt_all |>
+    filter(!is.na(vargroup1row)) |>
+    select(medrioid, spt_occasion, spt_num, vargroup1row, priall, prind, priallspec, prires)
+  st1_spt_ctr <- st1_spt_2 |>
+    filter(vargroup1row < 3) |>
+    select(medrioid, spt_occasion, spt_num, vargroup1row, prires) |>
+    pivot_wider(names_from = vargroup1row, values_from = prires) |>
+    rename(prinegres = `1`, priposres = `2`)
+  st1_spt_tst <- st1_spt_2 |>
+    filter(between(vargroup1row, 3, 10)) |>
+    select(medrioid, spt_occasion, spt_num, vargroup1row, prind, prires) |>
+    mutate(vargroup1row = vargroup1row - 2) |>
+    rename(prireact = prind) |>
+    mutate(prireact = case_when(
+      prireact == "Yes" ~ "Not Done",
+      prireact == "No" & prires == 0 ~ "No",
+      prireact == "No" & prires > 0 ~ "Yes",
+      .default = NA_character_
+    )) |>
+    pivot_wider(
+      names_from = vargroup1row,
+      values_from = c(prireact, prires),
+      names_sep = "",
+      names_vary = "slowest"
+    )
+  st1_spt_oth <- st1_spt_2 |>
+    filter(vargroup1row > 10) |>
+    filter(!is.na(priall)) |>
+    select(medrioid, spt_occasion, spt_num, vargroup1row, prind, prind, priallspec, prires) |>
+    mutate(vargroup1row = vargroup1row - 2) |>
+    rename(prireact = prind) |>
+    mutate(prireact = case_when(
+      prireact == "Yes" ~ "Not Done",
+      prireact == "No" & prires == 0 ~ "No",
+      prireact == "No" & prires > 0 ~ "Yes",
+      .default = NA_character_
+    )) |>
+    pivot_wider(
+      names_from = vargroup1row,
+      values_from = c(prireact, priallspec, prires),
+      names_sep = "",
+      names_vary = "slowest"
+    )
+
+  st1_spt_out <- st1_spt_1 |>
+    left_join(st1_spt_ctr, join_by(medrioid, spt_occasion, spt_num)) |>
+    left_join(st1_spt_tst, join_by(medrioid, spt_occasion, spt_num)) |>
+    left_join(st1_spt_oth, join_by(medrioid, spt_occasion, spt_num)) |>
+    mutate(record_id = as.character(medrioid)) |>
+    select(-medrioid)
+
+  spt <- bind_rows(st2_spt_fill, st1_spt_out)
+  var_label(spt) <- var_label(st2_spt_fill)
+  spt
+}
+
 dat_rand <- combine_randomisation()
 dat_st <- combine_study_termination()
 dat_demo <- combine_demographics()
 dat_bh <- combine_birth_history()
 dat_mh <- combine_medical_history()
+dat_spt <- combine_skin_prick_test()
 
 optimum_data <- list(
   "randomisation" = dat_rand,
   "demographics" = dat_demo,
   "birth_history" = dat_bh,
-  "medical_history" = dat_mh
+  "medical_history" = dat_mh,
+  "skin_prick_test" = dat_spt
 )
 qsave(enframe(optimum_data, name = "form", value = "data"), file.path("data", "optimum-data.qs"))

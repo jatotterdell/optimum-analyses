@@ -25,7 +25,7 @@ Forms to be mapped between MedDRIO and REDCap (and their current status) are:
   - visit 2, 3, and 4
 - [ ] food_and_household_questionnaire
   - visit 1, 2, and 3, 6-month, 9-month, 15-month phone contact
-- [ ] skin_prick_test
+- [x] skin_prick_test
 - [ ] physical_examination
 - [ ] vaccine_administration_v2
 - [ ] vaccine_administration_v3
