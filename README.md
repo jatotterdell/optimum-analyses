@@ -33,7 +33,7 @@ Forms to be mapped between MedDRIO and REDCap (and their current status) are:
 - [ ] primary_outcome_status
 - [ ] nonstudy_vaccination_log
 - [ ] sae_reporting_log
-- [ ] adverse_events
+- [x] adverse_events
 - [ ] concomitant_medications
 - [ ] diary_card_data_page_1
 - [ ] diary_card_data_page_2

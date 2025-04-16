@@ -646,18 +646,64 @@ combine_skin_prick_test <- function() {
   spt
 }
 
+combine_adverse_events <- function() {
+  st2_ae <- extract_tibble(st2_data, "adverse_events") |>
+    filter(!is.na(aeterm)) |>
+    arrange(record_id, aestdat, redcap_form_instance) |>
+    mutate(ae_num = row_number(), .by = record_id) |>
+    relocate(ae_num, .after = record_id) |>
+    select(-redcap_event, -redcap_form_instance, -redcap_data_access_group, -form_status_complete, -aeyn) |>
+    mutate(
+      aestdat = as_date(aestdat, format = "%Y-%m-%d"),
+      aeenddat = as_date(aeenddat, format = "%Y-%m-%d")
+    )
+  st1_ae <- read_delim(
+    file.path(st1_path, "AE.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -ends_with("_coded"),
+      -subjectid, -site, -subjectstatus, -visit, -form, -formentrydate, -subjectvisitformid
+    ) |>
+    filter(!is.na(vargroup1row)) |>
+    mutate(
+      record_id = as.character(medrioid),
+      aestdat = as_date(aestdat, format = "%d-%b-%Y"),
+      aeenddat = as_date(aeenddat, format = "%d-%b-%Y"),
+      aeongo = aeongo == "Yes",
+      aemeadv = aemeadv == "Yes",
+      aecm = aecm == "Yes"
+    ) |>
+    select(-ends_with("_p"), -aeyn, -medrioid) |>
+    rename(
+      ae_num = vargroup1row,
+      aeterm = aetermtxt,
+      aemedadv = aemeadv,
+      aecmyn = aecm
+    )
+  ae <- bind_rows(st2_ae, st1_ae)
+  var_label(ae) <- var_label(st2_ae)
+  var_label(ae)$ae_num <- "Adverse event number"
+  var_label(ae)$aestdat <- "Start date"
+  var_label(ae)$aeenddat <- "End date"
+  ae
+}
+
 dat_rand <- combine_randomisation()
 dat_st <- combine_study_termination()
 dat_demo <- combine_demographics()
 dat_bh <- combine_birth_history()
 dat_mh <- combine_medical_history()
 dat_spt <- combine_skin_prick_test()
+dat_ae <- combine_adverse_events()
 
 optimum_data <- list(
   "randomisation" = dat_rand,
   "demographics" = dat_demo,
   "birth_history" = dat_bh,
   "medical_history" = dat_mh,
-  "skin_prick_test" = dat_spt
+  "skin_prick_test" = dat_spt,
+  "adverse_events" = dat_ae
 )
 qsave(enframe(optimum_data, name = "form", value = "data"), file.path("data", "optimum-data.qs"))
