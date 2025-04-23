@@ -646,6 +646,37 @@ combine_skin_prick_test <- function() {
   spt
 }
 
+combine_food_challenge <- function() {
+  st2_fc <- extract_tibble(st2_data, "food_challenge") |>
+    select(-redcap_event, -redcap_data_access_group, -form_status_complete) |>
+    rename(ofc_num = redcap_form_instance) |>
+    filter(ofcyn)
+  # Here there are only 3 OFC records, so just restrict to those
+  # They are for "egg" and "milk"
+  # In REDCap, "Egg" corresponds to ofcfoodtp2 and "Milk" to ofcfoodtp3
+  # Here I just map the 3 records to these.
+  st1_fc <- read_delim(
+    file.path(st1_path, "CHALL.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded")) |>
+    select(-subjectid, -site, -subjectstatus, -visit, -form, -formentrydate, -subjectvisitformid) |>
+    filter(vargroup1row == 1) |>
+    rename(record_id = medrioid, ofc_num = vargroup1row) |>
+    mutate(
+      record_id = as.character(record_id),
+      ofcyn = TRUE,
+      ofcdat = as_date(fcdat, format = "%d-%b-%Y"),
+      ofcfoodtp2 = if_else(grepl("egg", fcall), fcres, NA_character_),
+      ofcfoodtp3 = if_else(grepl("milk", fcall), fcres, NA_character_)
+    ) |>
+    select(-fcyn, -fcall, -fcres, -fcdat)
+  fc <- bind_rows(st2_fc, st1_fc)
+  var_label(fc) <- var_label(st2_fc)
+  fc
+}
+
 combine_adverse_events <- function() {
   st2_ae <- extract_tibble(st2_data, "adverse_events") |>
     filter(!is.na(aeterm)) |>
@@ -695,7 +726,9 @@ dat_st <- combine_study_termination()
 dat_demo <- combine_demographics()
 dat_bh <- combine_birth_history()
 dat_mh <- combine_medical_history()
+dat_vax_v1 <- combine_vax_admin_v1()
 dat_spt <- combine_skin_prick_test()
+dat_fc <- combine_food_challenge()
 dat_ae <- combine_adverse_events()
 
 optimum_data <- list(
@@ -703,7 +736,10 @@ optimum_data <- list(
   "demographics" = dat_demo,
   "birth_history" = dat_bh,
   "medical_history" = dat_mh,
+  "vaccine_administration_v1" = dat_vax_v1,
   "skin_prick_test" = dat_spt,
-  "adverse_events" = dat_ae
+  "food_challenge" = dat_fc,
+  "adverse_events" = dat_ae,
+  "study_termination" = dat_st
 )
 qsave(enframe(optimum_data, name = "form", value = "data"), file.path("data", "optimum-data.qs"))
