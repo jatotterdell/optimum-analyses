@@ -1,22 +1,21 @@
-library(REDCapTidieR)
-library(readr)
-library(dplyr)
-library(tidyr)
-library(stringr)
-library(tibble)
-library(lubridate)
-library(labelled)
-library(qs)
+suppressPackageStartupMessages({
+  library(REDCapTidieR)
+  library(readr)
+  library(dplyr)
+  library(tidyr)
+  library(stringr)
+  library(tibble)
+  library(lubridate)
+  library(labelled)
+  library(qs)
+})
 
 readRenviron(".env")
 
 st1_path <- file.path(Sys.getenv("RDS_PATH"), config::get("raw_data_stage1_path"))
-st2_path <- file.path(
-  Sys.getenv("RDS_PATH"),
-  config::get("raw_data_stage2_path"),
-  config::get("raw_data_stage2_file")
-)
-st2_data <- qread(st2_path)
+st2_path <- file.path(Sys.getenv("RDS_PATH"), config::get("raw_data_stage2_path"))
+st2_file <- file.path(st2_path, config::get("raw_data_stage2_file"))
+st2_data <- qread(st2_file)
 
 combine_randomisation <- function() {
   st2_rand <- extract_tibble(st2_data, "randomisation") |>
@@ -24,10 +23,10 @@ combine_randomisation <- function() {
     rename(site = redcap_data_access_group)
   st1_rand <- read_delim(
     file.path(st1_path, "VAX V1.txt"),
-    show_col_types = FALSE
+    show_col_types = FALSE,
+    col_select = c(MedrioID, SubjectID, Site, RAND, RANDDATTIM)
   ) |>
     rename_with(tolower) |>
-    select(medrioid, subjectid, site, rand, randdattim) |>
     mutate(
       medrioid = as.character(medrioid),
       randdattim = as_datetime(randdattim, format = "%d-%b-%Y %H:%M")
@@ -47,13 +46,12 @@ combine_study_termination <- function() {
     select(-redcap_event, -form_status_complete, -redcap_data_access_group)
   st1_st <- read_delim(
     file.path(st1_path, "ST.txt"),
-    show_col_types = FALSE
+    show_col_types = FALSE,
+    col_select = c(MedrioID, DISCDAT, STREAS, STETRREAS, IPPVSPEC, WCIPNW, WCIPSPEC),
+    col_types = list(MedrioID = "c", DISCDAT = col_date(format = "%d-%b-%Y"))
   ) |>
     rename_with(tolower) |>
-    select(medrioid, discdat, streas, stetrreas, ippvspec, wcipnw, wcipspec) |>
     mutate(
-      medrioid = as.character(medrioid),
-      discdat = as_date(discdat, format = "%d-%b-%Y"),
       wcipnw = wcipnw == "Yes"
     ) |>
     rename(record_id = medrioid, wcipnwreas = wcipspec)
@@ -67,31 +65,29 @@ combine_demographics <- function() {
     select(-redcap_event, -form_status_complete, -redcap_data_access_group, -deemail)
   st1_demo <- read_delim(
     file.path(st1_path, "DEMO.txt"),
-    show_col_types = FALSE
+    show_col_types = FALSE,
+    col_select = c(
+      MedrioID,
+      VISDAT1,
+      BRTHDAT,
+      GENDER,
+      starts_with("COB"),
+      starts_with("ETO"),
+      starts_with("EDU"),
+      P1TYP,
+      P2TYP,
+      INCOME,
+      GPINF,
+      -ends_with("_CODED")
+    ),
+    col_types = list(
+      MedrioID = "c",
+      VISDAT1 = col_date(format = "%d-%b-%Y"),
+      BRTHDAT = col_date(format = "%d-%b-%Y")
+    )
   ) |>
     rename_with(tolower) |>
-    select(
-      medrioid,
-      ptinit,
-      visdat1,
-      brthdat,
-      gender,
-      cobmther,
-      cobfther,
-      etomthr,
-      etofthr,
-      etoinf,
-      p1typ,
-      edumoth,
-      p2typ,
-      edufath,
-      income,
-      gpinf
-    ) |>
     mutate(
-      medrioid = as.character(medrioid),
-      visdat1 = as_date(visdat1, format = "%d-%b-%Y"),
-      brthdat = as_date(brthdat, format = "%d-%b-%Y"),
       gpinf = gpinf == "Yes",
       income = gsub("t0", "to", income),
       # In REDCap, education is stored as "parent 1" and "parent 2"
@@ -145,16 +141,23 @@ combine_birth_history <- function() {
   st2_bh <- extract_tibble(st2_data, "birth_history") |>
     select(-redcap_event, -form_status_complete, -redcap_data_access_group) |>
     mutate(
+      gestwp = if_else(gestwp == "MI", NA_character_, gestwp),
       gestwp = as.numeric(gestwp),
+      gestdp = if_else(gestdp == "MI", NA_character_, gestdp),
       gestdp = as.numeric(gestdp),
+      prevnum = if_else(prevnum == "MI", NA_character_, prevnum),
       prevnum = as.numeric(prevnum),
+      prevdat1 = if_else(prevdat1 %in% c("MI", "UNK"), NA_character_, prevdat1),
       prevdat1 = as_date(prevdat1, format = "%Y-%m-%d")
     )
-  st1_bh <- read_delim(
-    file.path(st1_path, "BH.txt")
-  ) |>
-    rename_with(tolower) |>
-    select(-ends_with("_coded"))
+  suppressWarnings(
+    st1_bh <- read_delim(
+      file.path(st1_path, "BH.txt"),
+      show_col_types = FALSE,
+      col_select = c(-ends_with("_CODED"), -SubjectID, -Site, -SubjectStatus, -Visit, -Form, -SubjectVisitFormID)
+    ) |>
+      rename_with(tolower)
+  )
   st1_bh1 <- st1_bh |>
     filter(row_number() == 1, .by = medrioid) |>
     select(
@@ -173,7 +176,7 @@ combine_birth_history <- function() {
     filter(!is.na(vargroup1row)) |>
     mutate(
       prevdat = as_date(prevdat, format = "%d-%b-%Y"),
-      vargroup1row = if_else(subjectid == "01041", 1, vargroup1row)
+      vargroup1row = if_else(medrioid == "41", 1, vargroup1row)
     ) |>
     rename(prevnum = vargroup1row) |>
     select(medrioid, prevnum, prevdat, prevac) |>
@@ -211,17 +214,30 @@ combine_birth_history <- function() {
 combine_medical_history <- function() {
   st2_mh <- extract_tibble(st2_data, "medical_history") |>
     select(-redcap_event, -form_status_complete, -redcap_data_access_group, -mhplanspec) |>
-    mutate(mhenddat1 = as_date(mhenddat1, format = "%Y-%m-%d"))
-  st1_mh <- read_delim(
-    file.path(st1_path, "MH.txt"),
-    show_col_types = FALSE
-  ) |>
-    rename_with(tolower) |>
-    select(-c(
-      ends_with("_coded"),
-      visit, form, subjectvisitformid, formentrydate, subjectstatus, site, subjectid, mhstdat_p, mhenddat_p
-    )) |>
-    mutate(medrioid = as.character(medrioid))
+    mutate(
+      mhenddat1 = if_else(mhenddat1 == "MI", NA_character_, mhenddat1),
+      mhenddat1 = as_date(mhenddat1, format = "%Y-%m-%d")
+    )
+  suppressWarnings(
+    st1_mh <- read_delim(
+      file.path(st1_path, "MH.txt"),
+      show_col_types = FALSE,
+      col_types = list(MedrioID = "c"),
+      col_select = -c(
+        ends_with("_CODED"),
+        Visit,
+        Form,
+        SubjectVisitFormID,
+        SubjectStatus,
+        Site,
+        SubjectID,
+        FormEntryDate,
+        MHENDDAT_P,
+        MHSTDAT_P
+      )
+    ) |>
+      rename_with(tolower)
+  )
   st1_mh_1 <- st1_mh |>
     filter(is.na(vargroup1row)) |>
     select(medrioid, mhyn, mhplan) |>
@@ -253,12 +269,14 @@ combine_medications <- function() {
     select(record_id, cmyn, vacyn)
   st1_meds <- read_delim(
     file.path(st1_path, "MEDS.txt"),
-    show_col_types = FALSE
+    show_col_types = FALSE,
+    col_select = c(MedrioID, CMEDYN, VACYN),
+    col_types = c(MedrioID = "c")
   ) |>
     rename_with(tolower) |>
-    select(medrioid, cmedyn, vacyn) |>
-    mutate(record_id = as.character(medrioid), cmyn = cmedyn == "Yes", vacyn = vacyn == "Yes") |>
-    select(-medrioid, -cmedyn)
+    rename(record_id = medrioid) |>
+    mutate(cmyn = cmedyn == "Yes", vacyn = vacyn == "Yes") |>
+    select(-cmedyn)
   meds <- bind_rows(st2_meds, st1_meds)
   var_label(meds) <- var_label(st2_meds)
   meds
@@ -267,13 +285,24 @@ combine_medications <- function() {
 combine_family_history_atopy <- function() {
   st2_fha <- extract_tibble(st2_data, "family_history_of_atopy") |>
     select(-redcap_event, -redcap_data_access_group, -form_status_complete)
-  st1_fha <- read_delim(
-    file.path(st1_path, "FHA.txt"),
-    show_col_types = FALSE,
-    na = c("", "NA", "N/A")
-  ) |>
-    rename_with(tolower) |>
-    select(-c(ends_with("_coded"), subjectid, site, subjectstatus, visit, form, formentrydate))
+  suppressWarnings(
+    st1_fha <- read_delim(
+      file.path(st1_path, "FHA.txt"),
+      show_col_types = FALSE,
+      col_select = -c(
+        ends_with("_CODED"),
+        SubjectID,
+        Site,
+        SubjectStatus,
+        Visit,
+        Form,
+        FormEntryDate,
+        SubjectVisitFormID
+      ),
+      na = c("", "NA", "N/A")
+    ) |>
+      rename_with(tolower)
+  )
   st1_fha_1 <- st1_fha |>
     filter(is.na(vargroup1row)) |>
     select(medrioid:fhasib4fa) |>
@@ -303,11 +332,13 @@ combine_family_history_atopy <- function() {
 combine_physical_exam_v1 <- function(st2_data, st1_path) {
   st2_pe <- extract_tibble(st2_data, "physical_examination_v1") |>
     select(-redcap_event, -form_status_complete, -redcap_data_access_group)
-  st1_pe <- read_delim(
-    file.path(st1_path, "PE.txt"),
-    show_col_types = FALSE
-  ) |>
-    rename_with(tolower)
+  suppressWarnings(
+    st1_pe <- read_delim(
+      file.path(st1_path, "PE.txt"),
+      show_col_types = FALSE
+    ) |>
+      rename_with(tolower)
+  )
   st1_pe1 <- st1_pe |>
     filter(is.na(vargroup1row)) |>
     select(medrioid, tempv1, inwv1, inlv1, inhcv1)
@@ -428,7 +459,10 @@ combine_food_household <- function() {
   # Currently, just focus on food allergy and eczema fields
   st2_food <- st2_data |>
     extract_tibble("food_and_household_questionnaire") |>
-    mutate(fedat = as_date(fedat)) |>
+    mutate(
+      fedat = if_else(fedat == "MI", NA_character_, fedat),
+      fedat = as_date(fedat)
+    ) |>
     mutate(
       fe_phone = grepl("ques", redcap_event),
       visit_age = case_when(
@@ -459,25 +493,30 @@ combine_food_household <- function() {
   # is being collected
   # Further, the "fedat" would come from the "visit date" or "phone contact date"
   # as stored in "V1, V2-5, V6-8, PHONE".
-  st1_food_v1 <- read_delim(
-    file.path(st1_path, "FOOD V1.txt"),
-    show_col_types = FALSE
-  ) |>
-    rename_with(tolower) |>
-    select(-ends_with("_coded"))
-  st1_food_v2 <- read_delim(
-    file.path(st1_path, "FOOD V2-5.txt"),
-    show_col_types = FALSE
-  ) |>
-    rename_with(tolower) |>
-    select(-ends_with("_coded"))
-  st1_food_v3 <- read_delim(
-    file.path(st1_path, "FOOD V6-8.txt"),
-    show_col_types = FALSE
-  ) |>
-    rename_with(tolower) |>
-    select(-ends_with("_coded"))
-
+  suppressWarnings(
+    st1_food_v1 <- read_delim(
+      file.path(st1_path, "FOOD V1.txt"),
+      show_col_types = FALSE,
+      col_select = -ends_with("_CODED")
+    ) |>
+      rename_with(tolower)
+  )
+  suppressWarnings(
+    st1_food_v2 <- read_delim(
+      file.path(st1_path, "FOOD V2-5.txt"),
+      show_col_types = FALSE,
+      col_select = -ends_with("_CODED")
+    ) |>
+      rename_with(tolower)
+  )
+  suppressWarnings(
+    st1_food_v3 <- read_delim(
+      file.path(st1_path, "FOOD V6-8.txt"),
+      show_col_types = FALSE,
+      col_select = -ends_with("_CODED")
+    ) |>
+      rename_with(tolower)
+  )
   # For the date fields
   # Phone contact dates
   st1_phone <- read_delim(
@@ -636,6 +675,7 @@ combine_skin_prick_test <- function() {
     mutate(spt_occasion = if_else(redcap_event == "visit_2", "scheduled", "unscheduled")) |>
     select(-redcap_event, -redcap_data_access_group, -redcap_form_instance, -form_status_complete) |>
     mutate(
+      prinegres = if_else(prinegres == "MI", NA_character_, prinegres),
       prinegres = as.numeric(prinegres),
       prireact8 = if_else(prireact8 == "N/A", "Not Done", prireact8)
     ) |>
@@ -659,41 +699,44 @@ combine_skin_prick_test <- function() {
   var_label(st2_spt)$prinegres <- "Negative control mean wheal diameter (mm)"
   var_label(st2_spt)$prireact8 <- "Sesame reaction"
 
-  st1_spt <- read_delim(
-    file.path(st1_path, "PRICK.txt"),
-    show_col_types = FALSE
-  ) |>
-    rename_with(tolower) |>
-    select(
-      -ends_with("_coded"),
-      -subjectvisitformid, -subjectid, -site, -subjectstatus, -formentrydate, -visit, -form
+  suppressWarnings(
+    st1_spt <- read_delim(
+      file.path(st1_path, "PRICK.txt"),
+      show_col_types = FALSE
     ) |>
-    mutate(spt_occasion = "scheduled")
-
-  st1_un <- read_delim(
-    file.path(st1_path, "UN_VISIT.txt"),
-    show_col_types = FALSE
-  ) |>
-    rename_with(tolower) |>
-    select(
-      -ends_with("_coded"),
-      -subjectvisitformid, -subjectid, -site, -subjectstatus, -formentrydate
+      rename_with(tolower) |>
+      select(
+        -ends_with("_coded"),
+        -subjectvisitformid, -subjectid, -site, -subjectstatus, -formentrydate, -visit, -form
+      ) |>
+      mutate(spt_occasion = "scheduled")
+  )
+  suppressWarnings(
+    st1_un <- read_delim(
+      file.path(st1_path, "UN_VISIT.txt"),
+      show_col_types = FALSE
     ) |>
-    filter(any(unvisyn == "Yes" & unvisreas == "Skin Prick Test"), .by = medrioid) |>
-    mutate(spt_occasion = "unscheduled") |>
-    select(
-      medrioid, spt_occasion, priyn_un, prispec_un, pridat_un,
-      vargroup1row, priall_un, prind_un, priallspec_un, prires_un
-    ) |>
-    rename(
-      priyn = priyn_un,
-      prispec = prispec_un,
-      pridat = pridat_un,
-      priall = priall_un,
-      prind = prind_un,
-      priallspec = priallspec_un,
-      prires = prires_un
-    )
+      rename_with(tolower) |>
+      select(
+        -ends_with("_coded"),
+        -subjectvisitformid, -subjectid, -site, -subjectstatus, -formentrydate
+      ) |>
+      filter(any(unvisyn == "Yes" & unvisreas == "Skin Prick Test"), .by = medrioid) |>
+      mutate(spt_occasion = "unscheduled") |>
+      select(
+        medrioid, spt_occasion, priyn_un, prispec_un, pridat_un,
+        vargroup1row, priall_un, prind_un, priallspec_un, prires_un
+      ) |>
+      rename(
+        priyn = priyn_un,
+        prispec = prispec_un,
+        pridat = pridat_un,
+        priall = priall_un,
+        prind = prind_un,
+        priallspec = priallspec_un,
+        prires = prires_un
+      )
+  )
 
   st1_spt_all <- bind_rows(st1_spt, st1_un) |>
     mutate(spt_num = cumsum(is.na(vargroup1row)), .by = medrioid)
@@ -772,23 +815,25 @@ combine_food_challenge <- function() {
   # They are for "egg" and "milk"
   # In REDCap, "Egg" corresponds to ofcfoodtp2 and "Milk" to ofcfoodtp3
   # Here I just map the 3 records to these.
-  st1_fc <- read_delim(
-    file.path(st1_path, "CHALL.txt"),
-    show_col_types = FALSE
-  ) |>
-    rename_with(tolower) |>
-    select(-ends_with("_coded")) |>
-    select(-subjectid, -site, -subjectstatus, -visit, -form, -formentrydate, -subjectvisitformid) |>
-    filter(vargroup1row == 1) |>
-    rename(record_id = medrioid, ofc_num = vargroup1row) |>
-    mutate(
-      record_id = as.character(record_id),
-      ofcyn = TRUE,
-      ofcdat = as_date(fcdat, format = "%d-%b-%Y"),
-      ofcfoodtp2 = if_else(grepl("egg", fcall), fcres, NA_character_),
-      ofcfoodtp3 = if_else(grepl("milk", fcall), fcres, NA_character_)
+  suppressWarnings(
+    st1_fc <- read_delim(
+      file.path(st1_path, "CHALL.txt"),
+      show_col_types = FALSE
     ) |>
-    select(-fcyn, -fcall, -fcres, -fcdat)
+      rename_with(tolower) |>
+      select(-ends_with("_coded")) |>
+      select(-subjectid, -site, -subjectstatus, -visit, -form, -formentrydate, -subjectvisitformid) |>
+      filter(vargroup1row == 1) |>
+      rename(record_id = medrioid, ofc_num = vargroup1row) |>
+      mutate(
+        record_id = as.character(record_id),
+        ofcyn = TRUE,
+        ofcdat = as_date(fcdat, format = "%d-%b-%Y"),
+        ofcfoodtp2 = if_else(grepl("egg", fcall), fcres, NA_character_),
+        ofcfoodtp3 = if_else(grepl("milk", fcall), fcres, NA_character_)
+      ) |>
+      select(-fcyn, -fcall, -fcres, -fcdat)
+  )
   fc <- bind_rows(st2_fc, st1_fc)
   var_label(fc) <- var_label(st2_fc)
   fc
@@ -802,34 +847,38 @@ combine_adverse_events <- function() {
     relocate(ae_num, .after = record_id) |>
     select(-redcap_event, -redcap_form_instance, -redcap_data_access_group, -form_status_complete, -aeyn) |>
     mutate(
+      aestdat = if_else(aestdat == "UNK", NA_character_, aestdat),
       aestdat = as_date(aestdat, format = "%Y-%m-%d"),
+      aeenddat = if_else(aeenddat == "UNK", NA_character_, aeenddat),
       aeenddat = as_date(aeenddat, format = "%Y-%m-%d")
     )
-  st1_ae <- read_delim(
-    file.path(st1_path, "AE.txt"),
-    show_col_types = FALSE
-  ) |>
-    rename_with(tolower) |>
-    select(
-      -ends_with("_coded"),
-      -subjectid, -site, -subjectstatus, -visit, -form, -formentrydate, -subjectvisitformid
+  suppressWarnings(
+    st1_ae <- read_delim(
+      file.path(st1_path, "AE.txt"),
+      show_col_types = FALSE
     ) |>
-    filter(!is.na(vargroup1row)) |>
-    mutate(
-      record_id = as.character(medrioid),
-      aestdat = as_date(aestdat, format = "%d-%b-%Y"),
-      aeenddat = as_date(aeenddat, format = "%d-%b-%Y"),
-      aeongo = aeongo == "Yes",
-      aemeadv = aemeadv == "Yes",
-      aecm = aecm == "Yes"
-    ) |>
-    select(-ends_with("_p"), -aeyn, -medrioid) |>
-    rename(
-      ae_num = vargroup1row,
-      aeterm = aetermtxt,
-      aemedadv = aemeadv,
-      aecmyn = aecm
-    )
+      rename_with(tolower) |>
+      select(
+        -ends_with("_coded"),
+        -subjectid, -site, -subjectstatus, -visit, -form, -formentrydate, -subjectvisitformid
+      ) |>
+      filter(!is.na(vargroup1row)) |>
+      mutate(
+        record_id = as.character(medrioid),
+        aestdat = as_date(aestdat, format = "%d-%b-%Y"),
+        aeenddat = as_date(aeenddat, format = "%d-%b-%Y"),
+        aeongo = aeongo == "Yes",
+        aemeadv = aemeadv == "Yes",
+        aecm = aecm == "Yes"
+      ) |>
+      select(-ends_with("_p"), -aeyn, -medrioid) |>
+      rename(
+        ae_num = vargroup1row,
+        aeterm = aetermtxt,
+        aemedadv = aemeadv,
+        aecmyn = aecm
+      )
+  )
   ae <- bind_rows(st2_ae, st1_ae)
   var_label(ae) <- var_label(st2_ae)
   var_label(ae)$ae_num <- "Adverse event number"
@@ -838,6 +887,7 @@ combine_adverse_events <- function() {
   ae
 }
 
+writeLines("Processing forms...", stdout())
 dat_rand <- combine_randomisation()
 dat_st <- combine_study_termination()
 dat_demo <- combine_demographics()
@@ -864,3 +914,4 @@ optimum_data <- list(
   "food_and_household_questionnaire" = dat_food
 )
 qsave(enframe(optimum_data, name = "form", value = "data"), file.path("data", "optimum-data.qs"))
+writeLines("Successfully combined databases.", stdout())
