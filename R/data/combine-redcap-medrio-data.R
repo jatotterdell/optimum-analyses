@@ -419,36 +419,147 @@ combine_participant_assessment <- function() {
   pa
 }
 
-combine_food_household <- function(st2_data, st1_path) {
+combine_food_household <- function() {
+  # The most relevant field here is probably:
+  #   - fefadiag, new diagnosis of food allergy
+  #   - feecz, new diagnosis of eczema
+  # and the associated fields (type, date)
+  # Other fields relate to feeding: breastfeeding, formuala feeding, introduction of solids
+  # Currently, just focus on food allergy and eczema fields
   st2_food <- st2_data |>
-    extract_tibble("food_and_household_questionnaire")
+    extract_tibble("food_and_household_questionnaire") |>
+    mutate(fedat = as_date(fedat)) |>
+    mutate(
+      fe_phone = grepl("ques", redcap_event),
+      visit_age = case_when(
+        redcap_event == "visit_1" ~ "6-week",
+        redcap_event == "6_month_food_quest" ~ "6-month",
+        redcap_event == "9_month_food_quest" ~ "9-month",
+        redcap_event == "visit_2" ~ "12-month",
+        redcap_event == "15_month_food_ques" ~ "15-month",
+        redcap_event == "visit_3" ~ "18-month",
+        .default = NA_character_
+      )
+    )
   st2_food_v1 <- st2_food |>
     filter(redcap_event == "visit_1") |>
     select(-redcap_event, -redcap_data_access_group) |>
     mutate(fedat = as_date(fedat)) |>
     select(record_id, fecurr, febfever, febfform, fethickyn, fesolyn, fefadiag, fesupp, ferash, fecat, fedog, fedcyn)
+  st2_ecz <- st2_food |>
+    select(
+      record_id, redcap_event, redcap_survey_timestamp, visit_age, fe_phone, fedat,
+      fefadiag, fefadiagspec, fefadiadat,
+      feecz, feeczdat
+    ) |>
+    select(-redcap_event)
+
+  # For Medrio, the food questionnaires are split between specific visits
+  # The variable names differ, but for the most part the same information
+  # is being collected
+  # Further, the "fedat" would come from the "visit date" or "phone contact date"
+  # as stored in "V1, V2-5, V6-8, PHONE".
   st1_food_v1 <- read_delim(
     file.path(st1_path, "FOOD V1.txt"),
     show_col_types = FALSE
   ) |>
     rename_with(tolower) |>
     select(-ends_with("_coded"))
-  st1_food_v1_1 <- st1_food_v1 |>
+  st1_food_v2 <- read_delim(
+    file.path(st1_path, "FOOD V2-5.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded"))
+  st1_food_v3 <- read_delim(
+    file.path(st1_path, "FOOD V6-8.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded"))
+
+  # For the date fields
+  st1_phone <- read_delim(
+    file.path(st1_path, "PHONE.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded")) |>
+    select(medrioid, visit, condat) |>
+    mutate(condat = as_date(condat, format = "%d-%b-%Y")) |>
+    rename(fedat = condat)
+  st1_visits_v1 <- read_delim(
+    file.path(st1_path, "DEMO.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded")) |>
+    select(medrioid, visit, visdat1) |>
+    mutate(visdat1 = as_date(visdat1, format = "%d-%b-%Y")) |>
+    rename(fedat = visdat1)
+  st1_visits_v2 <- read_delim(
+    file.path(st1_path, "V2-5.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded")) |>
+    select(medrioid, visit, visdat, windyn, windreas, windothspec) |>
+    mutate(visdat = as_date(visdat, format = "%d-%b-%Y")) |>
+    rename(fedat = visdat)
+  st1_visits <- bind_rows(st1_visits_v1, st1_visits_v2) |>
+    bind_rows(st1_phone)
+
+  st1_ecz_v1 <- st1_food_v1 |>
     filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
-    select(medrioid, fecurr, febfever, febfform, fethickyn, fesolyn, fefadiag, fesupp, ferash, fecat, fedog, fedcyn) |>
-    mutate(
-      record_id = as.character(medrioid),
-      febfever = febfever == "Yes",
-      febfform = febfform == "Yes",
-      fethickyn = fethickyn == "Yes",
-      fesupp = fesupp == "Yes",
-      ferash = ferash == "Yes",
-      fedcyn = fedcyn == "Yes"
+    select(medrioid, visit, fefadiag, feecx) |>
+    left_join(st1_visits, join_by(medrioid, visit)) |>
+    rename(feecz = feecx)
+  st1_ecz_v2 <- st1_food_v2 |>
+    filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
+    select(medrioid, visit, fe2fadiag, fe2fadiagspec, fe2fadiagstag, fe2ecx, fe2eczag, fe2exstun) |>
+    rename(
+      fefadiag = fe2fadiag,
+      fefadiagspec = fe2fadiagspec,
+      fefadiagstag = fe2fadiagstag,
+      feecz = fe2ecx,
+      feeczag = fe2eczag,
+      feeczstun = fe2exstun
     ) |>
-    select(-medrioid)
-  food_v1 <- bind_rows(st2_food_v1, st1_food_v1_1)
-  var_label(food_v1) <- var_label(st2_food_v1)
-  food_v1
+    left_join(st1_visits, join_by(medrioid, visit))
+  st1_ecz_v3 <- st1_food_v3 |>
+    filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
+    select(medrioid, visit, fe6fadiag, fe6fadiagspec, fe6fadiagstag, fe6ecx, fe6eczag) |>
+    rename(
+      fefadiag = fe6fadiag,
+      fefadiagspec = fe6fadiagspec,
+      fefadiagstag = fe6fadiagstag,
+      feecz = fe6ecx,
+      feeczag = fe6eczag
+    ) |>
+    left_join(st1_visits, join_by(medrioid, visit))
+  st1_ecz <- bind_rows(st1_ecz_v1, st1_ecz_v2, st1_ecz_v3) |>
+    arrange(medrioid) |>
+    mutate(
+      fe_phone = grepl("phone", visit),
+      visit_age = case_when(
+        visit == "Visit 1" ~ "6-week",
+        visit == "Visit 2" ~ "4-month",
+        visit == "Visit 3" ~ "6-month",
+        visit == "Visit 4" ~ "6-month + 72 hrs",
+        visit == "Visit 5" ~ "7-month",
+        visit == "9 month phone contact" ~ "9-month",
+        visit == "Visit 6" ~ "12-month",
+        visit == "15 month phone contact" ~ "15-month",
+        visit == "Visit 7" ~ "18-month",
+        visit == "Visit 8" ~ "19-month",
+        .default = NA_character_
+      )
+    ) |>
+    select(-visit)
+
+  ecz <- bind_rows(st2_ecz, st1_ecz)
+  var_label(ecz) <- var_label(st2_ecz)
+  ecz
 }
 
 combine_outcome_report <- function() {
@@ -730,6 +841,8 @@ dat_vax_v1 <- combine_vax_admin_v1()
 dat_spt <- combine_skin_prick_test()
 dat_fc <- combine_food_challenge()
 dat_ae <- combine_adverse_events()
+dat_out <- combine_outcome_report()
+dat_food <- combine_food_household()
 
 optimum_data <- list(
   "randomisation" = dat_rand,
@@ -740,6 +853,8 @@ optimum_data <- list(
   "skin_prick_test" = dat_spt,
   "food_challenge" = dat_fc,
   "adverse_events" = dat_ae,
-  "study_termination" = dat_st
+  "study_termination" = dat_st,
+  "outcome_report" = dat_out,
+  "food_and_household_questionnaire" = dat_food
 )
 qsave(enframe(optimum_data, name = "form", value = "data"), file.path("data", "optimum-data.qs"))
