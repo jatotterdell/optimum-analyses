@@ -52,7 +52,6 @@ read_randomisation_lists <- function() {
   bind_rows(st1_rand, st2_rand)
 }
 
-
 select_form <- function(dat, frm) {
   filter(dat, form == frm) |>
     pull(data) |>
