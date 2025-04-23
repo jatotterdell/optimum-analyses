@@ -479,6 +479,7 @@ combine_food_household <- function() {
     select(-ends_with("_coded"))
 
   # For the date fields
+  # Phone contact dates
   st1_phone <- read_delim(
     file.path(st1_path, "PHONE.txt"),
     show_col_types = FALSE
@@ -488,6 +489,7 @@ combine_food_household <- function() {
     select(medrioid, visit, condat) |>
     mutate(condat = as_date(condat, format = "%d-%b-%Y")) |>
     rename(fedat = condat)
+  # Visit dates
   st1_visits_v1 <- read_delim(
     file.path(st1_path, "DEMO.txt"),
     show_col_types = FALSE
@@ -509,11 +511,13 @@ combine_food_household <- function() {
   st1_visits <- bind_rows(st1_visits_v1, st1_visits_v2) |>
     bind_rows(st1_phone)
 
+  # Eczema diagnoses at visit 1
   st1_ecz_v1 <- st1_food_v1 |>
     filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
     select(medrioid, visit, fefadiag, feecx) |>
     left_join(st1_visits, join_by(medrioid, visit)) |>
     rename(feecz = feecx)
+  # Eczema diagnoses at visits 2 - 5
   st1_ecz_v2 <- st1_food_v2 |>
     filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
     select(medrioid, visit, fe2fadiag, fe2fadiagspec, fe2fadiagstag, fe2ecx, fe2eczag, fe2exstun) |>
@@ -526,6 +530,7 @@ combine_food_household <- function() {
       feeczstun = fe2exstun
     ) |>
     left_join(st1_visits, join_by(medrioid, visit))
+  # Eczema diagnoses at phone contact and visits 6 - 8
   st1_ecz_v3 <- st1_food_v3 |>
     filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
     select(medrioid, visit, fe6fadiag, fe6fadiagspec, fe6fadiagstag, fe6ecx, fe6eczag) |>
@@ -540,6 +545,7 @@ combine_food_household <- function() {
   st1_ecz <- bind_rows(st1_ecz_v1, st1_ecz_v2, st1_ecz_v3) |>
     arrange(medrioid) |>
     mutate(
+      record_id = as.character(medrioid),
       fe_phone = grepl("phone", visit),
       visit_age = case_when(
         visit == "Visit 1" ~ "6-week",
@@ -555,7 +561,7 @@ combine_food_household <- function() {
         .default = NA_character_
       )
     ) |>
-    select(-visit)
+    select(-visit, -medrioid)
 
   ecz <- bind_rows(st2_ecz, st1_ecz)
   var_label(ecz) <- var_label(st2_ecz)
