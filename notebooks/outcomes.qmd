@@ -1,0 +1,328 @@
+---
+title: Trial Outcomes
+description: Document derivation, summaries, and analyses related to clinical outcomes for OPTIMUM.
+---
+
+## Setup 
+
+```{r}
+#| label: packages-and-setup
+suppressPackageStartupMessages({
+  # Data
+  library(qs)
+  library(dplyr)
+  library(lubridate)
+
+  # Figures
+  library(ggplot2)
+
+  # Tables
+  library(reactable)
+  library(reactablefmtr)
+  library(gt)
+  library(gtsummary)
+})
+
+readRenviron(".env")
+source("R/util.R")
+
+theme_set(theme_bw(base_size = 10) +
+  theme(panel.grid.minor = element_blank()))
+
+options(reactable.theme = journal(
+  font_size = 10,
+  header_font_size = 11,
+  cell_padding = 4
+))
+```
+
+```{r}
+#| label: data
+dat_rand_list <- read_randomisation_lists()
+dat_all <- qread(file.path("data", "optimum-data.qs"))
+
+# Randomisation
+dat_ran <- select_form(dat_all, "randomisation") |>
+  mutate(randdat = date(randdattim)) |>
+  left_join(dat_rand_list, join_by(rand))
+
+# Add study termination info to baseline data
+dat_st <- select_form(dat_all, "study_termination")
+dat_dem <- select_form(dat_all, "demographics") |>
+  select(record_id, visdat1, birthdat, gender) |>
+  left_join(dat_st, join_by(record_id)) |>
+  mutate(discage = interval(birthdat, discdat) %/% months(1)) |>
+  relocate(discage, .after = discdat)
+
+dat_mh <- select_form(dat_all, "medical_history")
+
+# Main baseline information
+dat_base <- dat_ran |>
+  left_join(dat_dem, join_by(record_id))
+
+# Outcomes
+dat_out <- select_form(dat_all, "outcome_report")
+dat_fhq <- select_form(dat_all, "food_and_household_questionnaire")
+dat_spt <- select_form(dat_all, "skin_prick_test")
+dat_fch <- select_form(dat_all, "food_challenge")
+```
+
+## Skin Prick Test
+
+We start with the skin prick tests (SPTs), as the other outcomes rely on positive SPTs in addition to further conditions. The protocol specifies two outcomes with respect to SPTs:
+
+1. an SPT more than (>) 1mm greater than negative control to at least one allergen by approximately 12 months old
+2. an SPT at least (>=) 3mm greater than negative control to at least one allergen by approximately 12 months old
+
+For the food allergy and eczema outcomes, sensitisation to food allergens or a positive SPT for a specific food was defined as a SPT wheal size > 1 mm than that produced by a negative control solution.
+
+The protocol defined a panel of allergens to be tested: cow's milk, hen egg, peanut, cashew, house dust mite, cat fur, rye grass. In addition to these, further allergens could also be tested at parental request or at discretion of the site PI. When the outcomes say "at least one allergen" we mean any allergen, including any tested beyond the panel defined in the protocol.
+
+There are two types of skin prick tests: those conducted as part of a scheduled visit as soon as possible after 12-months of age and no later than 18-months of age, and unscheduled skin prick tests which may be performed at any time. 
+
+Some participants had no SPT records and only a few had an unscheduled SPT. Those with no records may be due to early study withdrawal.
+
+```{r}
+dat_base_spt <- dat_base |>
+  left_join(dat_spt, join_by(record_id)) |>
+  mutate(spt_record = any(!is.na(spt_occasion)), .by = record_id)
+
+dat_base_spt |>
+  count(record_id, spt_record, spt_occasion, name = "records") |>
+  count(spt_record, spt_occasion, records, name = "count")
+```
+
+```{r}
+dat_base_spt |>
+  filter(!spt_record) |>
+  select(record_id, birthdat, discdat, discage, streas) |>
+  arrange(streas) |>
+  reactable(defaultPageSize = 50)
+```
+
+If a participant has no (scheduled) SPT record, then should treat their SPT outcomes as missing.
+
+In REDCap, there is a field `prireact[1-9]` which indicates if a reaction occurred. However, this only indicates that the wheal diameter was greater than zero, not that at was >1mm more than negative control. Therefore, positive SPTs need to be determined. For example,
+
+```{r}
+dat_spt |>
+  select(record_id, prinegres, priposres, prireact1, prires1) |>
+  filter(prireact1 == "Yes") |>
+  mutate(pripos1 = prires1 > prinegres + 1) |>
+  head(10) |>
+  reactable(
+    columns = list(
+      pripos1 = colDef(style = function(value) {
+        if (value == 1) {
+          color <- "#008000"
+        } else if (value == 0) {
+          color <- "#e00000"
+        }
+        list(color = color, fontWeight = "bold")
+      })
+    )
+  )
+```
+
+Apply this to all tested allergens and check for any with sensitisation.
+For the second outcome we also require any where the reaction is >=3mm.
+
+```{r}
+dat_spt <- dat_spt |>
+  mutate(
+    across(
+      starts_with("prires"),
+      ~ . > prinegres + 1,
+      .names = "{gsub('prires', 'prisens_1mm_', {.col})}"
+    ),
+    n_prisens_1mm = rowSums(pick(starts_with("prisens_1mm_")), na.rm = TRUE),
+    any_prisens_1mm = n_prisens_1mm > 0,
+    across(
+      starts_with("prires"),
+      ~ . >= prinegres + 3,
+      .names = "{gsub('prires', 'prisens_3mm_', {.col})}"
+    ),
+    n_prisens_3mm = rowSums(pick(starts_with("prisens_3mm_")), na.rm = TRUE),
+    any_prisens_3mm = n_prisens_3mm > 0,
+  )
+
+dat_spt_sens <- dat_spt |>
+  filter(any_prisens_1mm) |>
+  select(record_id, pridat, spt_occasion, any_prisens_1mm, n_prisens_1mm, any_prisens_3mm, n_prisens_3mm)
+
+# Ages range from 6 to 19 months, so all are "approximately by 12 to 18 months"
+dat_base_spt_sens <- dat_base |>
+  left_join(
+    dat_base_spt |>
+      select(record_id, spt_record) |>
+      distinct(),
+    join_by(record_id)
+  ) |>
+  left_join(dat_spt_sens, join_by(record_id)) |>
+  mutate(
+    spt_age = interval(birthdat, pridat) %/% months(1),
+    any_prisens_1mm = case_when(
+      !spt_record ~ NA,
+      is.na(any_prisens_1mm) ~ FALSE,
+      .default = any_prisens_1mm
+    ),
+    any_prisens_3mm = case_when(
+      !spt_record ~ NA,
+      is.na(any_prisens_3mm) ~ FALSE,
+      .default = any_prisens_3mm
+    ),
+  )
+
+dat_base_spt_sens_id <- dat_base_spt_sens |>
+  summarise(
+    any_prisens_1mm = any(any_prisens_1mm),
+    any_prisens_3mm = any(any_prisens_3mm),
+    .by = c(record_id, trt)
+  )
+```
+
+There was no difference between groups with respect to SPT sensitisation.
+
+```{r}
+#| label: tbl-spt-outcomes
+#| tbl-cap: Skin prick test sensitisation outcomes by assigned treatment.
+tbl_summary(
+  dat_base_spt_sens_id,
+  by = trt,
+  include = c(any_prisens_1mm, any_prisens_3mm),
+  label = c(
+    any_prisens_1mm ~ "SPT >1mm vs neg. control",
+    any_prisens_3mm ~ "SPT ≥3mm vs neg. control"
+  ),
+  missing_text = "Missing"
+) |>
+  modify_header(label = "**Outcome**") |>
+  as_gt() |>
+  tab_options(table.font.size = "10px")
+```
+
+## Food allergy
+
+```{r}
+fa_recs <- dat_out |>
+  filter(!is.na(outalltp), outalltp != "Eczema")
+
+fa_ids <- dat_out |>
+  filter(outallyn, outalltp != "Eczema") |>
+  pull(record_id) |>
+  unique()
+```
+
+## Eczema
+
+The following clinical outcomes for eczema were defined in the protocol:
+
+1. The number and proportion of participants in each group with a history of parent-reported clinician-diagnosed new onset eczema by **6 months** *and* a positive skin prick test to *any* allergen by approximately 12 months old.
+2. The number and proportion of participants in each group with a history of parent-reported clinician-diagnosed new onset eczema by **12 months** *and* a positive skin prick test to *any* allergen by approximately 12 months old.
+
+There are two sources of information for new eczema diagnoses: the food and household questionnaire and the outcome report. Sometimes the two are consistent, but in some cases they are not. We let the outcome report take precedence. However, in some cases there is no eczema diagnosis on the outcome report, but there may be eczema diagnoses reported in the survey responses. It's possible that outcome reports for these cases were not completed.
+
+```{r}
+#| label: check-dates-outcome-report-food-questionnaire
+ecz_fhq <- dat_fhq |>
+  filter(feecz == "Yes") |>
+  arrange(record_id, fedat) |>
+  select(record_id, visit_age, fedat, feecz, feeczdat, feeczag, feeczstun)
+ecz_out <- dat_out |>
+  filter(outalltp == "Eczema") |>
+  arrange(record_id, outdiagdat) |>
+  select(record_id, outalltp, outsev, outrepdat, outawardat, outdiagdat, outeczsrce, outeczsrcoth)
+ecz_all <- full_join(ecz_out, ecz_fhq, join_by(record_id), relationship = "many-to-many")
+```
+
+The protocol definitions specify "new onset" eczema, which means we do not wish to count infants who already have an eczema diagnosis at enrolment. I identify six infants with a past or current diagnosis of eczema at baseline per their medical history. 
+
+```{r}
+dat_mh |>
+  filter(
+    if_any(starts_with("mhcodelab"), ~ . == "Eczema") |
+      if_any(starts_with("mhdiag"), ~ tolower(.) == "eczema")
+  ) |>
+  select(record_id, ends_with(c("1", "2", "3"))) |>
+  select(-c(matches("mhcode[1-9]"), starts_with("mhstdat"), starts_with("mhenddat"), starts_with("mhstat"))) |>
+  gt() |>
+  tab_options(table.font.size = "8pt")
+```
+
+Existing eczema may also be reported on the food and household questionnaire at 6-weeks which identifies nine infants, although there is some overlap with the medical history infants.
+
+```{r}
+ecz_fhq |>
+  filter(visit_age == "6-week") |>
+  gt() |>
+  tab_options(table.font.size = "8pt")
+```
+
+Overall, there were 11 infants identified as having existing past or current eczema at 6-weeks.
+
+```{r}
+ids_existing_eczema_1 <- dat_mh |>
+  filter(
+    if_any(starts_with("mhcodelab"), ~ . == "Eczema") |
+      if_any(starts_with("mhdiag"), ~ tolower(.) == "eczema")
+  ) |>
+  pull(record_id)
+
+ids_existing_eczema_2 <- ecz_fhq |>
+  filter(visit_age == "6-week") |>
+  pull(record_id)
+
+ids_existing_eczema <- union(ids_existing_eczema_1, ids_existing_eczema_2)
+```
+
+For the participants with a prior diagnosis of eczema, only one has an eczema outcome reported (4629-215).
+Given the protocol definition, this eczema diagnosis may not count as "new-onset" eczema given it was reported at 6-weeks, however, need to confirm that is the correct interpretation.
+
+```{r}
+filter(ecz_all, record_id %in% ids_existing_eczema) |>
+  left_join(dat_dem, join_by(record_id))
+```
+
+There are a number of infants with an eczema diagnosis reported on the food and household questionnaire, but where no outcome for eczema has been reported. It would be useful to understand why that is the case.
+
+```{r}
+#| label: check-missing-eczema-outcomes
+ecz_all |>
+  filter(is.na(outalltp)) |>
+  filter(visit_age != "6-week")
+```
+
+Most likely, we just treat the outcome report form as the source of truth.
+It's assumed that if eczema is reported on the outcome form, than it is "parent-reported" and "clinician-diagnosed".
+
+There were `r nrow(ecz_out)` eczema records reported. There is one infant with two eczema outcomes reported with different diagnosis dates: one with the parent as source and one with GP as source. I suspect that either `outdiagdat` or `outrepdat` is incorrect for for the second record given that the report date is earlier than the diagnosis date. Perhaps `outrepdat` should be `2024-05-04`, but it's possible the diagnosis date is wrong. The dates matter for the two definitions which require diagnosis by 6 or 12 months of age.
+
+```{r}
+ecz_out |>
+  filter(n() > 1, .by = record_id)
+```
+
+
+In stage 1, no `feeczdat` field (date of eczema diagnosis) was recorded on the food and household questionnaire. Intuitively, we would expect `outawardat` to align with `fedat` (the visit/survey date) and `outdiagdat` to align with `feeczdat`. This appears to generally be the case with occasional exceptions. Some of the exceptions may be coding errors (e.g. wrong year or month entered), but in some cases they appear to be wildly different.
+
+```{r}
+#| label: check-dates-outcome-report-food-questionnaire-diag
+ecz_all |>
+  filter(feeczdat != outdiagdat) |>
+  mutate(
+    diagdat_dif_days = interval(outdiagdat, feeczdat) %/% days(1),
+    diagdat_dif_months = interval(outdiagdat, feeczdat) %/% months(1)
+  ) |>
+  print(n = Inf)
+```
+
+```{r}
+#| label: check-dates-outcome-report-food-questionnaire-report
+ecz_all |>
+  filter(fedat != outawardat) |>
+  mutate(
+    dat_dif_days = interval(outawardat, fedat) %/% days(1),
+    dat_dif_months = interval(outawardat, fedat) %/% months(1)
+  ) |>
+  print(n = Inf)
+```

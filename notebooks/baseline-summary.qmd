@@ -1,0 +1,129 @@
+---
+title: Baseline Characteristics
+description: Summary of enrolment, baseline characteristics, and participant disposition.
+---
+
+```{r}
+#| label: packages-and-setup
+suppressPackageStartupMessages({
+  # Data
+  library(qs)
+  library(dplyr)
+  library(forcats)
+  library(lubridate)
+
+  # Figures
+  library(ggplot2)
+
+  # Tables
+  library(reactable)
+  library(reactablefmtr)
+  library(gt)
+  library(gtsummary)
+})
+
+readRenviron(".env")
+source("R/util.R")
+
+theme_set(theme_bw(base_size = 10) +
+  theme(panel.grid.minor = element_blank()))
+
+options(reactable.theme = journal(
+  font_size = 10,
+  header_font_size = 11,
+  cell_padding = 4
+))
+```
+
+```{r}
+#| label: data
+dat_rand_list <- read_randomisation_lists()
+dat_all <- qread(file.path("data", "optimum-data.qs"))
+
+dat_base <- left_join(
+  select_form(dat_all, "randomisation"),
+  dat_rand_list,
+  join_by(rand)
+) |>
+  left_join(
+    select_form(dat_all, "demographics"),
+    join_by(record_id)
+  ) |>
+  left_join(
+    select_form(dat_all, "birth_history"),
+    join_by(record_id)
+  )
+
+dat_enrol <- dat_base |>
+  select(record_id, randdattim) |>
+  mutate(randdate = as_date(randdattim)) |>
+  arrange(randdate) |>
+  summarise(n = n(), .by = randdate) |>
+  mutate(cn = cumsum(n))
+```
+
+## Enrolment
+
+```{r}
+#| label: fig-enrolment-overall
+#| fig-cap: Cumulative enrolment into OPTIMUM trial.
+#| fig-height: 3
+#| fig-width: 6
+ggplot(
+  dat_enrol, aes(randdate, cn)
+) +
+  geom_step() +
+  scale_x_date("Calendar time", breaks = "3 months", date_labels = "%d %b %y") +
+  scale_y_continuous("Number enrolled", breaks = seq(0, 1000, 100)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Baseline Characteristics
+
+```{r}
+#| label: tbl-baseline-characteristics
+#| tbl-cap: Baseline characteristics of trial participants.
+tt <- dat_base |>
+  tbl_summary(
+    include = c(gender, parinc, delt, wgt, len, inhc),
+    by = trt,
+    missing_text = "(Missing)"
+  ) |>
+  add_n() |>
+  add_overall(last = TRUE) |>
+  as_gt() |>
+  tab_options(table.font.size = "10px")
+tt
+```
+
+## Disposition
+
+```{r}
+#| label: tbl-discharge-outcome
+#| tbl-cap: Number of early study withdrawals and associated reasons.
+#| results: asis
+dat_base_st <- dat_base |>
+  left_join(
+    select_form(dat_all, "study_termination"),
+    join_by(record_id)
+  )
+
+tt <- dat_base_st |>
+  count(streas, stetrreas) |>
+  mutate(across(c(streas, stetrreas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+  reactable(showPageSizeOptions = TRUE)
+tt
+```
+
+```{r}
+#| label: tbl-discharge-timing
+#| tbl-cap: Timing of loss-to-follow-up for study withdrawals.
+#| results: asis
+tt <- dat_base_st |>
+  filter(streas == "Early Termination") |>
+  select(record_id, birthdat, visdat1, discdat, stetrreas, wcipnw, wcipnwreas) |>
+  mutate(discage = interval(birthdat, discdat) %/% months(1)) |>
+  relocate(discage, .after = discdat) |>
+  reactable(showPageSizeOptions = TRUE)
+tt
+```
