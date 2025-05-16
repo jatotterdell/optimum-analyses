@@ -4,13 +4,13 @@ Repository for the final analyses of the OPTIMUM trial data.
 
 ## Data Processing
 
-The raw Medrio data was manually exported using the web portal and is stored on the RDS in `\\shared.sydney.edu.au\research-data\PRJ-OPTIMUM\data\raw\stage1`.
+The stage 1 data for OPTIMUM (first 150 participants) was stored in a Medrio database. The raw Medrio data was manually exported using the web portal and stored on the RDS in `\\shared.sydney.edu.au\research-data\PRJ-OPTIMUM\data\raw\stage1`.
 
-The raw REDCap data is exported using the API via `R/data/redcap-data-raw.R` and stored in `\\shared.sydney.edu.au\research-data\PRJ-OPTIMUM\data\raw\stage2`.
+The stage 2 data was stored in a REDCap database. The raw REDCap data is exported using the API via `R/data/redcap-data-raw.R` and stored in `\\shared.sydney.edu.au\research-data\PRJ-OPTIMUM\data\raw\stage2`.
 
-The two datasets are combined into tibbles for each form via `R/data/combine-redcap-medrio-data.R`.
+The two databases have some differences between them in the available forms and fields. The forms from the two databases are combined into tibbles, one for each form, via `R/data/combine-redcap-medrio-data.R`.
 
-Forms to be mapped between MedDRIO and REDCap (and their current status) are:
+Forms to be mapped between Medrio and REDCap (and their current status) are:
 
 - [x] randomisation
 - [x] demographics
@@ -42,9 +42,7 @@ Forms to be mapped between MedDRIO and REDCap (and their current status) are:
 
 ## Reporting
 
-Immunogenicity and reactogenecity (IgE, IgG, and diary card solicited adverse reactions responses) have previously been reported elsewhere.
-The focus here is on summarising the characteristics of all sampled participants and analyses of the remaining outcomes to be reported.
-The relevant elements are (see [https://doi.org/10.1136/bmjopen-2020-042838](https://doi.org/10.1136/bmjopen-2020-042838)):
+Immunogenicity and reactogenecity (IgE, IgG, and diary card solicited adverse reactions responses) have previously been reported elsewhere. The focus here is on summarising the characteristics of all sampled participants and analyses of the remaining outcomes to be reported. The relevant elements are (see [https://doi.org/10.1136/bmjopen-2020-042838](https://doi.org/10.1136/bmjopen-2020-042838)):
 
 - [ ] sample characteristics
   - [ ] at baseline
@@ -52,6 +50,6 @@ The relevant elements are (see [https://doi.org/10.1136/bmjopen-2020-042838](htt
 - [ ] primary outcome of IgE mediated food allergy by 18 months of age
 - secondary outcomes:
   - [ ] new onset eczema by 6 or 12 months of age with positive skin prick test
-  - [ ] sensitisation to at least one allergen by 12 months of age
+  - [ ] sensitisation to at least one allergen by 12 and up to 18 months of age
     - [ ] 1mm greater than negative control
-    - [ ] 3mm greater than negative control
+    - [ ] 3mm greater than or equal to negative control

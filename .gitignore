@@ -1,2 +1,6 @@
 # Environment
 .env
+
+/.quarto/
+_outputs
+/data/
