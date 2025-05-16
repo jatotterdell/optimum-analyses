@@ -42,6 +42,19 @@ get_sae_medra_terms <- function() {
     rename(redcap_form_instance = redcap_repeat_instance)
 }
 
+get_mh_medra_terms <- function() {
+  redcap_read(
+    redcap_uri = Sys.getenv("REDCAP_URI"),
+    token = Sys.getenv("REDCAP_KEY"),
+    forms = "medical_history",
+    events = "visit_1_arm_1",
+    raw_or_label = "label",
+    verbose = FALSE
+  )$data |>
+    select(record_id, starts_with("mhcode")) |>
+    rename_with(~ gsub("mhcode", "mhcodelab", .x), starts_with("mhcode"))
+}
+
 get_redcap_data <- function(append = "") {
   data_path <- file.path(Sys.getenv("RDS_PATH"), "data", "raw", "stage2")
 
@@ -111,20 +124,41 @@ get_redcap_data <- function(append = "") {
         redcap_data
       )
     )
-
+  # Add MeDRA codes for SAE
   dat_sae_codes <- get_sae_medra_terms()
   dat_sae <- dat_labelled |>
     extract_tibble("sae_reporting_log") |>
     select(-starts_with("saemeddra")) |>
     left_join(dat_sae_codes, join_by(record_id, redcap_form_instance)) |>
     relocate(starts_with("saemeddra"), .after = saeaeterm)
-
   dat_labelled <- dat_labelled |>
     mutate(
       redcap_data = case_when(
         redcap_form_name == "adverse_events" ~ list(dat_ae),
         redcap_form_name == "sae_reporting_log" ~ list(dat_sae),
         .default = redcap_data
+      )
+    )
+
+  # Add MeDRA codes for medical history terms
+  dat_mh_codes <- get_mh_medra_terms()
+  dat_mh <- dat_labelled |>
+    extract_tibble("medical_history") |>
+    left_join(dat_mh_codes, join_by(record_id)) |>
+    relocate(mhcodelab1, .after = mhcode1) |>
+    relocate(mhcodelab2, .after = mhcode2) |>
+    relocate(mhcodelab3, .after = mhcode3) |>
+    relocate(mhcodelab4, .after = mhcode4) |>
+    relocate(mhcodelab5, .after = mhcode5) |>
+    relocate(mhcodelab6, .after = mhcode6) |>
+    relocate(mhcodelab7, .after = mhcode7) |>
+    relocate(mhcodelab8, .after = mhcode8)
+  dat_labelled <- dat_labelled |>
+    mutate(
+      redcap_data = if_else(
+        redcap_form_name == "medical_history",
+        list(dat_mh),
+        redcap_data
       )
     )
 
