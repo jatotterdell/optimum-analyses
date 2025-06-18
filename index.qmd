@@ -24,10 +24,10 @@ Why does this not work?
 
 # Outcomes
 
-### Skin prick tests (secondary)
+## Skin prick tests (secondary)
 
 {{< embed notebooks/outcomes.qmd#tbl-spt-outcomes >}}
 
-### Eczema (secondary)
+## Eczema (secondary)
 
-### Food allergy (primary)
+## Food allergy (primary)
