@@ -3,6 +3,8 @@ title: Baseline Characteristics
 description: Summary of enrolment, baseline characteristics, and participant disposition.
 ---
 
+## Setup 
+
 ```{r}
 #| label: packages-and-setup
 suppressPackageStartupMessages({
@@ -83,7 +85,7 @@ ggplot(
 ```{r}
 #| label: tbl-baseline-characteristics
 #| tbl-cap: Baseline characteristics of trial participants.
-tt <- dat_base |>
+dat_base |>
   tbl_summary(
     include = c(gender, parinc, delt, wgt, len, inhc),
     by = trt,
@@ -93,7 +95,6 @@ tt <- dat_base |>
   add_overall(last = TRUE) |>
   as_gt() |>
   tab_options(table.font.size = "10px")
-tt
 ```
 
 ## Disposition
@@ -101,24 +102,31 @@ tt
 ```{r}
 #| label: tbl-discharge-outcome
 #| tbl-cap: Number of early study withdrawals and associated reasons.
-#| results: asis
 dat_base_st <- dat_base |>
   left_join(
     select_form(dat_all, "study_termination"),
     join_by(record_id)
   )
 
-tt <- dat_base_st |>
+dat_base_st |>
   count(streas, stetrreas) |>
-  mutate(across(c(streas, stetrreas), ~ fct_na_value_to_level(., level = "Missing"))) |>
-  reactable(showPageSizeOptions = TRUE)
-tt
+  mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+  gt() |>
+  cols_label(
+    streas ~ "Participant status",
+    stetrreas ~ "Reason"
+  ) |>
+  cols_align(
+    align = "left",
+    columns = c(streas, stetrreas)
+  ) |>
+  tab_options(table.font.size = "10px") |>
+  sub_missing()
 ```
 
 ```{r}
 #| label: tbl-discharge-timing
 #| tbl-cap: Timing of loss-to-follow-up for study withdrawals.
-#| results: asis
 tt <- dat_base_st |>
   filter(streas == "Early Termination") |>
   select(record_id, birthdat, visdat1, discdat, stetrreas, wcipnw, wcipnwreas) |>

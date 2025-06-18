@@ -1,0 +1,33 @@
+---
+title: OPTIMUM Trial Report
+author:
+  - name: James Totterdell
+    email: james.totterdell@sydney.edu.au
+date: last-modified
+number-sections: true
+---
+
+# Introduction
+
+This is the trial report for OPTIMUM reporting on clinical outcomes.
+
+# Baseline
+
+Why does this not work?
+
+{{< embed  notebooks/baseline-summary.qmd#fig-enrolment-overall >}}
+
+{{< embed  notebooks/baseline-summary.qmd#tbl-baseline-characteristics >}}
+
+{{< embed  notebooks/baseline-summary.qmd#tbl-discharge-outcome >}}
+
+
+# Outcomes
+
+### Skin prick tests (secondary)
+
+{{< embed notebooks/outcomes.qmd#tbl-spt-outcomes >}}
+
+### Eczema (secondary)
+
+### Food allergy (primary)

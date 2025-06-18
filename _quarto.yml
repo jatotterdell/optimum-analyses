@@ -1,0 +1,23 @@
+project:
+  type: manuscript
+  output-dir: _outputs
+  execute-dir: project
+
+manuscript: 
+  article: index.qmd
+
+format:
+  html:
+    theme: journal
+    fontsize: 1em
+    html-table-processing: none
+    cap-location: margin
+    grid:
+      body-width: 800px
+      sidebar-width: 250px
+      margin-width: 200px
+
+execute: 
+  freeze: false
+  warning: false
+  message: false
