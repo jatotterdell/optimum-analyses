@@ -3,6 +3,8 @@ library(REDCapR)
 library(dplyr)
 library(qs)
 
+options(redcaptidier.allow.mdc = TRUE)
+
 readRenviron(".env")
 
 # Some test records remain in the REDCap database.
