@@ -1,6 +1,7 @@
 suppressPackageStartupMessages({
   library(REDCapTidieR)
   library(readr)
+  library(readxl)
   library(dplyr)
   library(tidyr)
   library(stringr)
@@ -887,6 +888,161 @@ combine_adverse_events <- function() {
   ae
 }
 
+combine_igg <- function() {
+  units_igg <- tribble(
+    ~antigen, ~units, ~ref,
+    "HBsAg", "mIU/mL", 10,
+    "Hib-PRP", "ng/mL", 1000,
+    "DT", "mIU/mL", 100,
+    "FHA", "mIU/mL", 5000,
+    "FIM2/3", "mIU/mL", 5000,
+    "PRN", "mIU/mL", 5000,
+    "PT", "mIU/mL", 5000,
+    "TT", "mIU/mL", 100,
+    "PnPs 1", "ng/mL", 350,
+    "PnPs 3", "ng/mL", 350,
+    "PnPs 4", "ng/mL", 350,
+    "PnPs 5", "ng/mL", 350,
+    "PnPs 6A", "ng/mL", 350,
+    "PnPs 6B", "ng/mL", 350,
+    "PnPs 7F", "ng/mL", 350,
+    "PnPs 9V", "ng/mL", 350,
+    "PnPs 11A", "ng/mL", 350,
+    "PnPs 14", "ng/mL", 350,
+    "PnPs 18C", "ng/mL", 350,
+    "PnPs 19A", "ng/mL", 350,
+    "PnPs 19F", "ng/mL", 350,
+    "PnPs 23F", "ng/mL", 350
+  )
+
+  # Stage 1 IgG concentrations
+  igg_st1_pth <- file.path(st1_path, "2022-09-12_OPTIMUM_IgG_clean.xlsx")
+  igg_st1_sht <- excel_sheets(igg_st1_pth)
+  igg_st1_raw <- lapply(igg_st1_sht, read_excel, path = igg_st1_pth)
+  names(igg_st1_raw) <- igg_st1_sht
+  names(igg_st1_raw)[1] <- "DTaP"
+  igg_st1 <- left_join(igg_st1_raw[[1]], igg_st1_raw[[2]], join_by(SampleID, `Subject ID`, Visit)) |>
+    left_join(igg_st1_raw[[3]], join_by(SampleID, `Subject ID`, Visit)) |>
+    pivot_longer(-(1:3), names_to = "antigen", values_to = "concentration") |>
+    rename(subjid = `Subject ID`, visit = Visit) |>
+    select(-SampleID) |>
+    mutate(
+      subjid = gsub("-", "", subjid),
+      antigen = gsub(" \\([0-9]*\\)", "", antigen),
+      visage = case_when(
+        visit == "V3" ~ "6-month",
+        visit == "V5" ~ "7-month",
+        visit == "V7" ~ "18-month",
+        visit == "V8" ~ "19-month"
+      )
+    ) |>
+    select(-visit) |>
+    complete(
+      subjid = paste0("01", str_pad(1:150, 3, pad = "0")),
+      visage,
+      antigen,
+      fill = list(concentration = NA)
+    )
+
+  # Stage 2 IgG concentrations
+  igg_st2_pth <- file.path(st2_path, "20250701_OPTIMUM-02.xlsx")
+  igg_st2_sht <- excel_sheets(igg_st2_pth)
+  igg_st2_units <- read_excel(igg_st2_pth, igg_st2_sht[[2]])
+  igg_st2_raw <- read_excel(igg_st2_pth, igg_st2_sht[[1]], na = c("", "N/A"))
+  igg_st2 <- igg_st2_raw |>
+    pivot_longer(-(1:3), names_to = "antigen", values_to = "concentration") |>
+    rename(subjid = `Subject ID`, visit = Visit) |>
+    select(-`ID + Visit`) |>
+    mutate(
+      subjid = gsub("-", "", subjid),
+      visage = case_when(
+        visit == "V3" ~ "18-month",
+        visit == "V4" ~ "19-month"
+      )
+    ) |>
+    select(-visit) |>
+    filter(!is.na(concentration)) |>
+    complete(subjid = paste0("02", 151:300), nesting(visage, antigen), fill = list(concentration = NA))
+
+  igg <- bind_rows(igg_st1, igg_st2) |>
+    mutate(
+      antigen = gsub("HiB", "Hib", antigen),
+      antigen = factor(antigen,
+        levels = c(
+          "HBsAg", "Hib-PRP",
+          "PnPs 1", "PnPs 3", "PnPs 4", "PnPs 5", "PnPs 6A", "PnPs 6B", "PnPs 7F", "PnPs 9V",
+          "PnPs 11A", "PnPs 14", "PnPs 18C", "PnPs 19A", "PnPs 19F", "PnPs 23F",
+          "DT", "FHA", "FIM2/3", "PRN", "PT", "TT"
+        )
+      ),
+      group = case_when(
+        antigen %in% c("HBsAg", "Hib-PRP") ~ "Other",
+        antigen %in% c("DT", "FHA", "FIM2/3", "PRN", "PT", "TT") ~ "Pertussis",
+        antigen %in% c(
+          "PnPs 1", "PnPs 3", "PnPs 4", "PnPs 5", "PnPs 6A", "PnPs 6B", "PnPs 7F", "PnPs 9V",
+          "PnPs 11A", "PnPs 14", "PnPs 18C", "PnPs 19A", "PnPs 19F", "PnPs 23F"
+        ) ~ "Pneumococcal"
+      ),
+      type = case_when(
+        group == "Other" ~ "HHB",
+        group == "Pertussis" ~ "DTaP",
+        group == "Pneumococcal" ~ "PnPs"
+      ),
+      visage = factor(visage, levels = c("6-month", "7-month", "18-month", "19-month"))
+    ) |>
+    arrange(subjid, group, antigen, visage) |>
+    left_join(units_igg, join_by(antigen)) |>
+    mutate(
+      positive = as.numeric(concentration > ref),
+      # Hib-PRP we use age-specific threshold
+      positive = case_when(
+        antigen != "Hib-PRP" ~ positive,
+        is.na(concentration) ~ NA_real_,
+        visage %in% c("6-month", "7-month") & concentration >= 150 ~ 1,
+        visage %in% c("18-month", "19-month") & concentration >= 1000 ~ 1,
+        TRUE ~ 0
+      )
+    )
+
+  transform_igg <- function(igg) {
+    igg |>
+      mutate(
+        concentration = case_when(
+          group == "Pneumococcal" ~ concentration / 1e3, # ng/mL to ug/mL
+          group == "Pertussis" ~ concentration / 1e3, # mIU/mL to IU/mL
+          antigen == "HBsAg" ~ concentration / 1e3, # mIU/mL to IU/mL
+          antigen == "Hib-PRP" ~ concentration / 1e3, # ng/mL to ug/mL
+          antigen == "DT" ~ concentration / 1e3, # mIU/mL to IU/mL
+          antigen == "TT" ~ concentration / 1e3, # mIU/mL to IU/mL
+          TRUE ~ concentration
+        ),
+        log_concentration = log(concentration, base = 10),
+        units = case_when(
+          group == "Pneumococcal" ~ "µg/mL",
+          group == "Pertussis" ~ "IU/mL",
+          antigen == "HBsAg" ~ "IU/mL",
+          antigen == "Hib-PRP" ~ "µg/mL",
+          antigen == "DT" ~ "IU/mL",
+          antigen == "TT" ~ "IU/mL",
+          TRUE ~ units
+        ),
+        ref = case_when(
+          group == "Pneumococcal" ~ ref / 1e3,
+          group == "Pertussis" ~ ref / 1e3,
+          antigen == "HBsAg" ~ ref / 1e3,
+          antigen == "Hib-PRP" ~ ref / 1e3,
+          antigen == "DT" ~ ref / 1e3,
+          antigen == "TT" ~ ref / 1e3,
+          TRUE ~ ref
+        )
+      )
+  }
+
+  igg_trans <- igg |>
+    transform_igg()
+  igg_trans
+}
+
 writeLines("Processing forms...", stdout())
 dat_rand <- combine_randomisation()
 dat_st <- combine_study_termination()
@@ -899,6 +1055,7 @@ dat_fc <- combine_food_challenge()
 dat_ae <- combine_adverse_events()
 dat_out <- combine_outcome_report()
 dat_food <- combine_food_household()
+dat_igg <- combine_igg()
 
 optimum_data <- list(
   "randomisation" = dat_rand,
@@ -911,7 +1068,8 @@ optimum_data <- list(
   "adverse_events" = dat_ae,
   "study_termination" = dat_st,
   "outcome_report" = dat_out,
-  "food_and_household_questionnaire" = dat_food
+  "food_and_household_questionnaire" = dat_food,
+  "igg" = dat_igg
 )
 qsave(enframe(optimum_data, name = "form", value = "data"), file.path("data", "optimum-data.qs"))
 writeLines("Successfully combined databases.", stdout())
