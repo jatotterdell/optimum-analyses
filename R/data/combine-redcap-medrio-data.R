@@ -4,6 +4,7 @@ suppressPackageStartupMessages({
   library(readxl)
   library(dplyr)
   library(tidyr)
+  library(forcats)
   library(stringr)
   library(tibble)
   library(lubridate)
@@ -29,6 +30,7 @@ combine_randomisation <- function() {
   ) |>
     rename_with(tolower) |>
     mutate(
+      subjectid = gsub("^01", "01-", subjectid),
       medrioid = as.character(medrioid),
       randdattim = as_datetime(randdattim, format = "%d-%b-%Y %H:%M")
     ) |>
@@ -483,7 +485,7 @@ combine_food_household <- function() {
     select(record_id, fecurr, febfever, febfform, fethickyn, fesolyn, fefadiag, fesupp, ferash, fecat, fedog, fedcyn)
   st2_ecz <- st2_food |>
     select(
-      record_id, redcap_event, redcap_survey_timestamp, visit_age, fe_phone, fedat,
+      record_id, redcap_event, redcap_survey_timestamp, visit_age, fe_phone, fedat, fecurr,
       fefadiag, fefadiagspec, fefadiadat,
       feecz, feeczdat
     ) |>
@@ -554,14 +556,15 @@ combine_food_household <- function() {
   # Eczema diagnoses at visit 1
   st1_ecz_v1 <- st1_food_v1 |>
     filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
-    select(medrioid, visit, fefadiag, feecx) |>
+    select(medrioid, visit, fecurr, fefadiag, feecx) |>
     left_join(st1_visits, join_by(medrioid, visit)) |>
     rename(feecz = feecx)
   # Eczema diagnoses at visits 2 - 5
   st1_ecz_v2 <- st1_food_v2 |>
     filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
-    select(medrioid, visit, fe2fadiag, fe2fadiagspec, fe2fadiagstag, fe2ecx, fe2eczag, fe2exstun) |>
+    select(medrioid, visit, fe2curr, fe2fadiag, fe2fadiagspec, fe2fadiagstag, fe2ecx, fe2eczag, fe2exstun) |>
     rename(
+      fecurr = fe2curr,
       fefadiag = fe2fadiag,
       fefadiagspec = fe2fadiagspec,
       fefadiagstag = fe2fadiagstag,
@@ -893,12 +896,6 @@ combine_igg <- function() {
     ~antigen, ~units, ~ref,
     "HBsAg", "mIU/mL", 10,
     "Hib-PRP", "ng/mL", 1000,
-    "DT", "mIU/mL", 100,
-    "FHA", "mIU/mL", 5000,
-    "FIM2/3", "mIU/mL", 5000,
-    "PRN", "mIU/mL", 5000,
-    "PT", "mIU/mL", 5000,
-    "TT", "mIU/mL", 100,
     "PnPs 1", "ng/mL", 350,
     "PnPs 3", "ng/mL", 350,
     "PnPs 4", "ng/mL", 350,
@@ -912,8 +909,15 @@ combine_igg <- function() {
     "PnPs 18C", "ng/mL", 350,
     "PnPs 19A", "ng/mL", 350,
     "PnPs 19F", "ng/mL", 350,
-    "PnPs 23F", "ng/mL", 350
-  )
+    "PnPs 23F", "ng/mL", 350,
+    "DT", "mIU/mL", 100,
+    "FHA", "mIU/mL", 5000,
+    "FIM2/3", "mIU/mL", 5000,
+    "PRN", "mIU/mL", 5000,
+    "PT", "mIU/mL", 5000,
+    "TT", "mIU/mL", 100
+  ) |>
+    mutate(antigen = fct_inorder(antigen))
 
   # Stage 1 IgG concentrations
   igg_st1_pth <- file.path(st1_path, "2022-09-12_OPTIMUM_IgG_clean.xlsx")
@@ -927,7 +931,6 @@ combine_igg <- function() {
     rename(subjid = `Subject ID`, visit = Visit) |>
     select(-SampleID) |>
     mutate(
-      subjid = gsub("-", "", subjid),
       antigen = gsub(" \\([0-9]*\\)", "", antigen),
       visage = case_when(
         visit == "V3" ~ "6-month",
@@ -938,7 +941,7 @@ combine_igg <- function() {
     ) |>
     select(-visit) |>
     complete(
-      subjid = paste0("01", str_pad(1:150, 3, pad = "0")),
+      subjid = paste0("01-", str_pad(1:150, 3, pad = "0")),
       visage,
       antigen,
       fill = list(concentration = NA)
@@ -954,7 +957,6 @@ combine_igg <- function() {
     rename(subjid = `Subject ID`, visit = Visit) |>
     select(-`ID + Visit`) |>
     mutate(
-      subjid = gsub("-", "", subjid),
       visage = case_when(
         visit == "V3" ~ "18-month",
         visit == "V4" ~ "19-month"
@@ -962,7 +964,7 @@ combine_igg <- function() {
     ) |>
     select(-visit) |>
     filter(!is.na(concentration)) |>
-    complete(subjid = paste0("02", 151:300), nesting(visage, antigen), fill = list(concentration = NA))
+    complete(subjid = paste0("02-", 151:300), nesting(visage, antigen), fill = list(concentration = NA))
 
   igg <- bind_rows(igg_st1, igg_st2) |>
     mutate(
