@@ -30,4 +30,6 @@ Why does this not work?
 
 ## Eczema (secondary)
 
+{{< embed notebooks/outcomes.qmd#tbl-eczema-outcomes >}}
+
 ## Food allergy (primary)
