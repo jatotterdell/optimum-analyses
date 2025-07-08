@@ -1,6 +1,8 @@
-library(dplyr)
-library(readr)
-library(purrr)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(purrr)
+})
 
 read_stage1_randomisation_list <- function() {
   st1rands <- read_csv(
