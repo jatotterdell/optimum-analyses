@@ -79,6 +79,7 @@ get_redcap_data <- function(append = "") {
     "food_and_household_questionnaire",
     "skin_prick_test",
     "food_challenge",
+    "blood_sample_collection",
     "physical_examination",
     "study_termination",
     "outcome_report",

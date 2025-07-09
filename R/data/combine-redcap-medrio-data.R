@@ -891,6 +891,67 @@ combine_adverse_events <- function() {
   ae
 }
 
+combine_blood_collection <- function() {
+  # st1_ec <- read_delim(
+  #   file.path(st1_path, "EC.txt"),
+  #   show_col_types = FALSE
+  # )
+  # st1_conschg <- read_delim(
+  #   file.path(st1_path, "CONSCHG.txt"),
+  #   show_col_types = FALSE
+  # )
+  st1_bc <- read_delim(
+    file.path(st1_path, "BC.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -ends_with("_coded"),
+      -subjectid, -site, -subjectstatus, -form, -formentrydate, -subjectvisitformid
+    ) |>
+    mutate(
+      lbipdat = as_date(lbipdat, format = "%d-%b-%Y"),
+      lbipvst = case_when(
+        is.na(lbipvst) ~ NA,
+        lbipvst == "Yes" ~ TRUE,
+        lbipvst == "No" ~ FALSE
+      ),
+      visage = case_when(
+        visit == "Visit 3" ~ "6-month",
+        visit == "Visit 4" ~ "6-month + 72hrs",
+        visit == "Visit 5" ~ "7-month",
+        visit == "Visit 7" ~ "18-month",
+        visit == "Visit 8" ~ "19-month"
+      )
+    ) |>
+    rename(lbiptim = lbiptm) |>
+    select(-visit) |>
+    rename(record_id = medrioid) |>
+    mutate(record_id = as.character(record_id))
+  st2_bc <- extract_tibble(st2_data, "blood_sample_collection") |>
+    select(-c(redcap_data_access_group, form_status_complete)) |>
+    rowwise() |>
+    mutate(
+      lbsite = paste0(
+        c("Antecubital fossa", "Hand", "Left", "Right", "Both")[
+          c(lbsite___1, lbsite___2, lbsite___3, lbsite___4, lbsite___5)
+        ],
+        collapse = ","
+      )
+    ) |>
+    ungroup() |>
+    mutate(
+      lbvol = if_else(lbvol == "08", 0.8, as.numeric(lbvol)),
+      visage = case_when(
+        redcap_event == "visit_3" ~ "18-month",
+        redcap_event == "visit_4" ~ "19-month"
+      )
+    ) |>
+    select(-redcap_event)
+  bc <- bind_rows(st1_bc, st2_bc)
+  bc
+}
+
 combine_igg <- function() {
   units_igg <- tribble(
     ~antigen, ~units, ~ref,
@@ -1057,6 +1118,7 @@ dat_fc <- combine_food_challenge()
 dat_ae <- combine_adverse_events()
 dat_out <- combine_outcome_report()
 dat_food <- combine_food_household()
+dat_bc <- combine_blood_collection()
 dat_igg <- combine_igg()
 
 optimum_data <- list(
@@ -1071,6 +1133,7 @@ optimum_data <- list(
   "study_termination" = dat_st,
   "outcome_report" = dat_out,
   "food_and_household_questionnaire" = dat_food,
+  "blood_collection" = dat_bc,
   "igg" = dat_igg
 )
 qsave(enframe(optimum_data, name = "form", value = "data"), file.path("data", "optimum-data.qs"))
