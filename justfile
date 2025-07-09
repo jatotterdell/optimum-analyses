@@ -2,6 +2,10 @@
 default:
   just --list --unsorted
 
+# Mount RDS data to location
+mount-rds:
+  sudo mount -t drvfs '\\shared.sydney.edu.au\research-data' /mnt/share
+
 # Extract raw REDCap data using API and save dated qs file
 extract-raw-redcap-data:
   Rscript R/data/redcap-data-raw.R
