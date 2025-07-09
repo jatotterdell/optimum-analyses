@@ -17,6 +17,7 @@ readRenviron(".env")
 st1_path <- file.path(Sys.getenv("RDS_PATH"), config::get("raw_data_stage1_path"))
 st2_path <- file.path(Sys.getenv("RDS_PATH"), config::get("raw_data_stage2_path"))
 st2_file <- file.path(st2_path, config::get("raw_data_stage2_file"))
+com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
 st2_data <- qread(st2_file)
 
 combine_randomisation <- function() {
@@ -327,7 +328,46 @@ combine_family_history_atopy <- function() {
       fhasibfa3 = fhasib3fa,
       fhasibfa4 = fhasib4fa,
     )
-  fha <- bind_rows(st2_fha, st1_fha_1)
+  fha <- bind_rows(st2_fha, st1_fha_1) |>
+    mutate(
+      across(fhafthast:fhasibast6, ~ if_else(.x == "N/A", NA_character_, .x)),
+      across(fhafatecz:fhasibecz6, ~ if_else(.x == "N/A", NA_character_, .x)),
+      across(fhafatar:fhasibar6, ~ if_else(.x == "N/A", NA_character_, .x)),
+      across(fhafatfa:fhasibfa6, ~ if_else(.x == "N/A", NA_character_, .x))
+    ) |>
+    rowwise() |>
+    mutate(
+      fhaast = case_when(
+        any(c_across(fhafthast:fhasibast6) == "Yes", na.rm = TRUE) ~ 1,
+        all(c_across(fhafthast:fhasibast6) == "No" | c_across(fhafthast:fhasibast6) == "Unknown", na.rm = TRUE) ~ 0,
+        TRUE ~ NA_real_
+      ),
+      fhaecz = case_when(
+        any(c_across(fhafatecz:fhasibecz6) == "Yes", na.rm = TRUE) ~ 1,
+        all(c_across(fhafatecz:fhasibecz6) == "No" | c_across(fhafatecz:fhasibecz6) == "Unknown", na.rm = TRUE) ~ 0,
+        TRUE ~ NA_real_
+      ),
+      fhaar = case_when(
+        any(c_across(fhafatar:fhasibar6) == "Yes", na.rm = TRUE) ~ 1,
+        all(c_across(fhafatar:fhasibar6) == "No" | c_across(fhafatar:fhasibar6) == "Unknown", na.rm = TRUE) ~ 0,
+        TRUE ~ NA_real_
+      ),
+      fhafa = case_when(
+        any(c_across(fhafatfa:fhasibfa6) == "Yes", na.rm = TRUE) ~ 1,
+        all(c_across(fhafatfa:fhasibfa6) == "No" | c_across(fhafatfa:fhasibfa6) == "Unknown", na.rm = TRUE) ~ 0,
+        TRUE ~ NA_real_
+      ),
+      fha_raw = case_when(
+        any(c(fhaast, fhaecz, fhaar, fhafa) == 1, na.rm = TRUE) ~ 1,
+        any(is.na(c(fhaast, fhaecz, fhaar, fhafa))) ~ NA_real_,
+        TRUE ~ 0
+      ),
+      fha = case_when(
+        any(c(fhaast, fhaecz, fhaar, fhafa) == 1, na.rm = TRUE) ~ 1,
+        TRUE ~ 0
+      )
+    ) |>
+    ungroup()
   var_label(fha) <- var_label(st2_fha)
   fha
 }
@@ -949,7 +989,10 @@ combine_blood_collection <- function() {
     ) |>
     select(-redcap_event)
   bc <- bind_rows(st1_bc, st2_bc)
-  bc
+  bc |>
+    mutate(
+      visage = factor(visage, levels = c("6-month", "7-month", "18-month", "19-month"))
+    )
 }
 
 combine_igg <- function() {
@@ -1118,6 +1161,7 @@ dat_fc <- combine_food_challenge()
 dat_ae <- combine_adverse_events()
 dat_out <- combine_outcome_report()
 dat_food <- combine_food_household()
+dat_fha <- combine_family_history_atopy()
 dat_bc <- combine_blood_collection()
 dat_igg <- combine_igg()
 
@@ -1133,8 +1177,9 @@ optimum_data <- list(
   "study_termination" = dat_st,
   "outcome_report" = dat_out,
   "food_and_household_questionnaire" = dat_food,
+  "family_history_of_atopy" = dat_fha,
   "blood_collection" = dat_bc,
   "igg" = dat_igg
 )
-qsave(enframe(optimum_data, name = "form", value = "data"), file.path("data", "optimum-data.qs"))
+qsave(enframe(optimum_data, name = "form", value = "data"), com_file)
 writeLines("Successfully combined databases.", stdout())
