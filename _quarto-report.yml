@@ -1,0 +1,41 @@
+project:
+  type: default
+  output-dir: _reports
+  execute-dir: project
+
+format:
+  pdf:
+    documentclass: scrartcl
+    pdf-engine: lualatex
+    papersize: a4
+    fontsize: 10pt
+    mainfont: TeX Gyre Pagella
+    mainfontoptions:
+      - Numbers=Proportional 
+      - Ligatures=TeX
+    sansfont: Linux Biolinum O
+    sansfontoptions: 
+      - Ligatures=TeX
+      - Numbers=Proportional
+    mathfont: TeX Gyre Pagella Math
+    linestretch: 1.25
+    toc: true
+    toc-depth: 2
+    lof: true
+    lot: true
+    number-sections: true
+    colorlinks: true
+    link-citations: true
+    tbl-pos: "!h"
+    include-in-header:
+      text: |
+        \usepackage[font=small,labelfont={bf,small},listformat=simple]{caption}
+        \usepackage{makecell}
+        \usepackage{moresize}
+        \setkomafont{section}{\fontsize{12}{12}\selectfont}
+
+execute: 
+  freeze: false
+  warning: false
+  message: false
+  echo: false
