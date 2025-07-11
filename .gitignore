@@ -4,5 +4,6 @@
 /.quarto/
 _outputs
 _manuscript
+_reports
 _freeze
 /data/
