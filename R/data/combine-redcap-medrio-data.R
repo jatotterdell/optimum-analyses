@@ -311,6 +311,7 @@ combine_family_history_atopy <- function() {
     filter(is.na(vargroup1row)) |>
     select(medrioid:fhasib4fa) |>
     rename(
+      record_id = medrioid,
       fhasibast1 = fhasib1ast,
       fhasibast2 = fhasib2ast,
       fhasibast3 = fhasib3ast,
@@ -327,7 +328,8 @@ combine_family_history_atopy <- function() {
       fhasibfa2 = fhasib2fa,
       fhasibfa3 = fhasib3fa,
       fhasibfa4 = fhasib4fa,
-    )
+    ) |>
+    mutate(record_id = as.character(record_id))
   fha <- bind_rows(st2_fha, st1_fha_1) |>
     mutate(
       across(fhafthast:fhasibast6, ~ if_else(.x == "N/A", NA_character_, .x)),
