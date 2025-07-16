@@ -14,8 +14,10 @@ extract-raw-redcap-data:
 combine-redcap-medrio-data:
   Rscript R/data/combine-redcap-medrio-data.R
 
+# Render manuscript
 render-manuscript:
   quarto render
 
-render-report:
+# Render IgG report
+render-report-igg:
   quarto render --profile report reports/igg-revisited.qmd

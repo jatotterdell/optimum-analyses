@@ -7,6 +7,7 @@ format:
   pdf:
     documentclass: scrartcl
     pdf-engine: lualatex
+    keep-tex: true
     papersize: a4
     fontsize: 10pt
     mainfont: TeX Gyre Pagella
@@ -26,7 +27,7 @@ format:
     number-sections: true
     colorlinks: true
     link-citations: true
-    tbl-pos: "!h"
+    tbl-pos: "H"
     include-in-header:
       text: |
         \usepackage[font=small,labelfont={bf,small},listformat=simple]{caption}
