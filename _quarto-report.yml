@@ -7,7 +7,6 @@ format:
   pdf:
     documentclass: scrartcl
     pdf-engine: lualatex
-    keep-tex: true
     papersize: a4
     fontsize: 10pt
     mainfont: TeX Gyre Pagella
@@ -40,3 +39,7 @@ execute:
   warning: false
   message: false
   echo: false
+
+knitr:
+  opts_chunk: 
+    dev: cairo_pdf
