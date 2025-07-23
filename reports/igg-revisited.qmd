@@ -960,7 +960,7 @@ p <- gmr |>
     position = position_dodge(width = 0.6),
     .width = 0.95
   ) +
-  scale_colour_manual(values = cols) +
+  scale_colour_manual("Stage", values = cols) +
   geom_vline(xintercept = 1, linetype = 2) +
   labs(fill = "Interval", x = "Geometric mean ratio", y = "Age") +
   scale_x_log10(breaks = c(0.4, 0.6, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 4)) +
