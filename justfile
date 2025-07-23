@@ -21,3 +21,7 @@ render-manuscript:
 # Render IgG report
 render-report-igg:
   quarto render --profile report reports/igg-revisited.qmd
+
+# Render report investigating PRN stage 1 and 2 differences
+render-report-prn:
+  quarto render --profile report reports/stage1-vs-stage2.qmd
