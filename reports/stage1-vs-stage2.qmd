@@ -356,7 +356,10 @@ p
 # Time-varying GMR
 
 Here GMR is considered as a function of enrolment time.
-For each participant, their visit 1 date 
+
+## PRN
+
+I expect the difference between stages is by chance and attributable to noise. To explore this, consider the GMR of wP vs aP as a time-varying function of randomisation date for all antigens. PRN does appear to stand out with a slightly stronger signal, but there are also varying trends in other antigens.
 
 ```{r}
 #| label: data-calendar-time
@@ -368,9 +371,18 @@ dat_sub <- dat_igg |>
   mutate(caltime = interval(min(randdate), randdate) %/% days(1)) |>
   mutate(
     caltime = caltime / max(caltime),
-    trtord = ordered(trt)
+    trtord = ordered(trt),
+    sexord = ordered(sex)
   ) |>
   mutate(caltime_st2 = min(caltime[stage == "2"]))
+
+st1_first <- dat_sub |>
+  pull(randdate) |>
+  min()
+st2_first <- dat_sub |>
+  filter(stage == "2") |>
+  pull(randdate) |>
+  min()
 ```
 
 ::: {.landscape}
@@ -389,14 +401,14 @@ ggplot(
   ggh4x::facet_grid2(visage ~ antigen, scales = "free_y", independent = "y") +
   geom_point(alpha = 0.25) +
   geom_smooth(se = FALSE) +
-  geom_vline(xintercept = 0.3908, linetype = 2) +
+  geom_vline(xintercept = st2_first, linetype = 2, colour = "grey50") +
   scale_y_continuous(
     "IgG Concentration",
     trans = "log10",
     breaks = c(1, 10, 100, 1000)
   ) +
   scale_colour_manual("Treatment", values = cols) +
-  labs(x = "Calendar time of randomsiation (scaled by min/max)")
+  labs(x = "Randomisation date")
 ```
 
 :::
@@ -439,9 +451,9 @@ dat_sub_fits <- dat_sub |>
 ```{r}
 #| label: fig-model-gmr-time-varying
 #| fig-cap: |
-#|   Calendar time varying estimates of GMR by antigen and visit.
+#|   Varying estimates of GMR (wP vs aP) by randomisation date (smoothed), antigen, and visit.
 #|   Red line indicates average GMR.
-#|   Vertical dotted grey line indicates stage 1 and 2 split point.
+#|   Vertical dotted grey line indicates first stage 2 participant.
 #| fig-width: 8
 #| fig-height: 5
 dat_sub_avg <- dat_sub_fits |>
@@ -450,13 +462,6 @@ dat_sub_avg <- dat_sub_fits |>
     gmr = exp(rvar_mean(log(gmr))),
     .by = c(antigen, visage)
   )
-st1_first <- dat_sub |>
-  pull(randdate) |>
-  min()
-st2_first <- dat_sub |>
-  filter(stage == "2") |>
-  pull(randdate) |>
-  min()
 
 dat_sub_fits |>
   unnest(dat) |>
@@ -487,7 +492,124 @@ dat_sub_fits |>
     trans = "log10",
     breaks = c(0.2, 0.5, 1, 2, 5, 10)
   ) +
-  labs(x = "Calendar time of randomisation (scaled by min/max)") +
+  labs(x = "Randomisation date") +
+  scale_fill_brewer()
+```
+
+:::
+
+## Sex
+
+For examples sake, consider the time-varying GMR of sex (Male vs Female) instead of treatment (wP vs aP). We see similar time-varying trends with calendar time in some antigens (e.g. DT). Presumably also just due to chance. Although the PRN reversal is slightly stronger in signal, I wouldn't consider the reversal of PRN to be surprising given the inherent noise in IgG concentrations.
+
+::: {.landscape}
+
+```{r}
+#| label: fig-explore-time-varying-gmr-sex
+#| fig-cap: |
+#|   IgG concentrations by randomisation date, antigen, and treatment group, with smooth.
+#| fig-width: 8
+#| fig-height: 5
+cols <- palette.colors(palette = "Okabe-Ito")[1:2]
+ggplot(
+  dat_sub,
+  aes(randdate, concentration, colour = sex)
+) +
+  ggh4x::facet_grid2(visage ~ antigen, scales = "free_y", independent = "y") +
+  geom_point(alpha = 0.25) +
+  geom_smooth(se = FALSE) +
+  geom_vline(xintercept = st2_first, linetype = 2, colour = "grey50") +
+  scale_y_continuous(
+    "IgG Concentration",
+    trans = "log10",
+    breaks = c(1, 10, 100, 1000)
+  ) +
+  scale_colour_manual("Treatment", values = cols) +
+  labs(x = "Randomisation date")
+```
+
+:::
+
+```{r}
+#| label: fit-time-varying-gmr-sex
+frm <- log_concentration ~
+  s(caltime) +
+    sexord +
+    s(caltime, by = sexord)
+
+dat_sub_fits <- dat_sub |>
+  nest(dat = -c(antigen, visage)) |>
+  mutate(
+    fit = map(
+      dat,
+      ~ brm(
+        frm,
+        data = .,
+        backend = "cmdstanr",
+        control = list(adapt_delta = 0.95),
+        refresh = 0,
+        silent = 2
+      )
+    ),
+    dat = map2(
+      dat,
+      fit,
+      ~ .x |>
+        expand(nesting(caltime, randdate), sexord) |>
+        add_epred_rvars(.y) |>
+        pivot_wider(names_from = sexord, values_from = .epred) |>
+        mutate(gmr = 10^(Male - Female))
+    )
+  )
+```
+
+::: {.landscape}
+
+```{r}
+#| label: fig-model-gmr-time-varying-sex
+#| fig-cap: |
+#|   Varying estimates of GMR (sex) by randomisation date (smoothed), antigen, and visit.
+#|   Red line indicates average GMR.
+#|   Vertical dotted grey line indicates first stage 2 participant.
+#| fig-width: 8
+#| fig-height: 5
+dat_sub_avg <- dat_sub_fits |>
+  unnest(dat) |>
+  summarise(
+    gmr = exp(rvar_mean(log(gmr))),
+    .by = c(antigen, visage)
+  )
+
+dat_sub_fits |>
+  unnest(dat) |>
+  ggplot(aes(randdate, ydist = gmr)) +
+  ggh4x::facet_grid2(visage ~ antigen) +
+  stat_lineribbon() +
+  geom_hline(data = dat_sub_avg, aes(yintercept = mean(gmr)), colour = "red") +
+  geom_hline(yintercept = 1, linetype = 2, colour = "grey50") +
+  geom_vline(xintercept = st2_first, linetype = 2, colour = "grey50") +
+  annotate(
+    x = date("2019-01-01"),
+    y = 0.25,
+    label = "Stage 1",
+    size = 2,
+    geom = "text",
+    family = "TeX Gyre Pagella"
+  ) +
+  annotate(
+    x = date("2021-06-01"),
+    y = 0.25,
+    label = "Stage 2",
+    size = 2,
+    geom = "text",
+    family = "TeX Gyre Pagella"
+  ) +
+  scale_y_continuous(
+    "Geometric mean ratio",
+    trans = "log10",
+    breaks = c(0.2, 0.5, 1, 2, 5, 10)
+  ) +
+  labs(x = "Randomisation date") +
   scale_fill_brewer()
 ```
 
