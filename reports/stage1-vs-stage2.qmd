@@ -1,0 +1,713 @@
+---
+title: OPTIMUM Stage 1 and 2 IgG Concentrations
+subtitle: Investigation Report
+---
+
+```{r}
+#| label: packages-and-setup
+suppressPackageStartupMessages({
+  # Data
+  library(qs)
+  library(dplyr)
+  library(tidyr)
+  library(forcats)
+  library(lubridate)
+  library(labelled)
+
+  # Figures
+  library(ggplot2)
+  library(scales)
+  library(legendry)
+
+  # Tables
+  library(gt)
+  library(gtsummary)
+
+  # Models
+  library(mmrm)
+  library(emmeans)
+  library(brms)
+  library(cmdstanr)
+  library(posterior)
+  library(tidybayes)
+  library(ggdist)
+  library(bayesplot)
+  library(loo)
+})
+
+readRenviron(".env")
+
+source("R/util.R")
+source("reports/functions.R")
+
+options(
+  brms.backend = "cmdstanr",
+  mc.cores = 8
+)
+
+sysfonts::font_add(
+  family = "TeX Gyre Pagella",
+  regular = "texgyrepagella-regular.otf",
+  bold = "texgyrepagella-bold.otf",
+  italic = "texgyrepagella-italic.otf",
+  bolditalic = "texgyrepagella-bolditalic.otf"
+)
+
+bs <- 9
+
+theme_set(
+  theme_bw(base_size = bs, base_family = "TeX Gyre Pagella") +
+    theme(
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      axis.text = element_text(colour = "black"),
+      legend.key.size = unit(0.75, "lines")
+    )
+)
+
+it_warmup <- 1250
+it_sample <- 500
+```
+
+```{r}
+#| label: model
+multinorm <- cmdstan_model(file.path("stan", "multinorm.stan"))
+multinorm_het <- cmdstan_model(file.path("stan", "multinorm-het.stan"))
+multit <- cmdstan_model(file.path("stan", "multit.stan"))
+```
+
+```{r}
+#| label: data
+dat_rand_list <- read_randomisation_lists()
+dat_all <- qread(file.path(
+  Sys.getenv("RDS_PATH"),
+  config::get("combined_data_file")
+))
+
+dat_base <- left_join(
+  select_form(dat_all, "randomisation") |>
+    mutate(randdate = date(randdattim)),
+  dat_rand_list,
+  join_by(rand)
+) |>
+  left_join(
+    select_form(dat_all, "demographics"),
+    join_by(record_id)
+  ) |>
+  left_join(
+    select_form(dat_all, "birth_history"),
+    join_by(record_id)
+  ) |>
+  left_join(
+    select_form(dat_all, "food_and_household_questionnaire") |>
+      filter(visit_age == "6-week") |>
+      select(record_id, fecurr),
+    join_by(record_id)
+  ) |>
+  left_join(
+    select_form(dat_all, "family_history_of_atopy") |>
+      select(record_id, fha),
+    join_by(record_id)
+  ) |>
+  mutate(
+    dage = interval(birthdat, visdat1) %/% days(1),
+    mpar = factor(if_else(mpar > 4, 4, mpar), labels = c("1", "2", "3", "4+")),
+    sex = factor(if_else(gender == "Male", 1, 0), labels = c("Female", "Male")),
+    caes = factor(
+      case_when(
+        is.na(delt) ~ NA_real_,
+        grepl("caesarean", delt) ~ 1,
+        TRUE ~ 0
+      ),
+      labels = c("Vaginal", "Caesarean")
+    ),
+    bfed = factor(
+      case_when(
+        is.na(fecurr) ~ NA_real_,
+        fecurr == "Exclusively Breastfed" ~ 0,
+        fecurr == "Exclusively formula-fed" ~ 2,
+        TRUE ~ 1
+      ),
+      labels = c("Complete", "Partial", "None")
+    ),
+    inc = factor(
+      case_when(
+        is.na(parinc) ~ NA_real_,
+        parinc == ">$180,000" ~ 1,
+        parinc == "$87,001 to $180,000" ~ 2,
+        TRUE ~ 3
+      ),
+      labels = c(">$180,000", "$87,001-$180,000", "≤$87,000")
+    ),
+    sibnum = if_else(
+      sibnum == "Not Applicable",
+      "0",
+      if_else(sibnum == "Unknown", NA_character_, sibnum)
+    ),
+    fborn = factor(
+      if_else(sibnum == "0" | is.na(sibnum), 1, 0),
+      labels = c("No", "Yes")
+    ),
+    fha = factor(fha, labels = c("No", "Yes"))
+  )
+
+dat_bc <- select_form(dat_all, "blood_collection") |>
+  left_join(select(dat_base, record_id, subjid), join_by(record_id)) |>
+  select(-record_id, -starts_with("lbsite___"))
+
+dat_igg <- select_form(dat_all, "igg") |>
+  left_join(dat_bc, join_by(subjid, visage)) |>
+  left_join(dat_base, join_by(subjid)) |>
+  mutate(stage = if_else(substr(subjid, 1, 2) == "01", "1", "2")) |>
+  filter(!(antigen %in% c("PnPs 11A"))) |>
+  mutate(antigen = fct_inorder(antigen))
+
+dat_base <- dat_igg |>
+  select(all_of(colnames(dat_base)), concentration) |>
+  mutate(
+    any_obs_concentration = any(!is.na(concentration)),
+    all_obs_concentration = all(!is.na(concentration)),
+    .by = subjid
+  ) |>
+  select(-concentration) |>
+  distinct()
+```
+
+\clearpage
+
+# Background
+
+When summarising the stage 1 and stage 2 IgG concentration data we noted that the GMR for PRN changed direction. The aim here is to explore this further for any possible explanation.
+
+# PRN
+
+There is a discrepancy between stage 1 and stage 2 concentrations for PRN by treatment groups. This may just be due to noise, but the following explores this a bit further.
+
+```{r}
+#| label: tbl-prn-comparison
+#| tbl-cap: |
+#|    IgG concentration for PRN and PT by age, study stage, and treatment group.
+var <- sym("concentration")
+var2 <- sym("positive")
+tab <- dat_igg |>
+  filter(antigen %in% c("PRN")) |>
+  summarise(
+    obs = sum(!is.na({{ var }})),
+    gmc = gmc({{ var }}, na.rm = TRUE),
+    gsd = gsd({{ var }}, na.rm = TRUE),
+    m = median({{ var }}, na.rm = TRUE),
+    q1 = quantile({{ var }}, probs = 0.25, na.rm = TRUE),
+    q3 = quantile({{ var }}, probs = 0.75, na.rm = TRUE),
+    min = min({{ var }}, na.rm = TRUE),
+    max = max({{ var }}, na.rm = TRUE),
+    pos = mean({{ var2 }}, na.rm = TRUE),
+    .by = c(antigen, stage, visage, trt)
+  ) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(obs, gmc, gsd, m, q1, q3, min, max, pos),
+    names_vary = "slowest"
+  ) |>
+  to_factor() |>
+  arrange(antigen, visage, stage) |>
+  mutate(
+    grp = paste0("Stage - ", stage)
+  ) |>
+  select(-c(antigen, stage))
+
+gt(tab, groupname_col = "grp", rowname_col = "visage") |>
+  fmt_integer(starts_with("obs")) |>
+  fmt_number(starts_with(c("gmc", "gsd")), decimals = 2) |>
+  fmt(starts_with(c("m", "q1", "q3")), fns = fmt_num) |>
+  fmt(starts_with(c("min", "max")), fns = fmt_num) |>
+  fmt_percent(starts_with(c("pos")), decimals = 0) |>
+  cols_merge(
+    columns = c(min_aP, max_aP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_merge(
+    columns = c(min_wP, max_wP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_merge(
+    columns = c(m_aP, q1_aP, q3_aP),
+    pattern = "{1} ({2}–{3})"
+  ) |>
+  cols_merge(
+    columns = c(m_wP, q1_wP, q3_wP),
+    pattern = "{1} ({2}–{3})"
+  ) |>
+  cols_label(
+    obs_aP = "n",
+    obs_wP = "n",
+    gmc_aP = "GMC",
+    gmc_wP = "GMC",
+    gsd_aP = "GSD",
+    gsd_wP = "GSD",
+    m_aP = "Q2 (Q1–Q3)",
+    m_wP = "Q2 (Q1–Q3)",
+    min_aP = "Min–Max",
+    min_wP = "Min–Max",
+    pos_aP = md("S+"),
+    pos_wP = md("S+")
+  ) |>
+  tab_spanner(
+    label = md("**aP**"),
+    columns = ends_with("_aP")
+  ) |>
+  tab_spanner(
+    label = md("**wP**"),
+    columns = ends_with("_wP")
+  ) |>
+  sub_missing(
+    columns = everything(),
+    rows = everything(),
+    missing_text = "---"
+  ) |>
+  tab_footnote(
+    footnote = "Geometric mean concentration",
+    locations = cells_column_labels(columns = starts_with("gmc"))
+  ) |>
+  tab_footnote(
+    footnote = "Geometric standard deviation",
+    locations = cells_column_labels(columns = starts_with("gsd"))
+  ) |>
+  tab_footnote(
+    footnote = "Q1 - 25th sample percentile, Q3 - 75th sample percentile",
+    locations = cells_column_labels(columns = starts_with("q1"))
+  ) |>
+  tab_footnote(
+    footnote = "Seroprotection at specified levels",
+    locations = cells_column_labels(columns = starts_with("pos"))
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_column_labels(columns = everything())
+  ) |>
+  tab_options(
+    latex.use_longtable = TRUE,
+    table.font.size = px(8)
+  )
+```
+
+```{r}
+#| label: fig-igg-prn
+#| fig-cap: |
+#|    IgG concentrations for PRN by age, treatment, and stage.
+#| fig-width: 6
+#| fig-height: 4
+cols <- palette.colors(palette = "Okabe-Ito")[1:2]
+dat_igg |>
+  filter(antigen == "PRN") |>
+  mutate(
+    side = if_else(trt == "aP", "left", "right"),
+    stage = paste("Stage", stage)
+  ) |>
+  ggplot(aes(interaction(trt, visage, sep = "_"), concentration)) +
+  facet_wrap(~stage, ncol = 3) +
+  geom_boxplot(aes(fill = trt)) +
+  geom_hline(aes(yintercept = ref), linetype = 2) +
+  scale_y_continuous(
+    "IgG concentration, log scale",
+    breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    labels = comma,
+    trans = "log10"
+  ) +
+  scale_x_discrete(
+    "Age and treatment group",
+    guide = guide_axis_nested(key = key_range_auto(sep = "_"))
+  ) +
+  scale_fill_manual(values = c("aP" = cols[1], "wP" = cols[2])) +
+  guides(fill = "none", colour = "none") +
+  theme(axis.title = element_text(size = rel(0.9)))
+```
+
+```{r}
+#| label: fig-igg-prn-ecdf
+#| fig-cap: |
+#|    IgG concentrations for PRN by age, treatment, and stage.
+#| fig-width: 6
+#| fig-height: 4
+cols <- palette.colors(palette = "Okabe-Ito")[1:2]
+p <- dat_igg |>
+  filter(antigen == "PRN") |>
+  mutate(stage = paste("Stage", stage)) |>
+  ggplot(aes(concentration)) +
+  facet_grid(stage ~ visage) +
+  # stat_ecdf(aes(colour = trt)) +
+  geom_step(aes(y = 1 - after_stat(y), colour = trt), stat = "ecdf") +
+  scale_x_continuous(
+    "IgG concentration, log scale",
+    breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    labels = comma,
+    trans = "log10"
+  ) +
+  labs(y = "complementary eCDF") +
+  scale_colour_manual("Treatment", values = c("aP" = cols[1], "wP" = cols[2])) +
+  theme(
+    axis.title = element_text(size = rel(0.9)),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+p
+```
+
+\clearpage
+
+# Time-varying GMR
+
+Here GMR is considered as a function of enrolment time.
+For each participant, their visit 1 date 
+
+```{r}
+#| label: data-calendar-time
+dat_sub <- dat_igg |>
+  filter(
+    antigen %in% c("DT", "TT", "PT", "FHA", "PRN", "Hib-PRP"),
+    visage %in% c("18-month", "19-month")
+  ) |>
+  mutate(caltime = interval(min(randdate), randdate) %/% days(1)) |>
+  mutate(
+    caltime = caltime / max(caltime),
+    trtord = ordered(trt)
+  ) |>
+  mutate(caltime_st2 = min(caltime[stage == "2"]))
+```
+
+::: {.landscape}
+
+```{r}
+#| label: fig-explore-time-varying-gmr
+#| fig-cap: |
+#|   IgG concentrations by randomisation date, antigen, and treatment group, with smooth.
+#| fig-width: 8
+#| fig-height: 5
+cols <- palette.colors(palette = "Okabe-Ito")[1:2]
+ggplot(
+  dat_sub,
+  aes(randdate, concentration, colour = trt)
+) +
+  ggh4x::facet_grid2(visage ~ antigen, scales = "free_y", independent = "y") +
+  geom_point(alpha = 0.25) +
+  geom_smooth(se = FALSE) +
+  geom_vline(xintercept = 0.3908, linetype = 2) +
+  scale_y_continuous(
+    "IgG Concentration",
+    trans = "log10",
+    breaks = c(1, 10, 100, 1000)
+  ) +
+  scale_colour_manual("Treatment", values = cols) +
+  labs(x = "Calendar time of randomsiation (scaled by min/max)")
+```
+
+:::
+
+```{r}
+#| label: fit-time-varying-gmr
+frm <- log_concentration ~
+  s(caltime) +
+    trtord +
+    s(caltime, by = trtord)
+
+dat_sub_fits <- dat_sub |>
+  nest(dat = -c(antigen, visage)) |>
+  mutate(
+    fit = map(
+      dat,
+      ~ brm(
+        frm,
+        data = .,
+        backend = "cmdstanr",
+        control = list(adapt_delta = 0.95),
+        refresh = 0,
+        silent = 2
+      )
+    ),
+    dat = map2(
+      dat,
+      fit,
+      ~ .x |>
+        expand(nesting(caltime, randdate), trtord) |>
+        add_epred_rvars(.y) |>
+        pivot_wider(names_from = trtord, values_from = .epred) |>
+        mutate(gmr = 10^(wP - aP))
+    )
+  )
+```
+
+::: {.landscape}
+
+```{r}
+#| label: fig-model-gmr-time-varying
+#| fig-cap: |
+#|   Calendar time varying estimates of GMR by antigen and visit.
+#|   Red line indicates average GMR.
+#|   Vertical dotted grey line indicates stage 1 and 2 split point.
+#| fig-width: 8
+#| fig-height: 5
+dat_sub_avg <- dat_sub_fits |>
+  unnest(dat) |>
+  summarise(
+    gmr = exp(rvar_mean(log(gmr))),
+    .by = c(antigen, visage)
+  )
+st1_first <- dat_sub |>
+  pull(randdate) |>
+  min()
+st2_first <- dat_sub |>
+  filter(stage == "2") |>
+  pull(randdate) |>
+  min()
+
+dat_sub_fits |>
+  unnest(dat) |>
+  ggplot(aes(randdate, ydist = gmr)) +
+  ggh4x::facet_grid2(visage ~ antigen) +
+  stat_lineribbon() +
+  geom_hline(data = dat_sub_avg, aes(yintercept = mean(gmr)), colour = "red") +
+  geom_hline(yintercept = 1, linetype = 2, colour = "grey50") +
+  geom_vline(xintercept = st2_first, linetype = 2, colour = "grey50") +
+  annotate(
+    x = date("2019-01-01"),
+    y = 0.25,
+    label = "Stage 1",
+    size = 2,
+    geom = "text",
+    family = "TeX Gyre Pagella"
+  ) +
+  annotate(
+    x = date("2021-06-01"),
+    y = 0.25,
+    label = "Stage 2",
+    size = 2,
+    geom = "text",
+    family = "TeX Gyre Pagella"
+  ) +
+  scale_y_continuous(
+    "Geometric mean ratio",
+    trans = "log10",
+    breaks = c(0.2, 0.5, 1, 2, 5, 10)
+  ) +
+  labs(x = "Calendar time of randomisation (scaled by min/max)") +
+  scale_fill_brewer()
+```
+
+:::
+
+```{r}
+#| include: false
+#| eval: false
+
+# dat_sub_fits |>
+#   unnest(dat) |>
+#   ggplot(aes(caltime, ydist = 10^aP)) +
+#   ggh4x::facet_grid2(visage ~ antigen, scales = "free_y") +
+#   stat_lineribbon() +
+#   stat_lineribbon(aes(ydist = 10^wP), fill = "red") +
+#   scale_y_continuous("GMR", trans = "log10", breaks = c(0.1, 0.5, 1, 5, 10)) +
+#   labs(x = "Calendar time (scaled by min and max)") +
+#   scale_fill_brewer()
+
+cols <- palette.colors(palette = "Okabe-Ito")[1:2]
+dat_sub <- dat_igg |>
+  filter(antigen == "PRN", visage %in% c("18-month", "19-month")) |>
+  arrange(visage, subjid)
+
+x <- dat_sub |>
+  filter(visage == "18-month", trt == "aP", stage == "2") |>
+  pull(log_concentration)
+y <- dat_sub |>
+  filter(visage == "18-month", trt == "wP", stage == "2") |>
+  pull(log_concentration)
+wilcox.test(x, y)
+
+sdat_0 <- make_stan_data(dat_sub, form = ~trt)
+sdat_1 <- make_stan_data(dat_sub, form = ~ trt + stage)
+sdat_2 <- make_stan_data(dat_sub, form = ~ trt * stage)
+sdat_2$x <- sdat_2$X[, 2] + 1
+
+mfit_0 <- multinorm$sample(
+  data = sdat_0,
+  show_messages = FALSE,
+  show_exceptions = FALSE
+)
+mfit_1 <- multinorm$sample(
+  data = sdat_1,
+  show_messages = FALSE,
+  show_exceptions = FALSE
+)
+mfit_2 <- multinorm$sample(
+  data = sdat_2,
+  show_messages = FALSE,
+  show_exceptions = FALSE
+)
+mfit_3 <- multinorm_het$sample(
+  data = sdat_2,
+  show_messages = FALSE,
+  show_exceptions = FALSE
+)
+mfit_4 <- multit$sample(
+  data = sdat_0,
+  show_messages = FALSE,
+  show_exceptions = FALSE
+)
+
+sdrw_0 <- as_draws_rvars(mfit_0)
+sdrw_1 <- as_draws_rvars(mfit_1)
+sdrw_2 <- as_draws_rvars(mfit_2)
+sdrw_3 <- as_draws_rvars(mfit_3)
+sdrw_4 <- as_draws_rvars(mfit_4)
+
+colnames(sdrw_1$beta) <- colnames(sdat_1$X)
+rownames(sdrw_1$beta) <- colnames(sdat_1$Y)
+colnames(sdrw_2$beta) <- colnames(sdat_2$X)
+rownames(sdrw_2$beta) <- colnames(sdat_2$Y)
+
+dat_pred <- dat_sub |>
+  arrange(visage, subjid) |>
+  mutate(stage = paste("Stage", stage)) |>
+  mutate(
+    pred_0 = c(10^sdrw_0$Ypred),
+    pred_1 = c(10^sdrw_1$Ypred),
+    pred_2 = c(10^sdrw_2$Ypred),
+    pred_3 = c(10^sdrw_3$Ypred),
+    pred_4 = c(10^sdrw_4$Ypred)
+  )
+
+dat_pred |>
+  unnest_rvars() |>
+  filter(.draw < 251) |>
+  ggplot(aes(pred_0)) +
+  ggh4x::facet_grid2(stage + trt ~ visage, scales = "free_x") +
+  stat_ecdf(aes(group = .draw, y = 1 - after_stat(y)), alpha = 0.1) +
+  stat_ecdf(aes(concentration, y = 1 - after_stat(y)), colour = "red") +
+  scale_x_continuous(
+    "IgG concentration, log scale",
+    breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    labels = comma,
+    trans = "log10"
+  ) +
+  labs(y = "complementary eCDF") +
+  # coord_cartesian(xlim = c(0.01, 1e3)) +
+  theme(
+    axis.title = element_text(size = rel(0.9)),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+dat_pred |>
+  unnest_rvars() |>
+  filter(.draw < 251) |>
+  ggplot(aes(pred_1)) +
+  ggh4x::facet_grid2(stage + trt ~ visage, scales = "free_x") +
+  stat_ecdf(aes(group = .draw, y = 1 - after_stat(y)), alpha = 0.1) +
+  stat_ecdf(aes(concentration, y = 1 - after_stat(y)), colour = "red") +
+  scale_x_continuous(
+    "IgG concentration, log scale",
+    breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    labels = comma,
+    trans = "log10"
+  ) +
+  labs(y = "complementary eCDF") +
+  coord_cartesian(xlim = c(0.01, 1e3)) +
+  theme(
+    axis.title = element_text(size = rel(0.9)),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+dat_pred |>
+  unnest_rvars() |>
+  filter(.draw < 251) |>
+  ggplot(aes(pred_2)) +
+  ggh4x::facet_grid2(stage + trt ~ visage, scales = "free_x") +
+  stat_ecdf(aes(group = .draw, y = 1 - after_stat(y)), alpha = 0.1) +
+  stat_ecdf(aes(concentration, y = 1 - after_stat(y)), colour = "red") +
+  scale_x_continuous(
+    "IgG concentration, log scale",
+    breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    labels = comma,
+    trans = "log10"
+  ) +
+  labs(y = "complementary eCDF") +
+  coord_cartesian(xlim = c(0.01, 1e3)) +
+  theme(
+    axis.title = element_text(size = rel(0.9)),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+dat_pred |>
+  unnest_rvars() |>
+  filter(.draw < 251) |>
+  ggplot(aes(pred_3)) +
+  ggh4x::facet_grid2(stage + trt ~ visage, scales = "free_x") +
+  stat_ecdf(aes(group = .draw, y = 1 - after_stat(y)), alpha = 0.1) +
+  stat_ecdf(aes(concentration, y = 1 - after_stat(y)), colour = "red") +
+  scale_x_continuous(
+    "IgG concentration, log scale",
+    breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    labels = comma,
+    trans = "log10"
+  ) +
+  labs(y = "complementary eCDF") +
+  coord_cartesian(xlim = c(0.01, 1e3)) +
+  theme(
+    axis.title = element_text(size = rel(0.9)),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+dat_pred |>
+  unnest_rvars() |>
+  filter(.draw < 251) |>
+  ggplot(aes(pred_4)) +
+  ggh4x::facet_grid2(stage + trt ~ visage, scales = "free_x") +
+  stat_ecdf(aes(group = .draw, y = 1 - after_stat(y)), alpha = 0.1) +
+  stat_ecdf(aes(concentration, y = 1 - after_stat(y)), colour = "red") +
+  scale_x_continuous(
+    "IgG concentration, log scale",
+    breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    labels = comma,
+    trans = "log10"
+  ) +
+  labs(y = "complementary eCDF") +
+  coord_cartesian(xlim = c(0.01, 1e3)) +
+  theme(
+    axis.title = element_text(size = rel(0.9)),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+ids <- which(!is.na(dat_sub$concentration))
+quantile_fun <- \(y) quantile(y, 0.25)
+gmc <- \(x) exp(mean(log(x)))
+gsd <- \(x) exp(sd(log(x)))
+
+y <- dat_sub$concentration[ids]
+yrep <- as_draws_matrix(c(10^sdrw_0$Ypred)[ids])
+grp <- dat_sub$trt[ids]
+
+ppc_stat_grouped(
+  y,
+  yrep,
+  stat = "min",
+  bins = 100,
+  group = grp
+)
+
+ppc_stat_grouped(
+  y,
+  yrep,
+  stat = "quantile_fun",
+  bins = 100,
+  group = grp
+)
+
+ppc_stat_grouped(
+  y,
+  yrep,
+  stat = "gsd",
+  bins = 100,
+  group = grp
+)
+
+ppc_stat_2d(y, yrep, stat = c("median", "mad"))
+ppc_stat_2d(y, yrep, stat = c("mean", "sd"))
+ppc_stat_2d(y, yrep, stat = c("min", "max")) +
+  scale_y_log10()
+```
