@@ -1,6 +1,6 @@
 ---
-title: OPTIMUM Stage 1 and 2 IgG Concentrations
-subtitle: Investigation Report
+title: OPTIMUM Stage 1 and 2 IgG Concentrations - PRN
+subtitle: Report
 ---
 
 ```{r}
@@ -177,11 +177,11 @@ dat_base <- dat_igg |>
 
 # Background
 
-When summarising the stage 1 and stage 2 IgG concentration data we noted that the GMR for PRN changed direction. The aim here is to explore this further for any possible explanation.
+When summarising the stage 1 and stage 2 IgG concentration data we noted that the GMR for PRN changed direction. The aim here is to explore this further.
 
 # PRN
 
-There is a discrepancy between stage 1 and stage 2 concentrations for PRN by treatment groups. This may just be due to noise, but the following explores this a bit further.
+There is a discrepancy between stage 1 and stage 2 concentrations for PRN by treatment groups.
 
 ```{r}
 #| label: tbl-prn-comparison
@@ -355,11 +355,30 @@ p
 
 # Time-varying GMR
 
-Here GMR is considered as a function of enrolment time.
+Here GMR is considered as a function of enrolment time rather than just a split between stage 1 and 2. That is, we consider a model for each antigen and age (18-month or 19-month) as
 
-## PRN
+$$
+\ln Y_i \sim \text{Normal}(f_x(t_i), \sigma^2)
+$$
 
-I expect the difference between stages is by chance and attributable to noise. To explore this, consider the GMR of wP vs aP as a time-varying function of randomisation date for all antigens. PRN does appear to stand out with a slightly stronger signal, but there are also varying trends in other antigens.
+where $f_x(t_i)$ is assumed to be a covariate specific (e.g. treatment group) smooth function of randomisation time $t_i$ with the time-varying GMR comparing covariate values $x^\star$ to $x$ being
+
+$$
+\text{GMR}(t) = \exp(f_{x^\star}(t) - f_x(t)).
+$$
+
+For comparion, I consider baseline binary covariates
+
+- assigned treatment (wP vs aP)
+- sex (Male vs Female)
+- family history of atopy (Yes vs No)
+- delivery type (Caesarean vs Vaginal)
+
+For assigned treatment, PRN does appear to stand out with a slightly stronger signal than other antigens, but there are also trends in other antigens to varying degrees.
+
+However, there are comparable discrepancies in other variables when we consider time-varying GMR (e.g. in particular by family history of atopy at 19-months). 
+
+I think the observed discrepancy in PRN is not overly surprising given the sample sizes and variability in IgG concentrations, and could be attributable to chance variation despite the models estimated improbabilities.
 
 ```{r}
 #| label: data-calendar-time
@@ -372,7 +391,10 @@ dat_sub <- dat_igg |>
   mutate(
     caltime = caltime / max(caltime),
     trtord = ordered(trt),
-    sexord = ordered(sex)
+    sexord = ordered(sex),
+    caesord = ordered(caes),
+    fbornord = ordered(fborn),
+    fhaord = ordered(fha)
   ) |>
   mutate(caltime_st2 = min(caltime[stage == "2"]))
 
@@ -387,12 +409,14 @@ st2_first <- dat_sub |>
 
 ::: {.landscape}
 
+## PRN
+
 ```{r}
 #| label: fig-explore-time-varying-gmr
 #| fig-cap: |
 #|   IgG concentrations by randomisation date, antigen, and treatment group, with smooth.
 #| fig-width: 8
-#| fig-height: 5
+#| fig-height: 4
 cols <- palette.colors(palette = "Okabe-Ito")[1:2]
 ggplot(
   dat_sub,
@@ -498,18 +522,16 @@ dat_sub_fits |>
 
 :::
 
-## Sex
-
-For examples sake, consider the time-varying GMR of sex (Male vs Female) instead of treatment (wP vs aP). We see similar time-varying trends with calendar time in some antigens (e.g. DT). Presumably also just due to chance. Although the PRN reversal is slightly stronger in signal, I wouldn't consider the reversal of PRN to be surprising given the inherent noise in IgG concentrations.
-
 ::: {.landscape}
+
+## Sex
 
 ```{r}
 #| label: fig-explore-time-varying-gmr-sex
 #| fig-cap: |
-#|   IgG concentrations by randomisation date, antigen, and treatment group, with smooth.
+#|   IgG concentrations by randomisation date, antigen, and sex, with smooth.
 #| fig-width: 8
-#| fig-height: 5
+#| fig-height: 4
 cols <- palette.colors(palette = "Okabe-Ito")[1:2]
 ggplot(
   dat_sub,
@@ -524,7 +546,7 @@ ggplot(
     trans = "log10",
     breaks = c(1, 10, 100, 1000)
   ) +
-  scale_colour_manual("Treatment", values = cols) +
+  scale_colour_manual("Sex", values = cols) +
   labs(x = "Randomisation date")
 ```
 
@@ -614,6 +636,238 @@ dat_sub_fits |>
 ```
 
 :::
+
+::: {.landscape}
+
+## Family history of atopy
+
+```{r}
+#| label: fig-explore-time-varying-gmr-fha
+#| fig-cap: |
+#|   IgG concentrations by randomisation date, antigen, and family history status, with smooth.
+#| fig-width: 8
+#| fig-height: 4
+cols <- palette.colors(palette = "Okabe-Ito")[1:2]
+ggplot(
+  dat_sub,
+  aes(randdate, concentration, colour = fha)
+) +
+  ggh4x::facet_grid2(visage ~ antigen, scales = "free_y", independent = "y") +
+  geom_point(alpha = 0.25) +
+  geom_smooth(se = FALSE) +
+  geom_vline(xintercept = st2_first, linetype = 2, colour = "grey50") +
+  scale_y_continuous(
+    "IgG Concentration",
+    trans = "log10",
+    breaks = c(1, 10, 100, 1000)
+  ) +
+  scale_colour_manual("Family history", values = cols) +
+  labs(x = "Randomisation date")
+```
+
+:::
+
+```{r}
+#| label: fit-time-varying-gmr-fha
+frm <- log_concentration ~
+  s(caltime) +
+    fhaord +
+    s(caltime, by = fhaord)
+
+dat_sub_fits <- dat_sub |>
+  nest(dat = -c(antigen, visage)) |>
+  mutate(
+    fit = map(
+      dat,
+      ~ brm(
+        frm,
+        data = .,
+        backend = "cmdstanr",
+        control = list(adapt_delta = 0.95),
+        refresh = 0,
+        silent = 2
+      )
+    ),
+    dat = map2(
+      dat,
+      fit,
+      ~ .x |>
+        expand(nesting(caltime, randdate), fhaord) |>
+        add_epred_rvars(.y) |>
+        pivot_wider(names_from = fhaord, values_from = .epred) |>
+        mutate(gmr = 10^(Yes - No))
+    )
+  )
+```
+
+::: {.landscape}
+
+```{r}
+#| label: fig-model-gmr-time-varying-fha
+#| fig-cap: |
+#|   Varying estimates of GMR (family history) by randomisation date (smoothed), antigen, and visit.
+#|   Red line indicates average GMR.
+#|   Vertical dotted grey line indicates first stage 2 participant.
+#| fig-width: 8
+#| fig-height: 5
+dat_sub_avg <- dat_sub_fits |>
+  unnest(dat) |>
+  summarise(
+    gmr = exp(rvar_mean(log(gmr))),
+    .by = c(antigen, visage)
+  )
+
+dat_sub_fits |>
+  unnest(dat) |>
+  ggplot(aes(randdate, ydist = gmr)) +
+  ggh4x::facet_grid2(visage ~ antigen) +
+  stat_lineribbon() +
+  geom_hline(data = dat_sub_avg, aes(yintercept = mean(gmr)), colour = "red") +
+  geom_hline(yintercept = 1, linetype = 2, colour = "grey50") +
+  geom_vline(xintercept = st2_first, linetype = 2, colour = "grey50") +
+  annotate(
+    x = date("2019-01-01"),
+    y = 0.25,
+    label = "Stage 1",
+    size = 2,
+    geom = "text",
+    family = "TeX Gyre Pagella"
+  ) +
+  annotate(
+    x = date("2021-06-01"),
+    y = 0.25,
+    label = "Stage 2",
+    size = 2,
+    geom = "text",
+    family = "TeX Gyre Pagella"
+  ) +
+  scale_y_continuous(
+    "Geometric mean ratio",
+    trans = "log10",
+    breaks = c(0.2, 0.5, 1, 2, 5, 10)
+  ) +
+  labs(x = "Randomisation date") +
+  scale_fill_brewer()
+```
+
+:::
+
+::: {.landscape}
+
+## Delivery Type
+
+```{r}
+#| label: fig-explore-time-varying-gmr-caes
+#| fig-cap: |
+#|   IgG concentrations by randomisation date, antigen, and delivery type, with smooth.
+#| fig-width: 8
+#| fig-height: 4
+cols <- palette.colors(palette = "Okabe-Ito")[1:2]
+ggplot(
+  dat_sub,
+  aes(randdate, concentration, colour = caes)
+) +
+  ggh4x::facet_grid2(visage ~ antigen, scales = "free_y", independent = "y") +
+  geom_point(alpha = 0.25) +
+  geom_smooth(se = FALSE) +
+  geom_vline(xintercept = st2_first, linetype = 2, colour = "grey50") +
+  scale_y_continuous(
+    "IgG Concentration",
+    trans = "log10",
+    breaks = c(1, 10, 100, 1000)
+  ) +
+  scale_colour_manual("Delivery type", values = cols) +
+  labs(x = "Randomisation date")
+```
+
+:::
+
+```{r}
+#| label: fit-time-varying-gmr-caes
+frm <- log_concentration ~
+  s(caltime) +
+    caesord +
+    s(caltime, by = caesord)
+
+dat_sub_fits <- dat_sub |>
+  nest(dat = -c(antigen, visage)) |>
+  mutate(
+    fit = map(
+      dat,
+      ~ brm(
+        frm,
+        data = .,
+        backend = "cmdstanr",
+        control = list(adapt_delta = 0.95),
+        refresh = 0,
+        silent = 2
+      )
+    ),
+    dat = map2(
+      dat,
+      fit,
+      ~ .x |>
+        expand(nesting(caltime, randdate), caesord) |>
+        add_epred_rvars(.y) |>
+        pivot_wider(names_from = caesord, values_from = .epred) |>
+        mutate(gmr = 10^(Caesarean - Vaginal))
+    )
+  )
+```
+
+::: {.landscape}
+
+```{r}
+#| label: fig-model-gmr-time-varying-caes
+#| fig-cap: |
+#|   Varying estimates of GMR (delivery type) by randomisation date (smoothed), antigen, and visit.
+#|   Red line indicates average GMR.
+#|   Vertical dotted grey line indicates first stage 2 participant.
+#| fig-width: 8
+#| fig-height: 5
+dat_sub_avg <- dat_sub_fits |>
+  unnest(dat) |>
+  summarise(
+    gmr = exp(rvar_mean(log(gmr))),
+    .by = c(antigen, visage)
+  )
+
+dat_sub_fits |>
+  unnest(dat) |>
+  ggplot(aes(randdate, ydist = gmr)) +
+  ggh4x::facet_grid2(visage ~ antigen) +
+  stat_lineribbon() +
+  geom_hline(data = dat_sub_avg, aes(yintercept = mean(gmr)), colour = "red") +
+  geom_hline(yintercept = 1, linetype = 2, colour = "grey50") +
+  geom_vline(xintercept = st2_first, linetype = 2, colour = "grey50") +
+  annotate(
+    x = date("2019-01-01"),
+    y = 0.25,
+    label = "Stage 1",
+    size = 2,
+    geom = "text",
+    family = "TeX Gyre Pagella"
+  ) +
+  annotate(
+    x = date("2021-06-01"),
+    y = 0.25,
+    label = "Stage 2",
+    size = 2,
+    geom = "text",
+    family = "TeX Gyre Pagella"
+  ) +
+  scale_y_continuous(
+    "Geometric mean ratio",
+    trans = "log10",
+    breaks = c(0.2, 0.5, 1, 2, 5, 10)
+  ) +
+  labs(x = "Randomisation date") +
+  scale_fill_brewer()
+```
+
+:::
+
+
 
 ```{r}
 #| include: false
