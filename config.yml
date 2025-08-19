@@ -1,5 +1,5 @@
 default:
   raw_data_stage1_path: "data/raw/stage1"
   raw_data_stage2_path: "data/raw/stage2"
-  raw_data_stage2_file: "redcap-labelled-2025-07-09.qs"
+  raw_data_stage2_file: "redcap-labelled-2025-08-20.qs"
   combined_data_file: "data/derived/optimum-data.qs"

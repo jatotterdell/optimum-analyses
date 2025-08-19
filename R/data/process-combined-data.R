@@ -1,4 +1,10 @@
 # Functions used to derive specific data sets from the raw combined data
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(purrr)
+})
+
 source(file.path("R", "util.R"))
 
 get_baseline_data <- function(dat, unblind = FALSE) {
@@ -22,4 +28,154 @@ get_baseline_data <- function(dat, unblind = FALSE) {
     )
 }
 
-get_skin_prick_data <- function(dat) {}
+get_skin_prick_long <- function(dat) {
+  c_allergens <- c(
+    "D.pteronyssinus",
+    "cat dander",
+    "perennial ryegrass",
+    "whole egg",
+    "cashew",
+    "cow's milk",
+    "peanut",
+    "sesame"
+  )
+  dat_spt <- select_form(dat, "skin_prick_test")
+
+  dat_spt_1 <- dat_spt |>
+    select(record_id, spt_num, priyn, pridat, prinegres:priposres) |>
+    pivot_longer(
+      prinegres:priposres,
+      names_pattern = "pri(neg|pos)res",
+      names_to = c(".value")
+    ) |>
+    rename(spt_neg = neg, spt_pos = pos)
+
+  dat_spt_2 <- dat_spt |>
+    select(record_id, spt_num, prires1:prireact8) |>
+    pivot_longer(
+      prires1:prireact8,
+      names_pattern = "pri(res|react)([1-9])",
+      names_to = c(".value", "spt_tested")
+    ) |>
+    rename(spt_result = res, spt_reaction = react) |>
+    mutate(
+      spt_tested = factor(spt_tested, labels = c_allergens)
+    )
+
+  dat_spt_3 <- dat_spt |>
+    select(record_id, spt_num, prireact9:prires13) |>
+    pivot_longer(
+      prireact9:prires13,
+      names_pattern = "pri(react|allspec|res)",
+      names_to = c(".value")
+    ) |>
+    filter(!is.na(allspec)) |>
+    rename(spt_tested = allspec, spt_reaction = react, spt_result = res) |>
+    mutate(spt_tested = tolower(spt_tested))
+
+  dat_spt_1 |>
+    left_join(
+      bind_rows(dat_spt_2, dat_spt_3) |>
+        mutate(spt_tested = fct_inorder(spt_tested)),
+      join_by(record_id, spt_num)
+    ) |>
+    mutate(
+      spt_0mm = as.numeric(spt_result > 0),
+      spt_1mm = as.numeric(spt_result > spt_neg + 1),
+      spt_3mm = as.numeric(spt_result >= spt_neg + 3)
+    )
+}
+
+get_skin_prick_data <- function(dat) {
+  dat_spt <- select_form(dat, "skin_prick_test")
+  dat_spt <- dat_spt |>
+    mutate(
+      across(
+        starts_with("prires"),
+        ~ . > 0,
+        .names = "{gsub('prires', 'prisens_0mm_', {.col})}"
+      ),
+      across(
+        starts_with("prires"),
+        ~ . > prinegres + 1,
+        .names = "{gsub('prires', 'prisens_1mm_', {.col})}"
+      ),
+      n_prisens_1mm = rowSums(pick(starts_with("prisens_1mm_")), na.rm = TRUE),
+      any_prisens_1mm = n_prisens_1mm > 0,
+      across(
+        starts_with("prires"),
+        ~ . >= prinegres + 3,
+        .names = "{gsub('prires', 'prisens_3mm_', {.col})}"
+      ),
+      n_prisens_3mm = rowSums(pick(starts_with("prisens_3mm_")), na.rm = TRUE),
+      any_prisens_3mm = n_prisens_3mm > 0,
+    )
+  # Collect all positive skin prick test allergens
+  c_allergens <- c(
+    "D.pteronyssinus",
+    "cat dander",
+    "perennial ryegrass",
+    "whole egg",
+    "cashew",
+    "cow's milk",
+    "peanut",
+    "sesame"
+  )
+  dat_spt_str <- dat_spt |>
+    select(
+      record_id,
+      spt_num,
+      contains("_0mm_"),
+      contains("_1mm_"),
+      contains("_3mm_"),
+      contains("priallspec")
+    ) |>
+    rowwise() |>
+    mutate(
+      pri_0mm_str = str_replace_all(
+        str_replace_all(
+          paste(
+            c(c_allergens, c_across(priallspec9:priallspec13))[c_across(
+              prisens_0mm_1:prisens_0mm_13
+            )],
+            collapse = ", "
+          ),
+          ", NA",
+          ""
+        ),
+        "NA, ",
+        ""
+      ),
+      pri_1mm_str = str_replace_all(
+        str_replace_all(
+          paste(
+            c(c_allergens, c_across(priallspec9:priallspec13))[c_across(
+              prisens_1mm_1:prisens_1mm_13
+            )],
+            collapse = ", "
+          ),
+          ", NA",
+          ""
+        ),
+        "NA, ",
+        ""
+      ),
+      pri_3mm_str = str_replace_all(
+        str_replace_all(
+          paste(
+            c(c_allergens, c_across(priallspec9:priallspec13))[c_across(
+              prisens_3mm_1:prisens_3mm_13
+            )],
+            collapse = ", "
+          ),
+          ", NA",
+          ""
+        ),
+        "NA, ",
+        ""
+      )
+    ) |>
+    select(record_id, spt_num, pri_0mm_str, pri_1mm_str, pri_3mm_str)
+  dat_spt |>
+    left_join(dat_spt_str, join_by(record_id, spt_num))
+}

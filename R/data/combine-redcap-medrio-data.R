@@ -542,6 +542,8 @@ combine_vax_admin_v1 <- function() {
 }
 
 combine_participant_assessment <- function() {
+  # For PCH participants, expect assessment at visit 2, 3, and 4
+  # For all others, only at visit 2 and 3.
   st2_pa <- extract_tibble(st2_data, "participant_assessment") |>
     mutate(
       visit = gsub("visit_", "", redcap_event)
@@ -1551,6 +1553,7 @@ combine_treatment_lists <- function() {
 writeLines("Processing forms...", stdout())
 dat_rand <- combine_randomisation()
 dat_st <- combine_study_termination()
+dat_pass <- combine_participant_assessment()
 dat_demo <- combine_demographics()
 dat_bh <- combine_birth_history()
 dat_mh <- combine_medical_history()
@@ -1576,6 +1579,7 @@ optimum_data <- list(
   "food_challenge" = dat_fc,
   "adverse_events" = dat_ae,
   "study_termination" = dat_st,
+  "participant_assessment" = dat_pass,
   "outcome_report" = dat_out,
   "food_and_household_questionnaire" = dat_food,
   "family_history_of_atopy" = dat_fha,

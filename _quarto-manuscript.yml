@@ -4,7 +4,7 @@ project:
   execute-dir: project
 
 manuscript: 
-  article: index.qmd
+  article: index-manuscript.qmd
   notebooks: 
     - notebook: notebooks/baseline-summary.qmd
     - notebook: notebooks/outcomes.qmd
@@ -20,6 +20,8 @@ format:
       body-width: 800px
       sidebar-width: 250px
       margin-width: 200px
+
+  pdf: default
 
 format-links:
   - pdf

@@ -25,3 +25,7 @@ render-report-igg:
 # Render report investigating PRN stage 1 and 2 differences
 render-report-prn:
   quarto render --profile report reports/stage1-vs-stage2.qmd
+
+# Render clinical trial report
+render-report-ctr:
+  quarto render --profile report reports/clinical-trial-report.qmd

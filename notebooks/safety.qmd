@@ -1,0 +1,6 @@
+---
+title: Safety reporting
+subtitle: Summary of AE, SAE, AESI, etc.
+---
+
+{{< include _setup.qmd >}}

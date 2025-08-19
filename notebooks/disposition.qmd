@@ -1,0 +1,98 @@
+---
+title: Participant Disposition
+description: Summary participant disposition and protocol adherence.
+---
+
+{{< include _setup.qmd >}}
+
+## Study Completion
+
+The study completion status as reported in the database is summarised in @tbl-discharge-outcome.
+
+```{r}
+#| label: tbl-discharge-outcome
+#| tbl-cap: Number of early study withdrawals and associated reasons.
+dat_st <- select_form(dat_raw, "study_termination")
+dat_base_st <- dat_base |>
+  select(record_id, subjid, rand_site , birthdat, visdat1) |>
+  left_join(dat_st, join_by(record_id))
+
+dat_base_st |>
+  count(streas, stetrreas) |>
+  mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+  mutate(p = n / sum(n)) |>
+  gt() |>
+  cols_label(
+    streas ~ "Participant status",
+    stetrreas ~ "Reason"
+  ) |>
+  cols_align(
+    align = "left",
+    columns = c(streas, stetrreas)
+  ) |>
+  fmt_percent(p, decimals = 1) |>
+  tab_options(table.font.size = "10px") |>
+  sub_missing() |>
+  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
+```
+
+ A number of participants had a record of "early termination" because they did not consent for blood collection and chose not to attend that visit. This was only applicable for those participating at PCH. Otherwise, the reasons were that the 18-month vaccine was recieved elsewhere. All these deviations occurred at or after 18-months of age [@tbl-discharge-deviation].
+
+```{r}
+#| label: tbl-discharge-deviation
+#| tbl-cap: |
+#|   For participants where study termination was listed as "protocol violation/deviation",
+#|   what was the reported deviation?
+dat_base_st |>
+  filter(stetrreas == "Protocol violation/deviation") |>
+  mutate(ippvspec = tolower(ippvspec)) |>
+  count(ippvspec, discage = interval(birthdat, discdat) %/% months(1)) |>
+  arrange(desc(n), desc(discage)) |>
+  gt() |>
+  cols_label(discage ~ "Age at last contact (months)") |>
+  tab_options(table.font.size = "10px")
+```
+
+The timing of withdrawal for praticipants who did not complete the protocol and withdrew for a reason other than protocol deviation are listed in @tbl-discharge-timing. Again, most participants withdrew at or after 18-months of age with only 17 withdrawn prior to 18-months of age.
+
+```{r}
+#| label: tbl-discharge-timing
+#| tbl-cap: Timing of loss-to-follow-up for study withdrawals.
+tt <- dat_base_st |>
+  filter(
+    streas == "Early Termination",
+    stetrreas != "Protocol violation/deviation"
+  ) |>
+  select(
+    record_id,
+    birthdat,
+    visdat1,
+    discdat,
+    stetrreas
+  ) |>
+  mutate(discage = interval(birthdat, discdat) %/% months(1)) |>
+  relocate(discage, .after = discdat) |>
+  arrange(discage) |>
+  gt() |>
+  cols_label(discage ~ "Age at last contact (months)") |>
+  tab_options(table.font.size = "10px")
+tt
+```
+
+## Visit attendance
+
+```{r}
+#| label: data-visit-attendance
+dat_vis <- select_form(dat_raw, "participant_assessment")
+dat_vis <- dat_base |>
+  select(record_id, subjid, site, trt) |>
+  left_join(dat_vis, join_by(record_id))
+```
+
+```{r}
+dat_vis |>
+  filter(visage %in% c("12-month"), is.na(windyn))
+dat_vis |>
+  filter(visage %in% c("12-month")) |>
+  count(visage, windyn, windreas)
+```

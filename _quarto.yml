@@ -1,2 +1,42 @@
-profile:
-  default: manuscript
+project:
+  type: website
+  output-dir: _site
+  execute-dir: project
+  render:
+    - "*.qmd"
+    - "!reports/"
+
+
+website:
+  title: "OPTIMUM Trial Data"
+  navbar:
+    search: true
+    left:
+      - href: index.qmd
+        text: Home
+      - sidebar:notebooks
+
+  sidebar:
+    - id: notebooks
+      title: Notebooks
+      style: "docked"
+      contents:
+        notebooks
+
+format:
+  html:
+    theme: journal
+    fontsize: 1em
+    html-table-processing: none
+    cap-location: margin
+    toc: true
+    toc-expand: true
+    grid:
+      body-width: 800px
+      sidebar-width: 250px
+      margin-width: 200px
+
+execute: 
+  freeze: false
+  warning: false
+  message: false

@@ -7,29 +7,4 @@ date: last-modified
 number-sections: true
 ---
 
-# Introduction
-
-This is the trial report for OPTIMUM reporting on clinical outcomes.
-
-# Baseline
-
-Why does this not work?
-
-{{< embed  notebooks/baseline-summary.qmd#fig-enrolment-overall >}}
-
-{{< embed  notebooks/baseline-summary.qmd#tbl-baseline-characteristics >}}
-
-{{< embed  notebooks/baseline-summary.qmd#tbl-discharge-outcome >}}
-
-
-# Outcomes
-
-## Skin prick tests (secondary)
-
-{{< embed notebooks/outcomes.qmd#tbl-spt-outcomes >}}
-
-## Eczema (secondary)
-
-{{< embed notebooks/outcomes.qmd#tbl-eczema-outcomes >}}
-
-## Food allergy (primary)
+The purpose of this website is to be a repository of the derivations required for analysis of the OPTIMUM trial data. The clinical trial report will summarise the trial data and analyses but to reduce length will not provide complete detail on all derivations. The aim here is to document in more detail the data processing and data checks that were performed in preparing the clinical trial report.

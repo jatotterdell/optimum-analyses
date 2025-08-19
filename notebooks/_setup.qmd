@@ -1,0 +1,48 @@
+```{r}
+#| label: packages-and-setup
+suppressPackageStartupMessages({
+  # Data
+  library(here)
+  library(qs)
+  library(dplyr)
+  library(tidyr)
+  library(forcats)
+  library(lubridate)
+  library(stringr)
+  library(labelled)
+
+  # Figures
+  library(ggplot2)
+
+  # Tables
+  library(reactable)
+  library(reactablefmtr)
+  library(gt)
+  library(gtsummary)
+})
+
+readRenviron(here(".env"))
+
+source(here("R", "util.R"))
+source(here("R", "data", "process-combined-data.R"))
+
+theme_set(
+  theme_bw(base_size = 10) +
+    theme(panel.grid.minor = element_blank())
+)
+
+options(
+  reactable.theme = journal(
+    font_size = 10,
+    header_font_size = 11,
+    cell_padding = 4
+  )
+)
+```
+
+```{r}
+#| label: data
+com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
+dat_raw <- qread(com_file)
+dat_base <- get_baseline_data(dat_raw, TRUE)
+```

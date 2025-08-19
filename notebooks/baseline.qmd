@@ -1,0 +1,56 @@
+---
+title: Baseline Characteristics
+description: Summary of enrolment and baseline characteristics.
+---
+
+{{< include _setup.qmd >}}
+
+## Enrolment
+
+```{r}
+#| label: fig-enrolment-overall
+#| fig-cap: Cumulative enrolment.
+#| fig-height: 3
+#| fig-width: 6
+dat_enrol <- dat_base |>
+  select(record_id, randdattim) |>
+  mutate(randdate = as_date(randdattim)) |>
+  arrange(randdate) |>
+  summarise(n = n(), .by = randdate) |>
+  mutate(cn = cumsum(n))
+
+ggplot(
+  dat_enrol,
+  aes(randdate, cn)
+) +
+  geom_step() +
+  scale_x_date("Calendar time", breaks = "3 months", date_labels = "%d %b %y") +
+  scale_y_continuous("Number enrolled", breaks = seq(0, 1000, 100)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Vaccination Administration
+
+For one participant the pharmacy reportedly dispensed the alternative study vaccine to the participants randomly allocated type. The IMP is monitored for all participants, so we are confident this was the only time this occurred. This error was documented in the proitocol deviations log. 
+
+To strictly adhere to ITT, this participant would be analysed according to their randomly allocated group to avoid any potential accidental bias. However, due to the strict IMP monitoring, the one-off occurrence, the fact that the intervention is a single point-treatment, and the objective nature of determining whether the correct vaccine was given at this singple-point treatment, I would be inclined to consider a modified-ITT where participants are grouped according to what was actually recieved (which in this case is equivalent to what was randomly allocated for all but this one participant).
+
+That being said, what follows currently sticks with strict ITT, grouping participants as assigned rather than as received. If there's general agreement with considering the modified-ITT, then these will be updated.
+
+## Baseline Characteristics
+
+```{r}
+#| label: tbl-baseline-characteristics
+#| tbl-cap: Baseline characteristics of trial participants.
+dat_base |>
+  tbl_summary(
+    include = c(gender, parinc, delt, wgt, len, inhc),
+    by = trt,
+    missing_text = "(Missing)"
+  ) |>
+  add_n() |>
+  add_overall(last = TRUE) |>
+  as_gt() |>
+  tab_options(table.font.size = "10px") |>
+  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
+```

@@ -1,7 +1,9 @@
 ---
 title: Trial Outcomes
-description: Document derivation, summaries, and analyses related to clinical outcomes for OPTIMUM.
+description: Document derivation, summaries, and analyses related to primary and secondary clinical outcomes.
 ---
+
+{{< include _setup.qmd >}}
 
 # Trial Outcome Definitions
 
@@ -12,10 +14,11 @@ description: Document derivation, summaries, and analyses related to clinical ou
 IgE mediated food allergy with evidence of food sensitisation on skin prick test (SPT) by 12 months old and confirmed (where necessary) by medically supervised oral food challenge(s) (OFC). For the purpose of this trial, if either of the following conditions are met, the study participant will be considered to have reached the primary endpoint:
 
 1. Unequivocal evidence of IgE mediated food allergy, defined as:
-     - A positive OFC with evidence of sensitisation on SPT to the food of interest *OR*
-     - History of clinician-confirmed food anaphylaxis, with symptoms affecting at least two of the following: skin, gastrointestinal tract, respiratory tract, cardiovascular system; *AND* evidence of sensitisation on SPT to the food of interest.
-2. Highly probable IgE-mediated food allergy
-     - A history of food allergic reaction (consistent with PRACTALL criteria), with evidence of sensitisation on SPT to the food of interest.
+     i. A positive OFC with evidence of sensitisation on SPT to the food of interest *OR*
+     ii. History of clinician-confirmed food anaphylaxis, with symptoms affecting at least two of the following: skin, gastrointestinal tract, respiratory tract, cardiovascular system; *AND* evidence of sensitisation on SPT to the food of interest.
+2. Highly probable IgE-mediated food allergy defined as a history of food allergic reaction (consistent with PRACTALL criteria), with evidence of sensitisation on SPT to the food of interest.
+
+We will report on the number and proportion who satisfy this composite definition, and the number and proportion satisfying each of the three sub-components as per a hierarchy in order of 1.i, 1.ii, 2.
 
 ## Secondary outcomes (2)
 
@@ -24,83 +27,48 @@ b. A history of parent-reported clinician-diagnosed new onset eczema by **12 mon
 c. A SPT **>1mm** greater than the negative control to at least one allergen by approximately 12 months of age
 d. A SPT **≥3mm** greater than the negative control to at least one allergen by approximately 12 months of age
 
-# Setup 
+## Details
+
+Some of the above is open to interpretation, but generally:
+
+- we consider any SPT before 18-months of age to be valid (i.e. approximately 12 months of age)
+- sensitisation on SPT requires a reaction greater than 1mm compared to negative control solution (i.e. >1mm)
+- new-onset eczema means we exclude any infants with pre-existing eczema at 6-weeks of age (enrolment)
+- by at least one allergen, we mean any allergen tested, either from the base set or any additionally tested allergens
 
 ```{r}
-#| label: packages-and-setup
-suppressPackageStartupMessages({
-  # Data
-  library(qs)
-  library(dplyr)
-  library(lubridate)
-  library(stringr)
-
-  # Figures
-  library(ggplot2)
-
-  # Tables
-  library(reactable)
-  library(reactablefmtr)
-  library(gt)
-  library(gtsummary)
-
-  library(here)
-})
-
-readRenviron(here(".env"))
-source(here("R", "util.R"))
-
-theme_set(
-  theme_bw(base_size = 10) +
-    theme(panel.grid.minor = element_blank())
-)
-
-options(
-  reactable.theme = journal(
-    font_size = 10,
-    header_font_size = 11,
-    cell_padding = 4
-  )
-)
-```
-
-```{r}
-#| label: data
-dat_rand_list <- read_randomisation_lists()
-com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
-dat_all <- qread(com_file)
-
+#| label: data-derive
 # Randomisation
-dat_ran <- select_form(dat_all, "randomisation") |>
+dat_ran <- select_form(dat_raw, "randomisation") |>
   mutate(randdat = date(randdattim)) |>
-  left_join(dat_rand_list, join_by(rand))
+  left_join(select_form(dat_raw, "allocations"), join_by(rand))
 
 # Add study termination info to baseline data
-dat_st <- select_form(dat_all, "study_termination")
-dat_dem <- select_form(dat_all, "demographics") |>
+dat_st <- select_form(dat_raw, "study_termination")
+dat_dem <- select_form(dat_raw, "demographics") |>
   select(record_id, visdat1, birthdat, gender) |>
   left_join(dat_st, join_by(record_id)) |>
   mutate(discage = interval(birthdat, discdat) %/% months(1)) |>
   relocate(discage, .after = discdat)
 
-dat_mh <- select_form(dat_all, "medical_history")
+dat_mh <- select_form(dat_raw, "medical_history")
 
 # Main baseline information
 dat_base <- dat_ran |>
   left_join(dat_dem, join_by(record_id))
 
 # Outcomes
-dat_out <- select_form(dat_all, "outcome_report")
-dat_fhq <- select_form(dat_all, "food_and_household_questionnaire")
-dat_spt <- select_form(dat_all, "skin_prick_test")
-dat_fch <- select_form(dat_all, "food_challenge")
+dat_out <- select_form(dat_raw, "outcome_report")
+dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire")
+dat_spt <- select_form(dat_raw, "skin_prick_test")
+dat_fch <- select_form(dat_raw, "food_challenge")
 ```
 
 # Skin Prick Test
 
 ## Derivation
 
-For reference, the following fields correspond to these foods:
+For reference, the following REDCap form fields correspond to these foods:
 
 - `prires4` - whole egg
 - `prires5` - cashew
@@ -126,7 +94,7 @@ dat_base_spt |>
   count(spt_record, spt_occasion, records, name = "count")
 ```
 
- Those with no records may be due to early study withdrawal, but in some cases the participant completed the protocol.
+Those with no records may be due to early study withdrawal, but in some cases the participant completed the protocol but still had no SPT recorded.
 
 ```{r}
 #| label: study-termination-no-spt-record
@@ -293,7 +261,7 @@ tbl_summary(
 
 ## Derivation
 
-There are two sources of information for new eczema diagnoses: the food and household questionnaire and the outcome report. Sometimes the two are consistent, but in some cases they are not. We let the outcome report take precedence. However, in some cases there is no eczema diagnosis on the outcome report, but there may be eczema diagnoses reported in the survey responses. It's possible that outcome reports for these cases were not completed but requires further discussion.
+There are two sources of information for new eczema diagnoses: the food and household questionnaire and the outcome report. For stage 1, eczema was also to be recorded on the adverse event of special interest (AESI) form. Sometimes the two are consistent, but in some cases they are not. We let the outcome report take precedence. However, in some cases there is no eczema diagnosis on the outcome report, but there may be eczema diagnoses reported in the survey responses. It's possible that outcome reports for these cases were not completed but requires further discussion.
 
 ```{r}
 #| label: check-dates-outcome-report-food-questionnaire
@@ -322,7 +290,7 @@ ecz_all <- full_join(
 )
 ```
 
-The protocol definitions specify "new onset" eczema, which I assume means we do not wish to count infants who already have an eczema diagnosis at enrolment (unless it's possible for it to still be "new onset" despite a prior diagnosis?). I identify six infants with a past or current diagnosis of eczema at baseline per their medical history. 
+The protocol definitions specify "new onset" eczema, which means we do not wish to count infants who already had an eczema diagnosis at enrolment. I identify six infants with a past or current diagnosis of eczema at baseline per their medical history. 
 
 ```{r}
 #| label: existing-eczema-medical-history
@@ -352,7 +320,7 @@ ecz_fhq |>
   reactable()
 ```
 
-Overall, there were then 11 infants identified as having existing past or current eczema at 6-weeks. **Should these participants be excluded from the analysis of eczema outcomes due to existing eczema diagnoses? Or is "new-onset" eczema still possible?**
+Overall, there were then **11** infants identified as having existing past or current eczema diagnosis at 6-weeks. For the analyis of new-onset eczema, these 11 infants will be excluded.
 
 ```{r}
 #| label: all-existing-eczema-at-enrolment
@@ -370,8 +338,7 @@ ids_existing_eczema_2 <- ecz_fhq |>
 ids_existing_eczema <- union(ids_existing_eczema_1, ids_existing_eczema_2)
 ```
 
-For the participants with a prior diagnosis of eczema, only one has an eczema outcome reported (4629-215).
-Given the protocol definition, this eczema diagnosis may not count as "new-onset" eczema as it was reported at 6-weeks, however, need to confirm that is the correct interpretation.
+For the participants with a prior diagnosis of eczema, only one had an eczema outcome reported (4629-215).
 
 ```{r}
 #| label: check-diagnoses-existing-eczema-at-enrolment
