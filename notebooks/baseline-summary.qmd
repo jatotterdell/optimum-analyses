@@ -22,25 +22,33 @@ suppressPackageStartupMessages({
   library(reactablefmtr)
   library(gt)
   library(gtsummary)
+
+  library(here)
 })
 
-readRenviron(".env")
-source("R/util.R")
+readRenviron(here(".env"))
+source(here("R", "util.R"))
 
-theme_set(theme_bw(base_size = 10) +
-  theme(panel.grid.minor = element_blank()))
+theme_set(
+  theme_bw(base_size = 10) +
+    theme(panel.grid.minor = element_blank())
+)
 
-options(reactable.theme = journal(
-  font_size = 10,
-  header_font_size = 11,
-  cell_padding = 4
-))
+options(
+  reactable.theme = journal(
+    font_size = 10,
+    header_font_size = 11,
+    cell_padding = 4
+  )
+)
 ```
 
 ```{r}
 #| label: data
 dat_rand_list <- read_randomisation_lists()
-dat_all <- qread(file.path("data", "optimum-data.qs"))
+dat_all <- qread(here("data", "optimum-data.qs"))
+
+dat_v1 <- select_form(dat_all, "vaccine_administration_v1")
 
 dat_base <- left_join(
   select_form(dat_all, "randomisation"),
@@ -68,16 +76,18 @@ dat_enrol <- dat_base |>
 
 ```{r}
 #| label: fig-enrolment-overall
-#| fig-cap: Cumulative enrolment into OPTIMUM trial.
+#| fig-cap: Cumulative enrolment.
 #| fig-height: 3
 #| fig-width: 6
-ggplot(
-  dat_enrol, aes(randdate, cn)
+p <- ggplot(
+  dat_enrol,
+  aes(randdate, cn)
 ) +
   geom_step() +
   scale_x_date("Calendar time", breaks = "3 months", date_labels = "%d %b %y") +
   scale_y_continuous("Number enrolled", breaks = seq(0, 1000, 100)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+plot(p)
 ```
 
 ## Baseline Characteristics
@@ -94,7 +104,8 @@ dat_base |>
   add_n() |>
   add_overall(last = TRUE) |>
   as_gt() |>
-  tab_options(table.font.size = "10px")
+  tab_options(table.font.size = "10px") |>
+  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
 ```
 
 ## Disposition
@@ -121,7 +132,8 @@ dat_base_st |>
     columns = c(streas, stetrreas)
   ) |>
   tab_options(table.font.size = "10px") |>
-  sub_missing()
+  sub_missing() |>
+  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
 ```
 
 ```{r}
@@ -129,7 +141,15 @@ dat_base_st |>
 #| tbl-cap: Timing of loss-to-follow-up for study withdrawals.
 tt <- dat_base_st |>
   filter(streas == "Early Termination") |>
-  select(record_id, birthdat, visdat1, discdat, stetrreas, wcipnw, wcipnwreas) |>
+  select(
+    record_id,
+    birthdat,
+    visdat1,
+    discdat,
+    stetrreas,
+    wcipnw,
+    wcipnwreas
+  ) |>
   mutate(discage = interval(birthdat, discdat) %/% months(1)) |>
   relocate(discage, .after = discdat) |>
   reactable(showPageSizeOptions = TRUE)

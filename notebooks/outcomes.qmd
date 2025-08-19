@@ -3,9 +3,9 @@ title: Trial Outcomes
 description: Document derivation, summaries, and analyses related to clinical outcomes for OPTIMUM.
 ---
 
-## Trial Outcomes
+# Trial Outcome Definitions
 
-### Primary outcome (1)
+## Primary outcome (1)
 
 **IgE mediated food allergy**
 
@@ -17,14 +17,14 @@ IgE mediated food allergy with evidence of food sensitisation on skin prick test
 2. Highly probable IgE-mediated food allergy
      - A history of food allergic reaction (consistent with PRACTALL criteria), with evidence of sensitisation on SPT to the food of interest.
 
-### Secondary outcomes (2)
+## Secondary outcomes (2)
 
 a. A history of parent-reported clinician-diagnosed new onset eczema by **6 months** *AND* a positive SPT to any allergen by approximately 12 months old.
 b. A history of parent-reported clinician-diagnosed new onset eczema by **12 months** *AND* a positive SPT to any allergen by approximately 12 months old.
 c. A SPT **>1mm** greater than the negative control to at least one allergen by approximately 12 months of age
 d. A SPT **≥3mm** greater than the negative control to at least one allergen by approximately 12 months of age
 
-## Setup 
+# Setup 
 
 ```{r}
 #| label: packages-and-setup
@@ -33,6 +33,7 @@ suppressPackageStartupMessages({
   library(qs)
   library(dplyr)
   library(lubridate)
+  library(stringr)
 
   # Figures
   library(ggplot2)
@@ -42,25 +43,32 @@ suppressPackageStartupMessages({
   library(reactablefmtr)
   library(gt)
   library(gtsummary)
+
+  library(here)
 })
 
-readRenviron(".env")
-source("R/util.R")
+readRenviron(here(".env"))
+source(here("R", "util.R"))
 
-theme_set(theme_bw(base_size = 10) +
-  theme(panel.grid.minor = element_blank()))
+theme_set(
+  theme_bw(base_size = 10) +
+    theme(panel.grid.minor = element_blank())
+)
 
-options(reactable.theme = journal(
-  font_size = 10,
-  header_font_size = 11,
-  cell_padding = 4
-))
+options(
+  reactable.theme = journal(
+    font_size = 10,
+    header_font_size = 11,
+    cell_padding = 4
+  )
+)
 ```
 
 ```{r}
 #| label: data
 dat_rand_list <- read_randomisation_lists()
-dat_all <- qread(file.path("data", "optimum-data.qs"))
+com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
+dat_all <- qread(com_file)
 
 # Randomisation
 dat_ran <- select_form(dat_all, "randomisation") |>
@@ -88,9 +96,17 @@ dat_spt <- select_form(dat_all, "skin_prick_test")
 dat_fch <- select_form(dat_all, "food_challenge")
 ```
 
-## Skin Prick Test
+# Skin Prick Test
 
-### Derivation
+## Derivation
+
+For reference, the following fields correspond to these foods:
+
+- `prires4` - whole egg
+- `prires5` - cashew
+- `prires6` - cow's milk
+- `prires7` - peanut
+- `prires8` - sesame
 
 We start with the skin prick tests (SPTs) [outcomes 2c. and 2d.], as all other outcomes rely on positive SPTs in addition to further conditions. For the food allergy and eczema outcomes, sensitisation to food allergens or a positive SPT for a specific food was defined as a SPT wheal size >1 mm than that produced by a negative control solution.
 
@@ -151,8 +167,18 @@ For the outcome 2d. we also require any where the reaction is ≥3mm.
 
 ```{r}
 #| label: derive-positive-spt
+
+# Here I consider 3 definitions for a "positive SPT"
+# - 0mm - res > 0 (a non-zero wheal size)
+# - 1mm - res > 1 + negres (>1mm more than negative control)
+# - 3mm - res >= 3 + negres (>=3mm more than negative control)
 dat_spt <- dat_spt |>
   mutate(
+    across(
+      starts_with("prires"),
+      ~ . > 0,
+      .names = "{gsub('prires', 'prisens_0mm_', {.col})}"
+    ),
     across(
       starts_with("prires"),
       ~ . > prinegres + 1,
@@ -169,9 +195,37 @@ dat_spt <- dat_spt |>
     any_prisens_3mm = n_prisens_3mm > 0,
   )
 
+# Collect all positive skin prick test allergens
+allergen_ref <- c(
+  "D.pteronyssinus", "cat dander", "perennial ryegrass", "whole egg", "cashew", "cow's milk", "peanut", "sesame"
+)
+dat_spt_str <- dat_spt |>
+  select(record_id, spt_num, contains("_0mm_"), contains("_1mm_"), contains("_3mm_"), contains("priallspec")) |>
+  rowwise() |>
+  mutate(
+    pri_0mm_str =  str_replace_all(str_replace_all(
+      paste(c(allergen_ref, c_across(priallspec9:priallspec13))[c_across(prisens_0mm_1:prisens_0mm_13)], collapse = ", "), ", NA", ""), "NA, ", ""),
+    pri_1mm_str =  str_replace_all(str_replace_all(
+      paste(c(allergen_ref, c_across(priallspec9:priallspec13))[c_across(prisens_1mm_1:prisens_1mm_13)], collapse = ", "), ", NA", ""), "NA, ", ""),
+    pri_3mm_str =  str_replace_all(str_replace_all(
+      paste(c(allergen_ref, c_across(priallspec9:priallspec13))[c_across(prisens_3mm_1:prisens_3mm_13)], collapse = ", "), ", NA", ""), "NA, ", "")
+  ) |>
+  select(record_id, spt_num, pri_0mm_str, pri_1mm_str, pri_3mm_str)
+dat_spt <- dat_spt |>
+  left_join(dat_spt_str, join_by(record_id, spt_num))
+  
+
 dat_spt_sens <- dat_spt |>
   filter(any_prisens_1mm) |>
-  select(record_id, pridat, spt_occasion, any_prisens_1mm, n_prisens_1mm, any_prisens_3mm, n_prisens_3mm)
+  select(
+    record_id,
+    pridat,
+    spt_occasion,
+    any_prisens_1mm,
+    n_prisens_1mm,
+    any_prisens_3mm,
+    n_prisens_3mm
+  )
 
 # Ages range from 6 to 19 months, so all are "approximately by 12 to 18 months"
 dat_base_spt_sens <- dat_base |>
@@ -212,7 +266,7 @@ dat_base_spt_sens |>
   mutate(p = n / sum(n))
 ```
 
-### Summary
+## Summary
 
 There was no difference between groups with respect to SPT sensitisation.
 
@@ -231,12 +285,13 @@ tbl_summary(
 ) |>
   modify_header(label = "**Outcome**") |>
   as_gt() |>
-  tab_options(table.font.size = "10px")
+  tab_options(table.font.size = "10px") |>
+  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
 ```
 
-## Eczema
+# Eczema
 
-### Derivation
+## Derivation
 
 There are two sources of information for new eczema diagnoses: the food and household questionnaire and the outcome report. Sometimes the two are consistent, but in some cases they are not. We let the outcome report take precedence. However, in some cases there is no eczema diagnosis on the outcome report, but there may be eczema diagnoses reported in the survey responses. It's possible that outcome reports for these cases were not completed but requires further discussion.
 
@@ -249,8 +304,22 @@ ecz_fhq <- dat_fhq |>
 ecz_out <- dat_out |>
   filter(outalltp == "Eczema") |>
   arrange(record_id, outdiagdat) |>
-  select(record_id, outalltp, outsev, outrepdat, outawardat, outdiagdat, outeczsrce, outeczsrcoth)
-ecz_all <- full_join(ecz_out, ecz_fhq, join_by(record_id), relationship = "many-to-many")
+  select(
+    record_id,
+    outalltp,
+    outsev,
+    outrepdat,
+    outawardat,
+    outdiagdat,
+    outeczsrce,
+    outeczsrcoth
+  )
+ecz_all <- full_join(
+  ecz_out,
+  ecz_fhq,
+  join_by(record_id),
+  relationship = "many-to-many"
+)
 ```
 
 The protocol definitions specify "new onset" eczema, which I assume means we do not wish to count infants who already have an eczema diagnosis at enrolment (unless it's possible for it to still be "new onset" despite a prior diagnosis?). I identify six infants with a past or current diagnosis of eczema at baseline per their medical history. 
@@ -263,7 +332,14 @@ dat_mh |>
       if_any(starts_with("mhdiag"), ~ tolower(.) == "eczema")
   ) |>
   select(record_id, ends_with(c("1", "2", "3"))) |>
-  select(-c(matches("mhcode[1-9]"), starts_with("mhstdat"), starts_with("mhenddat"), starts_with("mhstat"))) |>
+  select(
+    -c(
+      matches("mhcode[1-9]"),
+      starts_with("mhstdat"),
+      starts_with("mhenddat"),
+      starts_with("mhstat")
+    )
+  ) |>
   reactable()
 ```
 
@@ -366,17 +442,22 @@ dat_base_ecz <- dat_base |>
     ecz_age_months = interval(birthdat, outdiagdat) %/% months(1),
     ecz_6m = case_when(
       is.na(outalltp) ~ 0,
-      outalltp == "Eczema" & interval(birthdat, outdiagdat) %/% months(1) <= 6 ~ 1,
+      outalltp == "Eczema" & interval(birthdat, outdiagdat) %/% months(1) <= 6 ~
+        1,
       .default = 0
     ),
     ecz_12m = case_when(
       is.na(outalltp) ~ 0,
-      outalltp == "Eczema" & interval(birthdat, outdiagdat) %/% months(1) <= 12 ~ 1,
+      outalltp == "Eczema" &
+        interval(birthdat, outdiagdat) %/% months(1) <= 12 ~
+        1,
       .default = 0
     ),
     ecz_18m = case_when(
       is.na(outalltp) ~ 0,
-      outalltp == "Eczema" & interval(birthdat, outdiagdat) %/% months(1) <= 18 ~ 1,
+      outalltp == "Eczema" &
+        interval(birthdat, outdiagdat) %/% months(1) <= 18 ~
+        1,
       .default = 0
     )
   )
@@ -384,7 +465,7 @@ dat_base_ecz <- dat_base |>
 
 For the protocol defined outcomes [2a. and 2b.], the eczema diagnosis needs to be accompanied by an SPT to at least one allergen by approximately 12 months of age.
 
-### Summary
+## Summary
 
 There were no differences in eczema diagnoses between the groups.
 
@@ -406,17 +487,187 @@ dat_base_ecz |>
   ) |>
   modify_header(label = "**Outcome**") |>
   as_gt() |>
-  tab_options(table.font.size = "10px")
+  tab_options(table.font.size = "10px") |>
+  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
 ```
 
-## Food allergy
+# Food allergy
+
+The primary source of information is the outcome form, in particular, records where `outalltp` is one of *Anaphylaxis*, *Highly probably IgE mediated food allergy*, or *Oral food challenge*. There is also a form `food_challenge` for the oral food challenges themselves.
 
 ```{r}
 fa_recs <- dat_out |>
   filter(!is.na(outalltp), outalltp != "Eczema")
+fa_recs |> count(outalltp)
+```
 
-fa_ids <- dat_out |>
-  filter(outallyn, outalltp != "Eczema") |>
-  pull(record_id) |>
-  unique()
+Generally, there is one record per allergen and reaction type. For example,
+
+```{r}
+fa_recs |>
+  filter(record_id == "4629-92") |>
+  select(record_id, outalltp, outrepdat, outdiagdat, outfrasrcespec , outfrafood)
+```
+
+How many individuals had some kind of food allergy outcome recorded, and how many records did they?
+
+```{r}
+fa_recs |>
+  count(record_id, name = "records") |>
+  count(records, name = "infants")
+```
+As mentioned above, to meet the primary outcome we require a positive skin prick test to the relevant allergen in addition to an outcome report of anaphylaxis, positive oral food challenge, or highly probable IgE mediated food allergy. Rather than checking for *any* positive SPT, need to check specifically for one which is positive to the relevant food.
+
+## Anaphylaxis
+
+There were 6 participants with a record of anaphylaxis. One participant did not have a positive skin prick test to the reported food (5785-283), however, this appears to have been a data entry issue. Apparently there was a positive SPT to sesame, it's just not recorded in REDCap, awaiting an update to this record.
+
+```{r}
+ana_recs <- dat_out |>
+  filter(outalltp == "Anaphylaxis") |>
+  select(
+    record_id,
+    outalltp,
+    outsev,
+    outdiagdat,
+    outfrasource,
+    outfrafood,
+    outfraexptp
+  ) |>
+  arrange(record_id) |>
+  summarise(
+    foods = paste(outfrafood, collapse = ", "),
+    .by = record_id
+  )
+ana_recs |>
+  left_join(
+    dat_spt |>
+      filter(record_id %in% ana_recs$record_id) |>
+      select(record_id, pridat, ends_with("str")) |>
+      arrange(record_id) |>
+      summarise(
+        across(
+          pri_0mm_str:pri_3mm_str,
+          ~ str_replace_all(paste(.x, collapse = ", "), "NA, ", "")
+        ),
+        .by = record_id
+      ),
+    join_by(record_id)
+  ) |>
+  reactable(defaultPageSize = 50)
+```
+
+## Highly Probably IgE Mediated Food Allergy
+
+There were 46 individuals with a record of highly probable IgE mediated food allergy.
+From manual review, a few were missing positive SPT:
+
+- 5785-239 (eggplant)
+- 5785-243 (cows milk, rice)
+- 5785-331 (egg)
+- 75
+
+```{r}
+ige_recs <- dat_out |>
+  filter(outalltp == "Highly probably IgE mediated food allergy") |>
+  select(
+    record_id,
+    outalltp,
+    outsev,
+    outdiagdat,
+    outfrasource,
+    outfrafood,
+    outfraexptp
+  ) |>
+  arrange(record_id) |>
+  summarise(
+    foods = paste(outfrafood, collapse = ", "),
+    .by = record_id
+  )
+ige_recs |>
+  left_join(
+    dat_spt |>
+      filter(record_id %in% ige_recs$record_id) |>
+      select(record_id, ends_with("str")) |>
+      arrange(record_id) |>
+      summarise(
+        across(
+          pri_0mm_str:pri_3mm_str,
+          ~ str_replace_all(paste(.x, collapse = ", "), "NA, ", "")
+        ),
+        .by = record_id
+      ),
+    join_by(record_id)
+  ) |>
+  reactable(defaultPageSize = 50)
+```
+
+## Food Challenge
+
+From the outcome report, there were 19 infants with a positive oral food challenge. 
+Again, some did not have a positive SPT:
+
+- 4630-45 (peanut)
+- 5785-39 (sesame)
+
+```{r}
+ofc_recs <- dat_out |>
+  filter(outalltp == "Oral food challenge") |>
+  select(
+    record_id,
+    outalltp,
+    outsev,
+    outdiagdat,
+    outfrasource,
+    outfrafood,
+    outfraexptp
+  ) |>
+  arrange(record_id) |>
+  summarise(
+    foods = paste(outfrafood, collapse = ", "),
+    .by = record_id
+  )
+ofc_recs |>
+  left_join(
+    dat_spt |>
+      filter(record_id %in% ofc_recs$record_id) |>
+      select(record_id, ends_with("str")) |>
+      arrange(record_id) |>
+      summarise(
+        across(
+          pri_0mm_str:pri_3mm_str,
+          ~ str_replace_all(paste(.x, collapse = ", "), "NA, ", "")
+        ),
+        .by = record_id
+      ),
+    join_by(record_id)
+  ) |>
+  reactable(defaultPageSize = 50)
+```
+
+For reference, in the oral food challenge records:
+
+- `ofcfoodtp1` - peanut
+- `ofcfoodtp2` - egg
+- `ofcfoodtp3` - milk
+- `ofcfoodtp4` - cashew
+
+
+Some infants may have multiple food challenges, others may have only one.
+
+```{r}
+dat_fch |>
+  count(record_id, name = "records") |>
+  count(records, name = "infants")
+```
+
+For example, the following infant had three separate food challenges, each for a different allergen: peanut, milk, and egg, all being positive. However, in the outcomes form, they only have two oral food challenge records (no record for the egg). To be safe, need to check both sources.
+
+```{r}
+fa_recs |>
+  filter(record_id == "5785-333") |>
+  select(record_id, outalltp, outsev, outrepdat, outfrafood, outfraexptp)
+dat_fch |>
+  filter(record_id == "5785-333") |>
+  select(record_id, ofc_num, ofcdat, ofcwindyn, starts_with("ofcfoodtp"))
 ```
