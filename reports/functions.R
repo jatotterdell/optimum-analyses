@@ -33,11 +33,19 @@ miss_pattern_trt_tab <- function(dat, var = concentration) {
     to_factor() |>
     mutate(missing = pic[1 + as.integer(is.na({{ var }}))]) |>
     select(subjid, stage, trt, visage, missing) |>
-    pivot_wider(names_from = visage, values_from = missing, values_fill = "-") |>
+    pivot_wider(
+      names_from = visage,
+      values_from = missing,
+      values_fill = "-"
+    ) |>
     count(stage, trt, `6-month`, `7-month`, `18-month`, `19-month`) |>
     arrange(trt, desc(n)) |>
     mutate(p = n / sum(n)) |>
-    pivot_wider(names_from = "trt", values_from = c("n", "p"), values_fill = 0) |>
+    pivot_wider(
+      names_from = "trt",
+      values_from = c("n", "p"),
+      values_fill = 0
+    ) |>
     arrange(
       stage,
       desc(`6-month`),
@@ -57,7 +65,8 @@ miss_pattern_trt_tab <- function(dat, var = concentration) {
     ) |>
     cols_align(align = "center", columns = 1:2) |>
     tab_spanner(
-      label = "Count (%)", columns = 3:4
+      label = "Count (%)",
+      columns = 3:4
     ) |>
     tab_style(
       style = cell_text(align = "center"),
@@ -79,10 +88,12 @@ make_stan_data <- function(dd, form = ~trt) {
     mutate(across(everything(), ~ replace_na(.x, -99))) |>
     as.matrix()
   R <- dd |>
-    mutate(R = case_when(
-      is.na(log_concentration) ~ 1,
-      !is.na(log_concentration) ~ 0
-    )) |>
+    mutate(
+      R = case_when(
+        is.na(log_concentration) ~ 1,
+        !is.na(log_concentration) ~ 0
+      )
+    ) |>
     select(subjid, visage, R) |>
     spread(visage, R) |>
     select(-subjid) |>
@@ -99,10 +110,11 @@ make_stan_data <- function(dd, form = ~trt) {
 }
 
 igg_gmc_summary_tab <- function(
-    dat,
-    rn = "visage",
-    var = concentration,
-    var2 = positive) {
+  dat,
+  rn = "visage",
+  var = concentration,
+  var2 = positive
+) {
   tab <- dat |>
     summarise(
       obs = sum(!is.na({{ var }})),
