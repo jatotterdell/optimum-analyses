@@ -1490,6 +1490,64 @@ combine_igg <- function() {
   igg_trans
 }
 
+read_stage1_randomisation_list <- function() {
+  st1rands <- read_csv(
+    file.path(
+      Sys.getenv("RDS_PATH"),
+      "data",
+      "rand",
+      "OPTIMUM_STAGE1_randomisation_list.csv"
+    ),
+    show_col_types = FALSE
+  )
+  st1rands |>
+    rename(
+      rand = RANDNO,
+      blockno = BLOCKNO,
+      trt = TREATMENT
+    ) |>
+    mutate(
+      rand = as.character(rand),
+      blockno = as.character(blockno),
+      rand_site = "PCH",
+      rand_stage = 1
+    )
+}
+
+read_stage2_randomisation_list <- function() {
+  fn <- grep(
+    "STAGE2",
+    list.files(
+      file.path(Sys.getenv("RDS_PATH"), "data", "rand"),
+      full.names = TRUE
+    ),
+    value = TRUE
+  )
+  read_csv(fn, show_col_types = FALSE) |>
+    rename(
+      rand = RANDNO,
+      blockno = BLOCKNO,
+      trt = TREATMENT
+    ) |>
+    mutate(
+      rand = as.character(rand),
+      rand_site = case_when(
+        substr(rand, 1, 2) == "21" ~ "PCH",
+        substr(rand, 1, 2) == "22" ~ "CHW",
+        substr(rand, 1, 2) == "23" ~ "MCRI",
+        substr(rand, 1, 2) == "24" ~ "SCHN",
+        .default = NA_character_
+      ),
+      rand_stage = 2
+    )
+}
+
+combine_treatment_lists <- function() {
+  st1_rand <- read_stage1_randomisation_list()
+  st2_rand <- read_stage2_randomisation_list()
+  bind_rows(st1_rand, st2_rand)
+}
+
 writeLines("Processing forms...", stdout())
 dat_rand <- combine_randomisation()
 dat_st <- combine_study_termination()
@@ -1505,9 +1563,11 @@ dat_food <- combine_food_household()
 dat_fha <- combine_family_history_atopy()
 dat_bc <- combine_blood_collection()
 dat_igg <- combine_igg()
+dat_trt <- combine_treatment_lists()
 
 optimum_data <- list(
   "randomisation" = dat_rand,
+  "allocations" = dat_trt,
   "demographics" = dat_demo,
   "birth_history" = dat_bh,
   "medical_history" = dat_mh,
