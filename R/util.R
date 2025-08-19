@@ -6,7 +6,12 @@ suppressPackageStartupMessages({
 
 read_stage1_randomisation_list <- function() {
   st1rands <- read_csv(
-    file.path(Sys.getenv("RDS_PATH"), "data", "rand", "OPTIMUM_STAGE1_randomisation_list.csv"),
+    file.path(
+      Sys.getenv("RDS_PATH"),
+      "data",
+      "rand",
+      "OPTIMUM_STAGE1_randomisation_list.csv"
+    ),
     show_col_types = FALSE
   )
   st1rands |>
@@ -26,7 +31,10 @@ read_stage1_randomisation_list <- function() {
 read_stage2_randomisation_list <- function() {
   fn <- grep(
     "STAGE2",
-    list.files(file.path(Sys.getenv("RDS_PATH"), "data", "rand"), full.names = TRUE),
+    list.files(
+      file.path(Sys.getenv("RDS_PATH"), "data", "rand"),
+      full.names = TRUE
+    ),
     value = TRUE
   )
   read_csv(fn, show_col_types = FALSE) |>
