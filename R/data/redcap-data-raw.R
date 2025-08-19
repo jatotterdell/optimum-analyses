@@ -40,7 +40,13 @@ get_sae_medra_terms <- function() {
     verbose = FALSE
   )$data
   aecodes |>
-    select(record_id, redcap_repeat_instance, saemeddra, saemeddra_2, saemeddra_3) |>
+    select(
+      record_id,
+      redcap_repeat_instance,
+      saemeddra,
+      saemeddra_2,
+      saemeddra_3
+    ) |>
     rename(redcap_form_instance = redcap_repeat_instance)
 }
 
@@ -166,7 +172,10 @@ get_redcap_data <- function(append = "") {
     )
 
   qsave(dat_raw, file.path(data_path, paste0("redcap-raw", append, ".qs")))
-  qsave(dat_labelled, file.path(data_path, paste0("redcap-labelled", append, ".qs")))
+  qsave(
+    dat_labelled,
+    file.path(data_path, paste0("redcap-labelled", append, ".qs"))
+  )
 }
 
 get_redcap_data(paste0("-", Sys.Date()))

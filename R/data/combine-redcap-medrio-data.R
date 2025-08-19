@@ -14,8 +14,14 @@ suppressPackageStartupMessages({
 
 readRenviron(".env")
 
-st1_path <- file.path(Sys.getenv("RDS_PATH"), config::get("raw_data_stage1_path"))
-st2_path <- file.path(Sys.getenv("RDS_PATH"), config::get("raw_data_stage2_path"))
+st1_path <- file.path(
+  Sys.getenv("RDS_PATH"),
+  config::get("raw_data_stage1_path")
+)
+st2_path <- file.path(
+  Sys.getenv("RDS_PATH"),
+  config::get("raw_data_stage2_path")
+)
 st2_file <- file.path(st2_path, config::get("raw_data_stage2_file"))
 com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
 st2_data <- qread(st2_file)
@@ -51,7 +57,15 @@ combine_study_termination <- function() {
   st1_st <- read_delim(
     file.path(st1_path, "ST.txt"),
     show_col_types = FALSE,
-    col_select = c(MedrioID, DISCDAT, STREAS, STETRREAS, IPPVSPEC, WCIPNW, WCIPSPEC),
+    col_select = c(
+      MedrioID,
+      DISCDAT,
+      STREAS,
+      STETRREAS,
+      IPPVSPEC,
+      WCIPNW,
+      WCIPSPEC
+    ),
     col_types = list(MedrioID = "c", DISCDAT = col_date(format = "%d-%b-%Y"))
   ) |>
     rename_with(tolower) |>
@@ -66,7 +80,12 @@ combine_study_termination <- function() {
 
 combine_demographics <- function() {
   st2_demo <- extract_tibble(st2_data, "demographics") |>
-    select(-redcap_event, -form_status_complete, -redcap_data_access_group, -deemail)
+    select(
+      -redcap_event,
+      -form_status_complete,
+      -redcap_data_access_group,
+      -deemail
+    )
   st1_demo <- read_delim(
     file.path(st1_path, "DEMO.txt"),
     show_col_types = FALSE,
@@ -158,15 +177,43 @@ combine_birth_history <- function() {
     st1_bh <- read_delim(
       file.path(st1_path, "BH.txt"),
       show_col_types = FALSE,
-      col_select = c(-ends_with("_CODED"), -SubjectID, -Site, -SubjectStatus, -Visit, -Form, -SubjectVisitFormID)
+      col_select = c(
+        -ends_with("_CODED"),
+        -SubjectID,
+        -Site,
+        -SubjectStatus,
+        -Visit,
+        -Form,
+        -SubjectVisitFormID
+      )
     ) |>
       rename_with(tolower)
   )
   st1_bh1 <- st1_bh |>
     filter(row_number() == 1, .by = medrioid) |>
     select(
-      medrioid, delt, mgrav, mpara, inmpertvp, gestwp, gestdp, vacad, prevpert, minfvp, gestwi, gestdi,
-      gestadelw, gestadeld, ipab, neoab, aps1, aps5, wgt, len, inhc, sibna
+      medrioid,
+      delt,
+      mgrav,
+      mpara,
+      inmpertvp,
+      gestwp,
+      gestdp,
+      vacad,
+      prevpert,
+      minfvp,
+      gestwi,
+      gestdi,
+      gestadelw,
+      gestadeld,
+      ipab,
+      neoab,
+      aps1,
+      aps5,
+      wgt,
+      len,
+      inhc,
+      sibna
     ) |>
     rename(mpar = mpara) |>
     mutate(
@@ -202,11 +249,14 @@ combine_birth_history <- function() {
   st1_out <- left_join(st1_bh1, st1_bhpp, join_by(medrioid)) |>
     left_join(st1_bhsibs, join_by(medrioid)) |>
     mutate(
-      sibnum = factor(case_when(
-        sibna == "Not Applicable (No Siblings)" ~ "Not Applicable",
-        sibna == "Unknown" ~ "Unknown",
-        .default = as.character(sibnum)
-      ), levels = levels(st2_bh$sibnum)),
+      sibnum = factor(
+        case_when(
+          sibna == "Not Applicable (No Siblings)" ~ "Not Applicable",
+          sibna == "Unknown" ~ "Unknown",
+          .default = as.character(sibnum)
+        ),
+        levels = levels(st2_bh$sibnum)
+      ),
       record_id = as.character(medrioid)
     ) |>
     select(-medrioid, -sibna)
@@ -217,7 +267,12 @@ combine_birth_history <- function() {
 
 combine_medical_history <- function() {
   st2_mh <- extract_tibble(st2_data, "medical_history") |>
-    select(-redcap_event, -form_status_complete, -redcap_data_access_group, -mhplanspec) |>
+    select(
+      -redcap_event,
+      -form_status_complete,
+      -redcap_data_access_group,
+      -mhplanspec
+    ) |>
     mutate(
       mhenddat1 = if_else(mhenddat1 == "MI", NA_character_, mhenddat1),
       mhenddat1 = as_date(mhenddat1, format = "%Y-%m-%d")
@@ -341,22 +396,42 @@ combine_family_history_atopy <- function() {
     mutate(
       fhaast = case_when(
         any(c_across(fhafthast:fhasibast6) == "Yes", na.rm = TRUE) ~ 1,
-        all(c_across(fhafthast:fhasibast6) == "No" | c_across(fhafthast:fhasibast6) == "Unknown", na.rm = TRUE) ~ 0,
+        all(
+          c_across(fhafthast:fhasibast6) == "No" |
+            c_across(fhafthast:fhasibast6) == "Unknown",
+          na.rm = TRUE
+        ) ~
+          0,
         TRUE ~ NA_real_
       ),
       fhaecz = case_when(
         any(c_across(fhafatecz:fhasibecz6) == "Yes", na.rm = TRUE) ~ 1,
-        all(c_across(fhafatecz:fhasibecz6) == "No" | c_across(fhafatecz:fhasibecz6) == "Unknown", na.rm = TRUE) ~ 0,
+        all(
+          c_across(fhafatecz:fhasibecz6) == "No" |
+            c_across(fhafatecz:fhasibecz6) == "Unknown",
+          na.rm = TRUE
+        ) ~
+          0,
         TRUE ~ NA_real_
       ),
       fhaar = case_when(
         any(c_across(fhafatar:fhasibar6) == "Yes", na.rm = TRUE) ~ 1,
-        all(c_across(fhafatar:fhasibar6) == "No" | c_across(fhafatar:fhasibar6) == "Unknown", na.rm = TRUE) ~ 0,
+        all(
+          c_across(fhafatar:fhasibar6) == "No" |
+            c_across(fhafatar:fhasibar6) == "Unknown",
+          na.rm = TRUE
+        ) ~
+          0,
         TRUE ~ NA_real_
       ),
       fhafa = case_when(
         any(c_across(fhafatfa:fhasibfa6) == "Yes", na.rm = TRUE) ~ 1,
-        all(c_across(fhafatfa:fhasibfa6) == "No" | c_across(fhafatfa:fhasibfa6) == "Unknown", na.rm = TRUE) ~ 0,
+        all(
+          c_across(fhafatfa:fhasibfa6) == "No" |
+            c_across(fhafatfa:fhasibfa6) == "Unknown",
+          na.rm = TRUE
+        ) ~
+          0,
         TRUE ~ NA_real_
       ),
       fha_raw = case_when(
@@ -390,7 +465,11 @@ combine_physical_exam_v1 <- function(st2_data, st1_path) {
   st1_pe2 <- st1_pe |>
     filter(!is.na(vargroup1row)) |>
     select(medrioid, vargroup1row, peres, pespec) |>
-    pivot_wider(names_from = vargroup1row, values_from = c(peres, pespec), names_sep = "")
+    pivot_wider(
+      names_from = vargroup1row,
+      values_from = c(peres, pespec),
+      names_sep = ""
+    )
   st1_out <- left_join(st1_pe1, st1_pe2, join_by(medrioid)) |>
     rename(record_id = medrioid) |>
     mutate(record_id = as.character(record_id))
@@ -401,8 +480,18 @@ combine_physical_exam_v1 <- function(st2_data, st1_path) {
 
 combine_vax_admin_v1 <- function() {
   st2_vaxv1 <- extract_tibble(st2_data, "vaccine_administration_v1") |>
-    select(-redcap_event, -form_status_complete, -redcap_data_access_group, -sdadmnam) |>
-    mutate(sdadmdattim = as_datetime(paste(sdadmdat, sdadmtim), format = "%Y-%m-%d %H:%M:%S")) |>
+    select(
+      -redcap_event,
+      -form_status_complete,
+      -redcap_data_access_group,
+      -sdadmnam
+    ) |>
+    mutate(
+      sdadmdattim = as_datetime(
+        paste(sdadmdat, sdadmtim),
+        format = "%Y-%m-%d %H:%M:%S"
+      )
+    ) |>
     select(-c(sdadmdat, sdadmtim)) |>
     relocate(sdadmdattim, .after = record_id) |>
     mutate(
@@ -410,16 +499,27 @@ combine_vax_admin_v1 <- function() {
       vacpnloc = "Left Thigh IM injection",
       vacrort = if_else(vacrort___1, "Oral", NA)
     ) |>
-    select(-c(vacblloc___1, vacblloc___99, vaciplocspec, vacpnloc___1, vacrort___1))
+    select(
+      -c(vacblloc___1, vacblloc___99, vaciplocspec, vacpnloc___1, vacrort___1)
+    )
   st1_vaxv1 <- read_delim(
     file.path(st1_path, "VAX V1.txt"),
     show_col_types = FALSE
   ) |>
     rename_with(tolower) |>
-    select(-c(
-      ends_with("_coded"),
-      subjectid, subjectstatus, site, visit, form, formentrydate, rand, subjectvisitformid
-    )) |>
+    select(
+      -c(
+        ends_with("_coded"),
+        subjectid,
+        subjectstatus,
+        site,
+        visit,
+        form,
+        formentrydate,
+        rand,
+        subjectvisitformid
+      )
+    ) |>
     mutate(
       record_id = as.character(medrioid),
       sdadmdattim = as_datetime(randdattim, format = "%d-%b-%Y %H:%M"),
@@ -462,7 +562,13 @@ combine_participant_assessment <- function() {
     rename_with(tolower) |>
     select(
       -ends_with("_coded"),
-      -subjectid, -site, -subjectstatus, -form, -subjectvisitformid, -mthpostv5, -formentrydate
+      -subjectid,
+      -site,
+      -subjectstatus,
+      -form,
+      -subjectvisitformid,
+      -mthpostv5,
+      -formentrydate
     ) |>
     mutate(
       record_id = as.character(medrioid),
@@ -524,12 +630,34 @@ combine_food_household <- function() {
     filter(redcap_event == "visit_1") |>
     select(-redcap_event, -redcap_data_access_group) |>
     mutate(fedat = as_date(fedat)) |>
-    select(record_id, fecurr, febfever, febfform, fethickyn, fesolyn, fefadiag, fesupp, ferash, fecat, fedog, fedcyn)
+    select(
+      record_id,
+      fecurr,
+      febfever,
+      febfform,
+      fethickyn,
+      fesolyn,
+      fefadiag,
+      fesupp,
+      ferash,
+      fecat,
+      fedog,
+      fedcyn
+    )
   st2_ecz <- st2_food |>
     select(
-      record_id, redcap_event, redcap_survey_timestamp, visit_age, fe_phone, fedat, fecurr,
-      fefadiag, fefadiagspec, fefadiadat,
-      feecz, feeczdat
+      record_id,
+      redcap_event,
+      redcap_survey_timestamp,
+      visit_age,
+      fe_phone,
+      fedat,
+      fecurr,
+      fefadiag,
+      fefadiagspec,
+      fefadiadat,
+      feecz,
+      feeczdat
     ) |>
     select(-redcap_event)
 
@@ -604,7 +732,17 @@ combine_food_household <- function() {
   # Eczema diagnoses at visits 2 - 5
   st1_ecz_v2 <- st1_food_v2 |>
     filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
-    select(medrioid, visit, fe2curr, fe2fadiag, fe2fadiagspec, fe2fadiagstag, fe2ecx, fe2eczag, fe2exstun) |>
+    select(
+      medrioid,
+      visit,
+      fe2curr,
+      fe2fadiag,
+      fe2fadiagspec,
+      fe2fadiagstag,
+      fe2ecx,
+      fe2eczag,
+      fe2exstun
+    ) |>
     rename(
       fecurr = fe2curr,
       fefadiag = fe2fadiag,
@@ -618,7 +756,15 @@ combine_food_household <- function() {
   # Eczema diagnoses at phone contact and visits 6 - 8
   st1_ecz_v3 <- st1_food_v3 |>
     filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
-    select(medrioid, visit, fe6fadiag, fe6fadiagspec, fe6fadiagstag, fe6ecx, fe6eczag) |>
+    select(
+      medrioid,
+      visit,
+      fe6fadiag,
+      fe6fadiagspec,
+      fe6fadiagstag,
+      fe6ecx,
+      fe6eczag
+    ) |>
     rename(
       fefadiag = fe6fadiag,
       fefadiagspec = fe6fadiagspec,
@@ -665,7 +811,13 @@ combine_outcome_report <- function() {
     rename_with(tolower) |>
     select(
       -ends_with("_coded"),
-      -subjectvisitformid, -subjectid, -site, -subjectstatus, -visit, -form, -formentrydate
+      -subjectvisitformid,
+      -subjectid,
+      -site,
+      -subjectstatus,
+      -visit,
+      -form,
+      -formentrydate
     ) |>
     mutate(
       record_id = as.character(medrioid),
@@ -718,27 +870,53 @@ combine_skin_prick_test <- function() {
   # will map these to prireact9, prires9, and priallspec9
   st2_spt <- extract_tibble(st2_data, "skin_prick_test") |>
     filter((unvisyn & unvisreas___1) | is.na(unvisyn)) |>
-    mutate(spt_occasion = if_else(redcap_event == "visit_2", "scheduled", "unscheduled")) |>
-    select(-redcap_event, -redcap_data_access_group, -redcap_form_instance, -form_status_complete) |>
+    mutate(
+      spt_occasion = if_else(
+        redcap_event == "visit_2",
+        "scheduled",
+        "unscheduled"
+      )
+    ) |>
+    select(
+      -redcap_event,
+      -redcap_data_access_group,
+      -redcap_form_instance,
+      -form_status_complete
+    ) |>
     mutate(
       prinegres = if_else(prinegres == "MI", NA_character_, prinegres),
       prinegres = as.numeric(prinegres),
       prireact8 = if_else(prireact8 == "N/A", "Not Done", prireact8)
     ) |>
-    select(-c(unvisyn, unvisdat, unvisreas___1, unvisreas___2, unvisreas___99, unvisreasoth)) |>
+    select(
+      -c(
+        unvisyn,
+        unvisdat,
+        unvisreas___1,
+        unvisreas___2,
+        unvisreas___99,
+        unvisreasoth
+      )
+    ) |>
     rename(
       priallspec9 = priallspec,
       priallspec10 = priallspec_2,
       priallspec11 = priallspec_3,
       priallspec12 = priallspec_4,
       priallspec13 = priallspec_5
-    )
+    ) |>
+    arrange(record_id, pridat) |>
+    mutate(spt_num = row_number(), .by = record_id)
   # Per above, fill in "0" prires if prireact is "No"
   st2_spt_fill <- st2_spt |>
     mutate(
       across(
         starts_with("prires"),
-        ~ if_else(get(str_replace(cur_column(), "prires", "prireact")) == "No", 0, .)
+        ~ if_else(
+          get(str_replace(cur_column(), "prires", "prireact")) == "No",
+          0,
+          .
+        )
       )
     )
 
@@ -753,7 +931,13 @@ combine_skin_prick_test <- function() {
       rename_with(tolower) |>
       select(
         -ends_with("_coded"),
-        -subjectvisitformid, -subjectid, -site, -subjectstatus, -formentrydate, -visit, -form
+        -subjectvisitformid,
+        -subjectid,
+        -site,
+        -subjectstatus,
+        -formentrydate,
+        -visit,
+        -form
       ) |>
       mutate(spt_occasion = "scheduled")
   )
@@ -765,13 +949,28 @@ combine_skin_prick_test <- function() {
       rename_with(tolower) |>
       select(
         -ends_with("_coded"),
-        -subjectvisitformid, -subjectid, -site, -subjectstatus, -formentrydate
+        -subjectvisitformid,
+        -subjectid,
+        -site,
+        -subjectstatus,
+        -formentrydate
       ) |>
-      filter(any(unvisyn == "Yes" & unvisreas == "Skin Prick Test"), .by = medrioid) |>
+      filter(
+        any(unvisyn == "Yes" & unvisreas == "Skin Prick Test"),
+        .by = medrioid
+      ) |>
       mutate(spt_occasion = "unscheduled") |>
       select(
-        medrioid, spt_occasion, priyn_un, prispec_un, pridat_un,
-        vargroup1row, priall_un, prind_un, priallspec_un, prires_un
+        medrioid,
+        spt_occasion,
+        priyn_un,
+        prispec_un,
+        pridat_un,
+        vargroup1row,
+        priall_un,
+        prind_un,
+        priallspec_un,
+        prires_un
       ) |>
       rename(
         priyn = priyn_un,
@@ -798,7 +997,16 @@ combine_skin_prick_test <- function() {
 
   st1_spt_2 <- st1_spt_all |>
     filter(!is.na(vargroup1row)) |>
-    select(medrioid, spt_occasion, spt_num, vargroup1row, priall, prind, priallspec, prires)
+    select(
+      medrioid,
+      spt_occasion,
+      spt_num,
+      vargroup1row,
+      priall,
+      prind,
+      priallspec,
+      prires
+    )
   st1_spt_ctr <- st1_spt_2 |>
     filter(vargroup1row < 3) |>
     select(medrioid, spt_occasion, spt_num, vargroup1row, prires) |>
@@ -809,12 +1017,14 @@ combine_skin_prick_test <- function() {
     select(medrioid, spt_occasion, spt_num, vargroup1row, prind, prires) |>
     mutate(vargroup1row = vargroup1row - 2) |>
     rename(prireact = prind) |>
-    mutate(prireact = case_when(
-      prireact == "Yes" ~ "Not Done",
-      prireact == "No" & prires == 0 ~ "No",
-      prireact == "No" & prires > 0 ~ "Yes",
-      .default = NA_character_
-    )) |>
+    mutate(
+      prireact = case_when(
+        prireact == "Yes" ~ "Not Done",
+        prireact == "No" & prires == 0 ~ "No",
+        prireact == "No" & prires > 0 ~ "Yes",
+        .default = NA_character_
+      )
+    ) |>
     pivot_wider(
       names_from = vargroup1row,
       values_from = c(prireact, prires),
@@ -824,15 +1034,26 @@ combine_skin_prick_test <- function() {
   st1_spt_oth <- st1_spt_2 |>
     filter(vargroup1row > 10) |>
     filter(!is.na(priall)) |>
-    select(medrioid, spt_occasion, spt_num, vargroup1row, prind, prind, priallspec, prires) |>
+    select(
+      medrioid,
+      spt_occasion,
+      spt_num,
+      vargroup1row,
+      prind,
+      prind,
+      priallspec,
+      prires
+    ) |>
     mutate(vargroup1row = vargroup1row - 2) |>
     rename(prireact = prind) |>
-    mutate(prireact = case_when(
-      prireact == "Yes" ~ "Not Done",
-      prireact == "No" & prires == 0 ~ "No",
-      prireact == "No" & prires > 0 ~ "Yes",
-      .default = NA_character_
-    )) |>
+    mutate(
+      prireact = case_when(
+        prireact == "Yes" ~ "Not Done",
+        prireact == "No" & prires == 0 ~ "No",
+        prireact == "No" & prires > 0 ~ "Yes",
+        .default = NA_character_
+      )
+    ) |>
     pivot_wider(
       names_from = vargroup1row,
       values_from = c(prireact, priallspec, prires),
@@ -868,7 +1089,15 @@ combine_food_challenge <- function() {
     ) |>
       rename_with(tolower) |>
       select(-ends_with("_coded")) |>
-      select(-subjectid, -site, -subjectstatus, -visit, -form, -formentrydate, -subjectvisitformid) |>
+      select(
+        -subjectid,
+        -site,
+        -subjectstatus,
+        -visit,
+        -form,
+        -formentrydate,
+        -subjectvisitformid
+      ) |>
       filter(vargroup1row == 1) |>
       rename(record_id = medrioid, ofc_num = vargroup1row) |>
       mutate(
@@ -891,7 +1120,13 @@ combine_adverse_events <- function() {
     arrange(record_id, aestdat, redcap_form_instance) |>
     mutate(ae_num = row_number(), .by = record_id) |>
     relocate(ae_num, .after = record_id) |>
-    select(-redcap_event, -redcap_form_instance, -redcap_data_access_group, -form_status_complete, -aeyn) |>
+    select(
+      -redcap_event,
+      -redcap_form_instance,
+      -redcap_data_access_group,
+      -form_status_complete,
+      -aeyn
+    ) |>
     mutate(
       aestdat = if_else(aestdat == "UNK", NA_character_, aestdat),
       aestdat = as_date(aestdat, format = "%Y-%m-%d"),
@@ -906,7 +1141,13 @@ combine_adverse_events <- function() {
       rename_with(tolower) |>
       select(
         -ends_with("_coded"),
-        -subjectid, -site, -subjectstatus, -visit, -form, -formentrydate, -subjectvisitformid
+        -subjectid,
+        -site,
+        -subjectstatus,
+        -visit,
+        -form,
+        -formentrydate,
+        -subjectvisitformid
       ) |>
       filter(!is.na(vargroup1row)) |>
       mutate(
@@ -949,7 +1190,12 @@ combine_blood_collection <- function() {
     rename_with(tolower) |>
     select(
       -ends_with("_coded"),
-      -subjectid, -site, -subjectstatus, -form, -formentrydate, -subjectvisitformid
+      -subjectid,
+      -site,
+      -subjectstatus,
+      -form,
+      -formentrydate,
+      -subjectvisitformid
     ) |>
     mutate(
       lbipdat = as_date(lbipdat, format = "%d-%b-%Y"),
@@ -993,35 +1239,84 @@ combine_blood_collection <- function() {
   bc <- bind_rows(st1_bc, st2_bc)
   bc |>
     mutate(
-      visage = factor(visage, levels = c("6-month", "7-month", "18-month", "19-month"))
+      visage = factor(
+        visage,
+        levels = c("6-month", "7-month", "18-month", "19-month")
+      )
     )
 }
 
 combine_igg <- function() {
   units_igg <- tribble(
-    ~antigen, ~units, ~ref,
-    "HBsAg", "mIU/mL", 10,
-    "Hib-PRP", "ng/mL", 1000,
-    "PnPs 1", "ng/mL", 350,
-    "PnPs 3", "ng/mL", 350,
-    "PnPs 4", "ng/mL", 350,
-    "PnPs 5", "ng/mL", 350,
-    "PnPs 6A", "ng/mL", 350,
-    "PnPs 6B", "ng/mL", 350,
-    "PnPs 7F", "ng/mL", 350,
-    "PnPs 9V", "ng/mL", 350,
-    "PnPs 11A", "ng/mL", 350,
-    "PnPs 14", "ng/mL", 350,
-    "PnPs 18C", "ng/mL", 350,
-    "PnPs 19A", "ng/mL", 350,
-    "PnPs 19F", "ng/mL", 350,
-    "PnPs 23F", "ng/mL", 350,
-    "DT", "mIU/mL", 100,
-    "FHA", "mIU/mL", 5000,
-    "FIM2/3", "mIU/mL", 5000,
-    "PRN", "mIU/mL", 5000,
-    "PT", "mIU/mL", 5000,
-    "TT", "mIU/mL", 100
+    ~antigen,
+    ~units,
+    ~ref,
+    "HBsAg",
+    "mIU/mL",
+    10,
+    "Hib-PRP",
+    "ng/mL",
+    1000,
+    "PnPs 1",
+    "ng/mL",
+    350,
+    "PnPs 3",
+    "ng/mL",
+    350,
+    "PnPs 4",
+    "ng/mL",
+    350,
+    "PnPs 5",
+    "ng/mL",
+    350,
+    "PnPs 6A",
+    "ng/mL",
+    350,
+    "PnPs 6B",
+    "ng/mL",
+    350,
+    "PnPs 7F",
+    "ng/mL",
+    350,
+    "PnPs 9V",
+    "ng/mL",
+    350,
+    "PnPs 11A",
+    "ng/mL",
+    350,
+    "PnPs 14",
+    "ng/mL",
+    350,
+    "PnPs 18C",
+    "ng/mL",
+    350,
+    "PnPs 19A",
+    "ng/mL",
+    350,
+    "PnPs 19F",
+    "ng/mL",
+    350,
+    "PnPs 23F",
+    "ng/mL",
+    350,
+    "DT",
+    "mIU/mL",
+    100,
+    "FHA",
+    "mIU/mL",
+    5000,
+    "FIM2/3",
+    "mIU/mL",
+    5000,
+    "PRN",
+    "mIU/mL",
+    5000,
+    "PT",
+    "mIU/mL",
+    5000,
+    "TT",
+    "mIU/mL",
+    100
   ) |>
     mutate(antigen = fct_inorder(antigen))
 
@@ -1031,7 +1326,11 @@ combine_igg <- function() {
   igg_st1_raw <- lapply(igg_st1_sht, read_excel, path = igg_st1_pth)
   names(igg_st1_raw) <- igg_st1_sht
   names(igg_st1_raw)[1] <- "DTaP"
-  igg_st1 <- left_join(igg_st1_raw[[1]], igg_st1_raw[[2]], join_by(SampleID, `Subject ID`, Visit)) |>
+  igg_st1 <- left_join(
+    igg_st1_raw[[1]],
+    igg_st1_raw[[2]],
+    join_by(SampleID, `Subject ID`, Visit)
+  ) |>
     left_join(igg_st1_raw[[3]], join_by(SampleID, `Subject ID`, Visit)) |>
     pivot_longer(-(1:3), names_to = "antigen", values_to = "concentration") |>
     rename(subjid = `Subject ID`, visit = Visit) |>
@@ -1070,33 +1369,73 @@ combine_igg <- function() {
     ) |>
     select(-visit) |>
     filter(!is.na(concentration)) |>
-    complete(subjid = paste0("02-", 151:300), nesting(visage, antigen), fill = list(concentration = NA))
+    complete(
+      subjid = paste0("02-", 151:300),
+      nesting(visage, antigen),
+      fill = list(concentration = NA)
+    )
 
   igg <- bind_rows(igg_st1, igg_st2) |>
     mutate(
       antigen = gsub("HiB", "Hib", antigen),
-      antigen = factor(antigen,
+      antigen = factor(
+        antigen,
         levels = c(
-          "HBsAg", "Hib-PRP",
-          "PnPs 1", "PnPs 3", "PnPs 4", "PnPs 5", "PnPs 6A", "PnPs 6B", "PnPs 7F", "PnPs 9V",
-          "PnPs 11A", "PnPs 14", "PnPs 18C", "PnPs 19A", "PnPs 19F", "PnPs 23F",
-          "DT", "FHA", "FIM2/3", "PRN", "PT", "TT"
+          "HBsAg",
+          "Hib-PRP",
+          "PnPs 1",
+          "PnPs 3",
+          "PnPs 4",
+          "PnPs 5",
+          "PnPs 6A",
+          "PnPs 6B",
+          "PnPs 7F",
+          "PnPs 9V",
+          "PnPs 11A",
+          "PnPs 14",
+          "PnPs 18C",
+          "PnPs 19A",
+          "PnPs 19F",
+          "PnPs 23F",
+          "DT",
+          "FHA",
+          "FIM2/3",
+          "PRN",
+          "PT",
+          "TT"
         )
       ),
       group = case_when(
         antigen %in% c("HBsAg", "Hib-PRP") ~ "Other",
         antigen %in% c("DT", "FHA", "FIM2/3", "PRN", "PT", "TT") ~ "Pertussis",
-        antigen %in% c(
-          "PnPs 1", "PnPs 3", "PnPs 4", "PnPs 5", "PnPs 6A", "PnPs 6B", "PnPs 7F", "PnPs 9V",
-          "PnPs 11A", "PnPs 14", "PnPs 18C", "PnPs 19A", "PnPs 19F", "PnPs 23F"
-        ) ~ "Pneumococcal"
+        antigen %in%
+          c(
+            "PnPs 1",
+            "PnPs 3",
+            "PnPs 4",
+            "PnPs 5",
+            "PnPs 6A",
+            "PnPs 6B",
+            "PnPs 7F",
+            "PnPs 9V",
+            "PnPs 11A",
+            "PnPs 14",
+            "PnPs 18C",
+            "PnPs 19A",
+            "PnPs 19F",
+            "PnPs 23F"
+          ) ~
+          "Pneumococcal"
       ),
       type = case_when(
         group == "Other" ~ "HHB",
         group == "Pertussis" ~ "DTaP",
         group == "Pneumococcal" ~ "PnPs"
       ),
-      visage = factor(visage, levels = c("6-month", "7-month", "18-month", "19-month"))
+      visage = factor(
+        visage,
+        levels = c("6-month", "7-month", "18-month", "19-month")
+      )
     ) |>
     arrange(subjid, group, antigen, visage) |>
     left_join(units_igg, join_by(antigen)) |>
