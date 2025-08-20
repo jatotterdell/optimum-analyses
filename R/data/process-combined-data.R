@@ -33,6 +33,7 @@ get_eczema_data <- function(dat_raw) {
   dat_out <- select_form(dat_raw, "outcome_report")
   dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire")
   dat_mh <- select_form(dat_raw, "medical_history")
+  dat_ae <- select_form(dat_raw, "adverse_events")
 
   # Source of truth is outcome report.
   # Need FHQ and MH for existing eczema,
@@ -90,8 +91,20 @@ get_eczema_data <- function(dat_raw) {
   ecz_fhq <- dat_fhq |>
     arrange(str_rank(record_id, numeric = TRUE), fedat) |>
     select(record_id, visit_age, fedat, feecz, feeczdat, feeczag, feeczstun) |>
-    filter(feecz == "Yes") |>
+    filter(
+      feecz %in%
+        c(
+          "Yes",
+          "N/A (child had already been diagnosed with eczema before last visit)",
+          "N/A (child has already been diagnosed with eczema before the last visit)"
+        )
+    ) |>
+    # Note 5785-100 has 6 and 9 month survey mixed up,
+    # Need to fix in source or fix here prior to this filter step
     filter(row_number() == 1, .by = record_id) |>
+    mutate(
+      feecz = if_else(grepl("N/A ", feecz), "Previous diagnosis", feecz),
+    ) |>
     rename(
       fhq_vis_age = visit_age,
       fhq_date = fedat,
@@ -101,7 +114,15 @@ get_eczema_data <- function(dat_raw) {
       fhq_ecz_age_u = feeczstun
     )
 
+  # Only applicable for stage 1
+  ecz_ae <- dat_ae |>
+    filter(grepl("eczema", tolower(aeterm))) |>
+    select(record_id, aestdat) |>
+    rename(ae_stdat = aestdat) |>
+    mutate(ae_ecz = 1)
+
   out <- ecz_out |>
+    left_join(ecz_ae, join_by(record_id)) |>
     left_join(ecz_mh, join_by(record_id)) |>
     left_join(ecz_fhq, join_by(record_id)) |>
     mutate(
@@ -109,12 +130,14 @@ get_eczema_data <- function(dat_raw) {
       fhq_ecz_age_weeks = case_when(
         !is.na(fhq_ecz_date) ~ interval(birthdat, fhq_ecz_date) %/% weeks(1),
         fhq_ecz_age_u == "Weeks" ~ fhq_ecz_age,
-        fhq_ecz_age_u == "Months" ~ fhq_ecz_age * 4
+        fhq_ecz_age_u == "Months" ~ fhq_ecz_age * 4,
+        !is.na(fhq_ecz_age_u) ~ fhq_ecz_age
       ),
       fhq_ecz_age_months = case_when(
         !is.na(fhq_ecz_date) ~ interval(birthdat, fhq_ecz_date) %/% months(1),
         fhq_ecz_age_u == "Months" ~ fhq_ecz_age,
-        fhq_ecz_age_u == "Weeks" ~ fhq_ecz_age / 4
+        fhq_ecz_age_u == "Weeks" ~ fhq_ecz_age / 4,
+        !is.na(fhq_ecz_age_u) ~ fhq_ecz_age / 4
       ),
       out_ecz_preexisting = outdiagdat <= visdat1,
       mh_ecz_preexisting = mh_stdat <= visdat1,
