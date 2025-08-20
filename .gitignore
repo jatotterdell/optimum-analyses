@@ -9,10 +9,11 @@
 
 # Environment
 .env
-
+.github
 /.quarto/
 _outputs
 _manuscript
 _reports
+_site
 _freeze
 /data/
