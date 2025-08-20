@@ -7,24 +7,123 @@ suppressPackageStartupMessages({
 
 source(file.path("R", "util.R"))
 
-get_baseline_data <- function(dat, unblind = FALSE) {
+get_baseline_data <- function(dat_raw, unblind = FALSE) {
   if (unblind) {
     rnd <- left_join(
-      select_form(dat, "randomisation"),
-      select_form(dat, "allocations"),
+      select_form(dat_raw, "randomisation"),
+      select_form(dat_raw, "allocations"),
       join_by(rand)
     )
   } else {
-    rnd <- select_form(dat, "randomisation")
+    rnd <- select_form(dat_raw, "randomisation")
   }
   rnd |>
     left_join(
-      select_form(dat, "demographics"),
+      select_form(dat_raw, "demographics"),
       join_by(record_id)
     ) |>
     left_join(
-      select_form(dat, "birth_history"),
+      select_form(dat_raw, "birth_history"),
       join_by(record_id)
+    )
+}
+
+get_eczema_data <- function(dat_raw) {
+  dat_base <- select_form(dat_raw, "demographics")
+  dat_out <- select_form(dat_raw, "outcome_report")
+  dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire")
+  dat_mh <- select_form(dat_raw, "medical_history")
+
+  # Source of truth is outcome report.
+  # Need FHQ and MH for existing eczema,
+  # and FHQ to cross-check with OR
+  ecz_out <- dat_base |>
+    select(record_id, birthdat, visdat1) |>
+    left_join(
+      dat_out |>
+        filter(outalltp == "Eczema") |>
+        arrange(record_id, outdiagdat) |>
+        select(
+          record_id,
+          outalltp,
+          outsev,
+          outrepdat,
+          outawardat,
+          outdiagdat,
+          outeczsrce,
+          outeczsrcoth
+        ),
+      join_by(record_id)
+    ) |>
+    mutate(
+      ecz_age_weeks = interval(birthdat, outdiagdat) %/% weeks(1),
+      ecz_age_months = interval(birthdat, outdiagdat) %/% months(1),
+      ecz_existing = outdiagdat <= visdat1
+    )
+
+  # Medical history of eczema
+  ecz_mh <- dat_mh |>
+    filter(
+      if_any(starts_with("mhcodelab"), ~ tolower(.) == "eczema") |
+        if_any(starts_with("mhdiag"), ~ tolower(.) == "eczema")
+    ) |>
+    pivot_longer(
+      mhdistp1:mhenddat8,
+      names_pattern = "mh(distp|diag|code|codelab|stat|stdat|enddat)([1-8])",
+      names_to = c(".value", "mh_seq")
+    ) |>
+    filter(
+      grepl("eczema", tolower(diag)) | grepl("eczema", tolower(codelab))
+    ) |>
+    select(record_id, diag, stat, stdat, enddat) |>
+    rename(
+      mh_diag = diag,
+      mh_stat = stat,
+      mh_stdat = stdat,
+      mh_enddat = enddat
+    ) |>
+    mutate(
+      mh_diag = tolower(mh_diag),
+      mh_ecz = 1
+    )
+
+  ecz_fhq <- dat_fhq |>
+    arrange(str_rank(record_id, numeric = TRUE), fedat) |>
+    select(record_id, visit_age, fedat, feecz, feeczdat, feeczag, feeczstun) |>
+    filter(feecz == "Yes") |>
+    filter(row_number() == 1, .by = record_id) |>
+    rename(
+      fhq_vis_age = visit_age,
+      fhq_date = fedat,
+      fhq_ecz = feecz,
+      fhq_ecz_date = feeczdat,
+      fhq_ecz_age = feeczag,
+      fhq_ecz_age_u = feeczstun
+    )
+
+  out <- ecz_out |>
+    left_join(ecz_mh, join_by(record_id)) |>
+    left_join(ecz_fhq, join_by(record_id)) |>
+    mutate(
+      mh_ecz_age_weeks = interval(birthdat, mh_stdat) %/% weeks(1),
+      fhq_ecz_age_weeks = case_when(
+        !is.na(fhq_ecz_date) ~ interval(birthdat, fhq_ecz_date) %/% weeks(1),
+        fhq_ecz_age_u == "Weeks" ~ fhq_ecz_age,
+        fhq_ecz_age_u == "Months" ~ fhq_ecz_age * 4
+      ),
+      fhq_ecz_age_months = case_when(
+        !is.na(fhq_ecz_date) ~ interval(birthdat, fhq_ecz_date) %/% months(1),
+        fhq_ecz_age_u == "Months" ~ fhq_ecz_age,
+        fhq_ecz_age_u == "Weeks" ~ fhq_ecz_age / 4
+      ),
+      out_ecz_preexisting = outdiagdat <= visdat1,
+      mh_ecz_preexisting = mh_stdat <= visdat1,
+      fhq_ecz_preexisting = fhq_ecz_date <= visdat1,
+      ecz_preexisting = out_ecz_preexisting |
+        mh_ecz_preexisting |
+        fhq_ecz_preexisting,
+      ecz = !is.na(outalltp),
+      ecz_newonset = ecz & (outdiagdat > visdat1 & ecz_age_months < 18)
     )
 }
 
