@@ -1,0 +1,191 @@
+---
+title: Infant vaccinations
+subtitle: Check both study and non-study vaccination receipts.
+---
+
+{{< include _setup.qmd >}}
+
+As part of our due diligence for OPTIMUM we need to confirm that all the infants have received 3 polio doses by the time they are 18 months old. This should happen as part of them attending V3, but we have had some infants not attend so we have had sites confirming that they have received the vaccine outside of the trial using the AIR, follow up and the non-study vaccine log.
+
+All participants should have received the following:
+
+- Infanrix Hexa at 4 months and 6 months (recorded in the non-study vaccine log), and
+- Infanrix-IPV at the 18-month visit (V3) (recorded in Vaccine Administration V3).
+
+In some cases, the V3 polio dose was given outside the study, in which case it would also be documented in the non-study vaccine log.
+
+- Some participants have been LTFP or withdrawn
+- Some have received three doses including the blinded study dose, which is not documented in REDCap because of the blinding.
+- Occasionally, participants were given an alternative vaccine instead of Infanrix Hexa or Infanrix-IPV. It could be recorded as the following in the non-study vaccine log:
+  - IPOL
+  - Polio
+  - Poliomyelitis
+  - Quadracel
+  - Vaxelis
+
+
+```{r}
+dat_st2 <- qread(st2_file) |>
+  filter(
+    redcap_form_name %in%
+      c(
+        "randomisation",
+        "demographics",
+        "study_termination",
+        "participant_assessment",
+        "vaccine_administration_v1",
+        "vaccine_administration_v3",
+        "nonstudy_vaccination_log"
+      )
+  )
+dat_allocations <- select_form(dat_raw, "allocations")
+```
+
+```{r}
+dat_rand <- extract_tibble(dat_st2, "randomisation") |>
+  select(record_id, subjid, rand, randdattim) |>
+  mutate(rand = as.character(rand)) |>
+  left_join(dat_allocations, join_by(rand))
+
+dat_demo <- extract_tibble(dat_st2, "demographics")
+dat_st <- extract_tibble(dat_st2, "study_termination")
+dat_pa <- extract_tibble(dat_st2, "participant_assessment")
+dat_vax1 <- extract_tibble(dat_st2, "vaccine_administration_v1")
+dat_vax3 <- extract_tibble(dat_st2, "vaccine_administration_v3")
+dat_nstv <- extract_tibble(dat_st2, "nonstudy_vaccination_log")
+```
+
+```{r}
+dat_ref <- dat_demo |>
+  select(record_id, birthdat, visdat1) |>
+  left_join(dat_rand, join_by(record_id)) |>
+  left_join(
+    dat_st |>
+      select(record_id, discdat, streas, stetrreas, ippvspec),
+    join_by(record_id)
+  ) |>
+  mutate(
+    discage_wks = interval(birthdat, discdat) %/% weeks(1),
+    discage_mth = interval(birthdat, discdat) %/% months(1)
+  )
+```
+
+## Visit 3
+
+Consider participants with no record of Infanrix at visit 3 (18-months of age).
+
+```{r}
+dat_pa_3 <- dat_pa |>
+  filter(redcap_event == "visit_3") |>
+  select(record_id, visdat, windyn, windreas, windothspec, ipnsvac)
+
+dat_ref_vax3 <- dat_ref |>
+  left_join(dat_pa_3, join_by(record_id)) |>
+  left_join(
+    dat_vax3 |>
+      select(record_id, vac7admdat, vac7iploc, vac7adyn),
+    join_by(record_id)
+  )
+dat_ref_vax3 |>
+  filter(is.na(vac7iploc) | vac7iploc == "Not given") |>
+  print(n = Inf)
+
+ids_no_vax3 <- dat_ref_vax3 |>
+  filter(is.na(vac7iploc) | vac7iploc == "Not given") |>
+  pull(record_id)
+```
+
+## Non-study vaccines
+
+```{r}
+dat_nstv_long <- dat_nstv |>
+  select(-redcap_event, -redcap_data_access_group, -form_status_complete) |>
+  pivot_longer(
+    ipvac1:ipnstvacdat6,
+    names_pattern = "(ipvac|vacothspec|ipnstvacdat|vacaddyn)([1-8])",
+    names_to = c(".value", "vaxseq")
+  ) |>
+  filter(!is.na(ipvac)) |>
+  select(-instvacyn, -vacaddyn)
+```
+
+```{r}
+dat_ref_nstv <- dat_ref |>
+  left_join(dat_nstv_long, join_by(record_id)) |>
+  mutate(nstv_age = interval(birthdat, ipnstvacdat) %/% months(1))
+```
+
+```{r}
+srch_str <- "infan|ifan|ipv|ipol|polio|quad|vaxe"
+srch_str_alt <- "hexa|ipv|ipol|polio|quad|vaxe"
+dat_ref_nstv |>
+  # filter(grepl(srch_str, tolower(ipvac)) | grepl(srch_str, tolower(vacothspec))) |>
+  count(ipvac, vacothspec, sort = TRUE) |>
+  print(n = Inf)
+```
+
+How many polio vaccines did each participant have on the non-study vaccine log?
+
+```{r}
+polio_check <- dat_ref_nstv |>
+  summarise(
+    polio_count = sum(
+      grepl(srch_str_alt, tolower(ipvac)) |
+        grepl(srch_str_alt, tolower(vacothspec))
+    ),
+    .by = record_id
+  )
+filter(polio_check, polio_count == 0)
+```
+
+### 18-month
+
+Check for 18-month vaccinations for those above first...
+
+```{r}
+dat_ids_no_vax3 <- dat_ref |>
+  filter(record_id %in% ids_no_vax3) |>
+  left_join(
+    dat_ref_nstv |>
+      select(record_id, ipvac, vacothspec, ipnstvacdat, nstv_age) |>
+      filter(record_id %in% ids_no_vax3) |>
+      filter(between(nstv_age, 15, 24)) |>
+      filter(
+        grepl(srch_str, tolower(ipvac)) | grepl(srch_str, tolower(vacothspec))
+      ),
+    join_by(record_id)
+  )
+dat_ids_no_vax3 |>
+  select(
+    record_id,
+    subjid,
+    trt,
+    discdat,
+    streas,
+    ipvac,
+    vacothspec,
+    ipnstvacdat,
+    nstv_age
+  ) |>
+  print(n = Inf)
+```
+
+### 4-month
+
+```{r}
+# Infanrix will best most of them
+dat_ref_nstv |>
+  filter(
+    grepl("infan", tolower(ipvac)) |
+      grepl("infan", tolower(vacothspec))
+  ) |>
+  filter(nstv_age < 4)
+
+dat_ref_nstv |>
+  filter(
+    grepl("infan|ipol|polio|quad|vaxe", tolower(ipvac)) |
+      grepl("infan|ipol|polio|quad|vaxe", tolower(vacothspec))
+  ) |>
+  count(ipvac, vacothspec, sort = TRUE) |>
+  print(n = Inf)
+```

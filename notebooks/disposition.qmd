@@ -5,6 +5,29 @@ description: Summary participant disposition and protocol adherence.
 
 {{< include _setup.qmd >}}
 
+```{r}
+#| label: data-disposition\
+dat_st <- select_form(dat_raw, "study_termination")
+dat_vs <- select_form(dat_raw, "participant_assessment") |>
+  select(record_id, visdat, windyn, windreas, windothspec, visit, visage)
+
+dat_base_st <- dat_base |>
+  select(record_id, subjid, rand_stage, rand_site, birthdat, visdat1) |>
+  left_join(dat_st, join_by(record_id))
+
+dat_base_st_vs <- dat_base_st |>
+  left_join(dat_vs, join_by(record_id))
+
+dat_grid <- dat_base_st |>
+  crossing(visage = unique(dat_vs$visage)) |>
+  arrange(str_rank(record_id, numeric = TRUE), str_rank(visage, numeric = TRUE))
+
+dat_grid_vs <- dat_grid |>
+  left_join(dat_vs, join_by(record_id, visage)) |>
+  mutate(record_id = fct_inorder(record_id), visage = fct_inorder(visage)) |>
+  mutate(age_months = interval(birthdat, visdat) %/% months(1))
+```
+
 ## Study Completion
 
 The study completion status as reported in the database is summarised in @tbl-discharge-outcome.
@@ -12,11 +35,6 @@ The study completion status as reported in the database is summarised in @tbl-di
 ```{r}
 #| label: tbl-discharge-outcome
 #| tbl-cap: Number of early study withdrawals and associated reasons.
-dat_st <- select_form(dat_raw, "study_termination")
-dat_base_st <- dat_base |>
-  select(record_id, subjid, rand_site , birthdat, visdat1) |>
-  left_join(dat_st, join_by(record_id))
-
 dat_base_st |>
   count(streas, stetrreas) |>
   mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
@@ -81,18 +99,13 @@ tt
 
 ## Visit attendance
 
-```{r}
-#| label: data-visit-attendance
-dat_vis <- select_form(dat_raw, "participant_assessment")
-dat_vis <- dat_base |>
-  select(record_id, subjid, site, trt) |>
-  left_join(dat_vis, join_by(record_id))
-```
+Visit schedules were different for stage 1 and stage 2.
+How many participants attended visits in the specified windows?
+
+### Stage 1
 
 ```{r}
-dat_vis |>
-  filter(visage %in% c("12-month"), is.na(windyn))
-dat_vis |>
-  filter(visage %in% c("12-month")) |>
-  count(visage, windyn, windreas)
+dat_grid_vs |>
+  filter(rand_stage == 1) |>
+  count(visage, windyn)
 ```

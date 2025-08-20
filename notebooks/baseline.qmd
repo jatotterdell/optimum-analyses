@@ -31,7 +31,7 @@ ggplot(
 
 ## Vaccination Administration
 
-For one participant the pharmacy reportedly dispensed the alternative study vaccine to the participants randomly allocated type. The IMP is monitored for all participants, so we are confident this was the only time this occurred. This error was documented in the proitocol deviations log. 
+For one participant the pharmacy reportedly dispensed the alternative study vaccine to the participants randomly allocated type. The IMP is monitored for all participants, so we are confident this was the only time this occurred. This error was documented in the proitocol deviations log [subject 02-333]. 
 
 To strictly adhere to ITT, this participant would be analysed according to their randomly allocated group to avoid any potential accidental bias. However, due to the strict IMP monitoring, the one-off occurrence, the fact that the intervention is a single point-treatment, and the objective nature of determining whether the correct vaccine was given at this singple-point treatment, I would be inclined to consider a modified-ITT where participants are grouped according to what was actually recieved (which in this case is equivalent to what was randomly allocated for all but this one participant).
 

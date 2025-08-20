@@ -259,16 +259,22 @@ tbl_summary(
 
 # Eczema
 
+```{r}
+#| label: data-eczema
+dat_ecz <- get_eczema_data(dat_raw)
+```
+
 ## Derivation
 
-There are two sources of information for new eczema diagnoses: the food and household questionnaire and the outcome report. For stage 1, eczema was also to be recorded on the adverse event of special interest (AESI) form. Sometimes the two are consistent, but in some cases they are not. We let the outcome report take precedence. However, in some cases there is no eczema diagnosis on the outcome report, but there may be eczema diagnoses reported in the survey responses. It's possible that outcome reports for these cases were not completed but requires further discussion.
+There are two sources of information for new eczema diagnoses: the food and household questionnaire (FHQ) and the outcome report. For stage 1, eczema was also to be recorded on the adverse event of special interest (AESI) form. The primary source of truth should be the outcome form, but we would like the sources to be consistent. In some cases there is no eczema diagnosis on the outcome report, but there may be eczema diagnoses reported in the survey responses. It's possible that outcome reports for these cases were not completed.
+
+In some cases, the response to `feecz` on the FHQ may be either `Yes` or `N/A (child has already been diagnosed with eczema before the last visit)`. In both cases, we should check that there is also an eczema record on the outcome report. If not, we should query.
+
+The protocol definitions specify "new onset" eczema, which means we do not wish to count infants who already had an eczema diagnosis at enrolment (6-weeks). Again, this may be on the FHQ or could also be reported in the medical history (MH). It may also be reported on the outcome report in some cases.
 
 ```{r}
 #| label: check-dates-outcome-report-food-questionnaire
-ecz_fhq <- dat_fhq |>
-  filter(feecz == "Yes") |>
-  arrange(record_id, fedat) |>
-  select(record_id, visit_age, fedat, feecz, feeczdat, feeczag, feeczstun)
+# Eczema outcome report
 ecz_out <- dat_out |>
   filter(outalltp == "Eczema") |>
   arrange(record_id, outdiagdat) |>
@@ -282,19 +288,31 @@ ecz_out <- dat_out |>
     outeczsrce,
     outeczsrcoth
   )
-ecz_all <- full_join(
-  ecz_out,
-  ecz_fhq,
-  join_by(record_id),
-  relationship = "many-to-many"
-)
-```
+ecz_out_base <- dat_base |>
+  select(record_id, birthdat, visdat1, discdat, trt) |>
+  left_join(ecz_out, join_by(record_id)) |>
+  mutate(
+    ecz_age_weeks = interval(birthdat, outdiagdat) %/% weeks(1),
+    ecz_age_months = interval(birthdat, outdiagdat) %/% months(1),
+  )
+ecz_out <- ecz_out_base |> filter(!is.na(outalltp))
 
-The protocol definitions specify "new onset" eczema, which means we do not wish to count infants who already had an eczema diagnosis at enrolment. I identify six infants with a past or current diagnosis of eczema at baseline per their medical history. 
-
-```{r}
-#| label: existing-eczema-medical-history
-dat_mh |>
+ecz_fhq <- dat_fhq |>
+  filter(feecz == "Yes") |>
+  arrange(record_id, fedat) |>
+  select(record_id, visit_age, fedat, feecz, feeczdat, feeczag, feeczstun)
+# Eczema FHQ new-onset
+ecz_fhq_new <- ecz_fhq |>
+  filter(visit_age != "6-week")
+# Eczema FHQ previous
+ecz_prev <- dat_fhq |>
+  filter(grepl("N/A ", feecz)) |>
+  filter(visit_age != "6-week")
+# Eczema FHQ existing
+ecz_fhq_exi <- ecz_fhq |>
+  filter(visit_age == "6-week")
+# Eczema MH existing
+ecz_mh_exi <- dat_mh |>
   filter(
     if_any(starts_with("mhcodelab"), ~ . == "Eczema") |
       if_any(starts_with("mhdiag"), ~ tolower(.) == "eczema")
@@ -307,20 +325,69 @@ dat_mh |>
       starts_with("mhenddat"),
       starts_with("mhstat")
     )
-  ) |>
+  )
+
+ecz_all <- full_join(
+  ecz_out,
+  ecz_fhq,
+  join_by(record_id),
+  relationship = "many-to-many"
+)
+```
+
+Check for differences between FHQ and outcome report. For those with eczema diagnosis on FHQ:
+
+```{r}
+# FHA eczema but no outcome report
+paste(str_sort(setdiff(ecz_fhq_new$record_id, ecz_out$record_id), numeric = TRUE), collapse = ", ")
+ecz_fhq_new |>
+  filter(record_id %in% setdiff(ecz_fhq_new$record_id, ecz_out$record_id)) |>
+  select(record_id, visit_age) |>
+  arrange(str_rank(record_id, numeric = TRUE)) |>
+  filter(nchar(record_id) > 3) |>
+  gt()
+```
+
+For this with "previous eczema" on FHQ:
+
+```{r}
+# FHA "prior eczema" but no outcome report
+paste(str_sort(setdiff(ecz_prev$record_id, ecz_out$record_id), numeric = TRUE), collapse = ", ")
+ecz_prev |>
+  filter(record_id %in% setdiff(ecz_prev$record_id, ecz_out$record_id)) |>
+  select(record_id, visit_age) |>
+  arrange(str_rank(record_id, numeric = TRUE)) |>
+  filter(nchar(record_id) > 3) |>
+  gt()
+```
+
+I identify 6 infants with a past or current diagnosis of eczema at baseline per their medical history. 
+
+```{r}
+#| label: existing-eczema-medical-history
+ecz_mh_exi |>
   reactable()
 ```
 
-Existing eczema may also be reported on the food and household questionnaire at 6-weeks which identifies nine infants, although there is some overlap with the medical history infants.
+Existing eczema may also be reported on the food and household questionnaire at 6-weeks which identifies 9 infants, although there is some overlap with the medical history infants.
 
 ```{r}
 #| label: existing-eczema-at-6-week
-ecz_fhq |>
-  filter(visit_age == "6-week") |>
+ecz_fhq_exi |>
   reactable()
 ```
 
-Overall, there were then **11** infants identified as having existing past or current eczema diagnosis at 6-weeks. For the analyis of new-onset eczema, these 11 infants will be excluded.
+There are also 8 infants with an outcome report for a diagnosis which occurred prior to visit 1. Some of these may be entry errors
+
+```{r}
+ecz_out |>
+  filter(outdiagdat <= visdat1) |>
+  left_join(select(ecz_fhq, record_id, fedat, feecz, feeczdat, visit_age), join_by(record_id)) |>
+  mutate(ecz_age_fhq_weeks = interval(birthdat, feeczdat) %/% weeks(1)) |>
+  reactable()
+```
+
+Overall, there were then at least **11** infants identified as having existing past or current eczema diagnosis at 6-weeks. However, may be more depending on data checks. For the analyis of new-onset eczema, these infants will be excluded.
 
 ```{r}
 #| label: all-existing-eczema-at-enrolment
@@ -338,35 +405,7 @@ ids_existing_eczema_2 <- ecz_fhq |>
 ids_existing_eczema <- union(ids_existing_eczema_1, ids_existing_eczema_2)
 ```
 
-For the participants with a prior diagnosis of eczema, only one had an eczema outcome reported (4629-215).
-
-```{r}
-#| label: check-diagnoses-existing-eczema-at-enrolment
-filter(ecz_all, record_id %in% ids_existing_eczema) |>
-  left_join(dat_dem, join_by(record_id)) |>
-  reactable()
-```
-
-There were a number of infants with an eczema diagnosis reported on the food and household questionnaire, but where no outcome for eczema has been reported. It would be useful to understand why that is the case.
-
-```{r}
-#| label: check-missing-eczema-outcomes
-ecz_all |>
-  filter(is.na(outalltp)) |>
-  filter(visit_age != "6-week") |>
-  reactable()
-```
-
-Most likely, we just treat the outcome report form as the source of truth.
-It's assumed that if eczema is reported on the outcome form, than it is "parent-reported" and "clinician-diagnosed".
-
-There were `r nrow(ecz_out)` eczema records reported. There is one infant with two eczema outcomes reported with different diagnosis dates: one with the parent as source and one with GP as source. I suspect that either `outdiagdat` or `outrepdat` is incorrect for for the second record given that the report date is earlier than the diagnosis date. Perhaps `outrepdat` should be `2024-05-04`, but it's possible the diagnosis date is wrong. The dates may matter for the two definitions which require diagnosis by 6 or 12 months of age.
-
-```{r}
-ecz_out |>
-  filter(n() > 1, .by = record_id) |>
-  reactable()
-```
+There were `r nrow(ecz_out)` eczema records reported.
 
 In stage 1, no `feeczdat` field (date of eczema diagnosis) was recorded on the food and household questionnaire. Intuitively, we would expect `outawardat` to align with `fedat` (the visit/survey date) and `outdiagdat` to align with `feeczdat`. This appears to generally be the case with occasional exceptions. Some of the exceptions may be coding errors (e.g. wrong year or month entered), but in some cases they appear to be wildly different. These may need to be reviewed for data entry errors.
 
@@ -392,20 +431,19 @@ ecz_all |>
   reactable()
 ```
 
-Supposing that the outcome report is the source of truth, then
+Supposing that the outcome report is the source of truth.
+There are a number of infants where eczema is reported as an outcome, but it appears to have been pre-existing.
+That is, they already had it prior to 6-weeks of age.
 
 ```{r}
-dat_base_ecz <- dat_base |>
-  left_join(ecz_out, join_by(record_id)) |>
-  # Due to the record with two outcome records for what is presumably the same diagnosis
-  # I assume the earlier date is the correct one
-  filter(row_number() == 1, .by = record_id) |>
+dat_base_ecz <- ecz_out_base |>
   mutate(
     ecz = case_when(
       is.na(outalltp) ~ 0,
       outalltp == "Eczema" ~ 1,
       .default = 0
     ),
+    ecz_age_weeks = interval(birthdat, outdiagdat) %/% weeks(1),
     ecz_age_months = interval(birthdat, outdiagdat) %/% months(1),
     ecz_6m = case_when(
       is.na(outalltp) ~ 0,
@@ -434,6 +472,8 @@ For the protocol defined outcomes [2a. and 2b.], the eczema diagnosis needs to b
 
 ## Summary
 
+**NEED TO REMOVE THOSE WITH PRE-EXISTING ECZEMA**
+
 There were no differences in eczema diagnoses between the groups.
 
 ```{r}
@@ -452,6 +492,38 @@ dat_base_ecz |>
     ),
     missing_text = "Missing"
   ) |>
+  modify_header(label = "**Outcome**") |>
+  as_gt() |>
+  tab_options(table.font.size = "10px") |>
+  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
+```
+
+```{r}
+dat_ecz |>
+  left_join(select(dat_ran, record_id, trt)) |>
+  filter(ecz_preexisting) |>
+  summarise(n = sum(ecz_preexisting), .by = trt)
+dat_ecz |>
+  left_join(select(dat_ran, record_id, trt)) |>
+  filter(!ecz_preexisting) |>
+  mutate(
+    ecz = ecz & !ecz_preexisting,
+    ecz_6m = ecz & !ecz_preexisting & ecz_age_months <= 6,
+    ecz_12m = ecz & !ecz_preexisting & ecz_age_months <= 12,
+    ecz_18m = ecz & !ecz_preexisting & ecz_age_months <= 18
+  ) |>
+    tbl_summary(
+      by = trt,
+      include = c(ecz, ecz_6m, ecz_12m, ecz_18m),
+    label = c(
+      ecz ~ "Eczema",
+      ecz_6m ~ "Eczema by 6-months",
+      ecz_12m ~ "Eczema by 12-months",
+      ecz_18m ~ "Eczema by 18-months"
+    ),
+    missing_text = "Missing"
+  ) |>
+    add_overall(last = TRUE) |>
   modify_header(label = "**Outcome**") |>
   as_gt() |>
   tab_options(table.font.size = "10px") |>
