@@ -58,8 +58,7 @@ get_eczema_data <- function(dat_raw) {
     ) |>
     mutate(
       ecz_age_weeks = interval(birthdat, outdiagdat) %/% weeks(1),
-      ecz_age_months = interval(birthdat, outdiagdat) %/% months(1),
-      ecz_existing = outdiagdat <= visdat1
+      ecz_age_months = interval(birthdat, outdiagdat) %/% months(1)
     )
 
   # Medical history of eczema
@@ -139,9 +138,9 @@ get_eczema_data <- function(dat_raw) {
         fhq_ecz_age_u == "Weeks" ~ fhq_ecz_age / 4,
         !is.na(fhq_ecz_age_u) ~ fhq_ecz_age / 4
       ),
-      out_ecz_preexisting = outdiagdat <= visdat1,
-      mh_ecz_preexisting = mh_stdat <= visdat1,
-      fhq_ecz_preexisting = fhq_ecz_date <= visdat1,
+      out_ecz_preexisting = !is.na(outdiagdat) & (outdiagdat <= visdat1),
+      mh_ecz_preexisting = !is.na(mh_stdat) & (mh_stdat <= visdat1),
+      fhq_ecz_preexisting = !is.na(fhq_ecz_date) & (fhq_ecz_date <= visdat1),
       ecz_preexisting = out_ecz_preexisting |
         mh_ecz_preexisting |
         fhq_ecz_preexisting,
