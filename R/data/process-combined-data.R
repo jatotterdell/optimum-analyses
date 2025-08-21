@@ -54,6 +54,7 @@ get_eczema_data <- function(dat_raw) {
           outawardat,
           outdiagdat,
           outageval,
+          outageunit,
           outeczsrce,
           outeczsrcoth,
           outeczmedyn,
