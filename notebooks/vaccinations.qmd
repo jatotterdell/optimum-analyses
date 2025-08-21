@@ -106,6 +106,15 @@ dat_ref_nstv <- dat_ref |>
 
 polio_str_1 <- "infan|ifan|ipv|ipol|polio|quad|vaxe"
 polio_str_2 <- "hexa|ipv|ipol|polio|quad|vaxe"
+
+filter_polio <- function(dat) {
+  dat |>
+    filter(
+      grepl(polio_str_2, tolower(ipvac)) |
+        grepl(polio_str_2, tolower(vacothspec))
+    )
+}
+
 dat_ref_nstv_polio <- dat_ref_nstv |>
   summarise(
     polio_nstv_count = sum(
@@ -129,10 +138,47 @@ dat_ref_vax_total |>
   print(n = Inf)
 
 # dat_ref_vax3 |>
-#   filter(record_id == "8644-61") |>
-#   select(record_id, streas, stetrreas, ippvspec, discage_mth, trt, birthdat, visdat1, visdat, vac7iploc)
+#   filter(record_id == "5785-47") |>
+#   select(
+#     record_id,
+#     streas,
+#     stetrreas,
+#     ippvspec,
+#     discage_mth,
+#     trt,
+#     birthdat,
+#     visdat1,
+#     visdat,
+#     vac7iploc
+#   )
 # dat_ref_nstv |>
-#   filter(record_id == "8644-61") |>
-#   select(record_id, discage_mth, trt, birthdat, visdat1, ipnstvacdat, ipvac, vacothspec, nstv_age) |>
+#   filter(record_id == "5785-47") |>
+#   select(
+#     record_id,
+#     discage_mth,
+#     trt,
+#     birthdat,
+#     visdat1,
+#     ipnstvacdat,
+#     ipvac,
+#     vacothspec,
+#     nstv_age
+#   ) |>
+#   arrange(nstv_age)
+
+# dat_ref_nstv |>
+#   filter(record_id == "5785-47") |>
+#   filter_polio() |>
+#   select(
+#     record_id,
+#     discage_mth,
+#     trt,
+#     birthdat,
+#     visdat1,
+#     ipnstvacdat,
+#     ipvac,
+#     vacothspec,
+#     nstv_age
+#   ) |>
 #   arrange(nstv_age)
 ```
