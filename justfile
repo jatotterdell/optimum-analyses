@@ -14,8 +14,8 @@ extract-raw-redcap-data:
 combine-redcap-medrio-data:
   Rscript R/data/combine-redcap-medrio-data.R
 
-# Render manuscript
-render-manuscript:
+# Render notebooks
+render-notebooks:
   quarto render
 
 # Render IgG report
