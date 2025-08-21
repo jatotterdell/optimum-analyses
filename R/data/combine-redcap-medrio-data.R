@@ -804,8 +804,7 @@ combine_food_household <- function() {
 combine_outcome_report <- function() {
   st2_out <- extract_tibble(st2_data, "outcome_report") |>
     select(-c(redcap_event, redcap_data_access_group, form_status_complete)) |>
-    rename(record_id_num = redcap_form_instance) |>
-    select(-outageval, -outageunit)
+    rename(record_id_num = redcap_form_instance)
   st1_out <- read_delim(
     file.path(st1_path, "outcomes.txt"),
     show_col_types = FALSE
@@ -832,7 +831,7 @@ combine_outcome_report <- function() {
       across(outrepdat:outbirthdat, ~ as_date(.x, format = "%d-%b-%Y"))
     ) |>
     mutate(record_id_num = row_number(), .by = record_id) |>
-    select(-medrioid, -outbirthdat, -ouagewk, -outagemnth, -outageyrs)
+    select(-medrioid)
   out <- bind_rows(st2_out, st1_out)
   var_label(out) <- var_label(st2_out)
   out

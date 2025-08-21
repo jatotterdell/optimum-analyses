@@ -42,17 +42,25 @@ get_eczema_data <- function(dat_raw) {
     select(record_id, birthdat, visdat1) |>
     left_join(
       dat_out |>
-        filter(outalltp == "Eczema") |>
+        filter(!(!is.na(outallyn) & !outallyn & record_id_num > 1)) |>
+        filter(outalltp == "Eczema" | !outallyn) |>
         arrange(record_id, outdiagdat) |>
         select(
           record_id,
+          outallyn,
           outalltp,
           outsev,
           outrepdat,
           outawardat,
           outdiagdat,
+          outageval,
           outeczsrce,
-          outeczsrcoth
+          outeczsrcoth,
+          outeczmedyn,
+          outeczmedtp,
+          outeczscoryn,
+          outeczscoradno,
+          outeczscrorate
         ),
       join_by(record_id)
     ) |>
@@ -149,7 +157,8 @@ get_eczema_data <- function(dat_raw) {
     )
 }
 
-get_skin_prick_long <- function(dat) {
+get_skin_prick_long <- function(dat_raw) {
+  dat_base <- select_form(dat_raw, "demographics")
   c_allergens <- c(
     "D.pteronyssinus",
     "cat dander",
@@ -160,10 +169,20 @@ get_skin_prick_long <- function(dat) {
     "peanut",
     "sesame"
   )
-  dat_spt <- select_form(dat, "skin_prick_test")
+  dat_spt <- select_form(dat_raw, "skin_prick_test") |>
+    filter(!is.na(priyn)) |>
+    filter(!(spt_occasion == "unscheduled" & !priyn))
 
   dat_spt_1 <- dat_spt |>
-    select(record_id, spt_num, priyn, pridat, prinegres:priposres) |>
+    select(
+      record_id,
+      spt_occasion,
+      spt_num,
+      priyn,
+      prinspec,
+      pridat,
+      prinegres:priposres
+    ) |>
     pivot_longer(
       prinegres:priposres,
       names_pattern = "pri(neg|pos)res",
@@ -194,17 +213,27 @@ get_skin_prick_long <- function(dat) {
     rename(spt_tested = allspec, spt_reaction = react, spt_result = res) |>
     mutate(spt_tested = tolower(spt_tested))
 
-  dat_spt_1 |>
+  dat_base |>
+    select(record_id, birthdat, visdat1) |>
+    left_join(dat_spt_1, join_by(record_id)) |>
+    # Fill in for those with missing records
+    mutate(
+      spt_occasion = replace_na(spt_occasion, "scheduled"),
+      spt_num = replace_na(spt_num, 1),
+      priyn = replace_na(priyn, FALSE)
+    ) |>
     left_join(
       bind_rows(dat_spt_2, dat_spt_3) |>
         mutate(spt_tested = fct_inorder(spt_tested)),
       join_by(record_id, spt_num)
     ) |>
     mutate(
+      spt_age = interval(birthdat, pridat) %/% months(1),
       spt_0mm = as.numeric(spt_result > 0),
       spt_1mm = as.numeric(spt_result > spt_neg + 1),
       spt_3mm = as.numeric(spt_result >= spt_neg + 3)
-    )
+    ) |>
+    arrange(str_rank(record_id, numeric = TRUE))
 }
 
 get_skin_prick_data <- function(dat) {
