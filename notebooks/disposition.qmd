@@ -1,18 +1,20 @@
 ---
 title: Participant Disposition
 description: Summary participant disposition and protocol adherence.
+code-fold: true
 ---
 
 {{< include _setup.qmd >}}
 
 ```{r}
-#| label: data-disposition\
+#| label: data-disposition
+#| code-summary: Prepare data
 dat_st <- select_form(dat_raw, "study_termination")
 dat_vs <- select_form(dat_raw, "participant_assessment") |>
   select(record_id, visdat, windyn, windreas, windothspec, visit, visage)
 
 dat_base_st <- dat_base |>
-  select(record_id, subjid, rand_stage, rand_site, birthdat, visdat1) |>
+  select(record_id, subjid, rand_stage, rand_site, trt, birthdat, visdat1) |>
   left_join(dat_st, join_by(record_id))
 
 dat_base_st_vs <- dat_base_st |>
@@ -20,54 +22,189 @@ dat_base_st_vs <- dat_base_st |>
 
 dat_grid <- dat_base_st |>
   crossing(visage = unique(dat_vs$visage)) |>
-  arrange(str_rank(record_id, numeric = TRUE), str_rank(visage, numeric = TRUE))
+  arrange(
+    str_rank(record_id, numeric = TRUE),
+    str_rank(visage, numeric = TRUE)
+  ) |>
+  mutate(discage = interval(birthdat, discdat) %/% months(1))
 
 dat_grid_vs <- dat_grid |>
   left_join(dat_vs, join_by(record_id, visage)) |>
   mutate(record_id = fct_inorder(record_id), visage = fct_inorder(visage)) |>
-  mutate(age_months = interval(birthdat, visdat) %/% months(1))
+  mutate(
+    age_weeks = interval(birthdat, visdat) %/% weeks(1),
+    age_months = interval(birthdat, visdat) %/% months(1)
+  ) |>
+  mutate(
+    visit_gap = interval(lag(visdat), visdat) %/% days(1),
+    .by = record_id
+  ) |>
+  mutate(visit_attended = !is.na(visdat))
 ```
+
+If a participant withdrew from the study too early, it may not have been possible to obtain their outcome status. However, it's not clear what minimum follow-up would be required to obtain the outcome. The primary outcome of food allergy requires diagnosis with positive SPT by 12 months of age, however, we generally accept any report up to 18-months of age. This would suggest at a minium we need follow-up to either 12 or 18 months of age for the outcome to have been observable. If follow-up was insufficient, and no allergy reported, then the outcome should probably be "missing" instead of "no allergy". However, this may make little difference given there was little difference in early termination between groups.
 
 ## Study Completion
 
-The study completion status as reported in the database is summarised in @tbl-discharge-outcome.
+The study completion status as reported in the database is summarised in @tbl-discharge-outcome. 
 
 ```{r}
 #| label: tbl-discharge-outcome
+#| code-summary: Study completion
 #| tbl-cap: Number of early study withdrawals and associated reasons.
-dat_base_st |>
-  count(streas, stetrreas) |>
-  mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
-  mutate(p = n / sum(n)) |>
-  gt() |>
-  cols_label(
-    streas ~ "Participant status",
-    stetrreas ~ "Reason"
-  ) |>
-  cols_align(
-    align = "left",
-    columns = c(streas, stetrreas)
-  ) |>
-  fmt_percent(p, decimals = 1) |>
-  tab_options(table.font.size = "10px") |>
-  sub_missing() |>
-  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
+tbl_study_termination <- function(dat) {
+  st_by_trt <- dat |>
+    count(streas, stetrreas, trt) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n), .by = trt) |>
+    pivot_wider(names_from = trt, values_from = c(n, p))
+
+  st_ovr <- dat |>
+    count(streas, stetrreas) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n)) |>
+    rename(n_ovr = n, p_ovr = p)
+
+  left_join(st_by_trt, st_ovr, join_by(streas, stetrreas)) |>
+    gt() |>
+    cols_align(
+      align = "left",
+      columns = c(streas, stetrreas)
+    ) |>
+    fmt_percent(starts_with("p_"), decimals = 1) |>
+    cols_merge(c(n_aP, p_aP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_wP, p_wP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_ovr, p_ovr), pattern = "{1} ({2})") |>
+    cols_label(
+      streas ~ md("**Participant status**"),
+      stetrreas ~ md("**Reason**"),
+      n_aP ~ md("**aP**<br>(N = 486)"),
+      n_wP ~ md("**wP**<br>(N = 486)"),
+      n_ovr ~ md("**Overall**<br>(N = 972)")
+    ) |>
+    tab_options(table.font.size = "10px") |>
+    sub_missing() |>
+    tab_style(
+      style = cell_text(align = "left"),
+      locations = cells_footnotes()
+    ) |>
+    tab_style(
+      style = cell_text(align = "center"),
+      locations = cells_column_labels(n_aP:n_ovr)
+    )
+}
+
+tbl_study_termination(dat_base_st)
 ```
 
- A number of participants had a record of "early termination" because they did not consent for blood collection and chose not to attend that visit. This was only applicable for those participating at PCH. Otherwise, the reasons were that the 18-month vaccine was recieved elsewhere. All these deviations occurred at or after 18-months of age [@tbl-discharge-deviation].
+### Site
+
+```{r}
+#| label: tbl-discharge-outcome-site
+#| code-summary: Study completion by site
+#| tbl-cap: Number of early study withdrawals and associated reasons by study site.
+tbl_study_termination_by <- function(dat, by = rand_site) {
+  st_by_trt <- dat |>
+    count({{ by }}, streas, stetrreas, trt) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n), .by = c({{ by }}, trt)) |>
+    pivot_wider(names_from = trt, values_from = c(n, p))
+
+  st_ovr <- dat |>
+    count({{ by }}, streas, stetrreas) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n), .by = {{ by }}) |>
+    rename(n_ovr = n, p_ovr = p)
+
+  left_join(st_by_trt, st_ovr, join_by({{ by }}, streas, stetrreas)) |>
+    group_by({{ by }}) |>
+    gt() |>
+    cols_align(
+      align = "left",
+      columns = c(streas, stetrreas)
+    ) |>
+    fmt_percent(starts_with("p_"), decimals = 1) |>
+    cols_merge(c(n_aP, p_aP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_wP, p_wP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_ovr, p_ovr), pattern = "{1} ({2})") |>
+    cols_label(
+      streas ~ md("**Participant status**"),
+      stetrreas ~ md("**Reason**"),
+      n_aP ~ md("**aP**<br>(N = 486)"),
+      n_wP ~ md("**wP**<br>(N = 486)"),
+      n_ovr ~ md("**Overall**<br>(N = 972)")
+    ) |>
+    tab_options(table.font.size = "10px") |>
+    sub_missing() |>
+    tab_style(
+      style = cell_text(align = "left"),
+      locations = cells_footnotes()
+    ) |>
+    tab_style(
+      style = cell_text(align = "center"),
+      locations = cells_column_labels(n_aP:n_ovr)
+    )
+}
+
+tbl_study_termination_by(dat_base_st)
+```
+
+### Stage 1
+
+```{r}
+#| label: tbl-discharge-outcome-stage1
+#| code-summary: Study completion stage 1
+#| tbl-cap: Number of early study withdrawals and associated reasons for stage 1 participants.
+tbl_study_termination(filter(dat_base_st, rand_stage == 1)) |>
+  cols_label(
+    streas ~ md("**Participant status**"),
+    stetrreas ~ md("**Reason**"),
+    n_aP ~ md("**aP**<br>(N = 75)"),
+    n_wP ~ md("**wP**<br>(N = 75)"),
+    n_ovr ~ md("**Overall**<br>(N = 150)")
+  )
+```
+
+### Stage 2
+
+```{r}
+#| label: tbl-discharge-outcome-stage2
+#| code-summary: Study completion stage 2
+#| tbl-cap: Number of early study withdrawals and associated reasons for stage 1 participants.
+tbl_study_termination(filter(dat_base_st, rand_stage == 2)) |>
+  cols_label(
+    streas ~ md("**Participant status**"),
+    stetrreas ~ md("**Reason**"),
+    n_aP ~ md("**aP**<br>(N = 411)"),
+    n_wP ~ md("**wP**<br>(N = 411)"),
+    n_ovr ~ md("**Overall**<br>(N = 822)")
+  )
+```
+
+### Listings
+
+ A number of participants had a record of "early termination" because they did not have blood collected at visit 3 (18-month) and so no reason for blood collection at visit 4 (19-month). This was only applicable for those participating at PCH due to the extra blood collection at 18 and 19 months of age. Otherwise, the reasons were that the 18-month vaccine was recieved elsewhere. All these deviations occurred at or after 18-months of age [@tbl-discharge-deviation].
 
 ```{r}
 #| label: tbl-discharge-deviation
+#| code-summary: Early terminations due to deviations
 #| tbl-cap: |
 #|   For participants where study termination was listed as "protocol violation/deviation",
 #|   what was the reported deviation?
 dat_base_st |>
   filter(stetrreas == "Protocol violation/deviation") |>
   mutate(ippvspec = tolower(ippvspec)) |>
-  count(ippvspec, discage = interval(birthdat, discdat) %/% months(1)) |>
+  count(
+    rand_stage,
+    ippvspec,
+    discage = interval(birthdat, discdat) %/% months(1)
+  ) |>
   arrange(desc(n), desc(discage)) |>
   gt() |>
-  cols_label(discage ~ "Age at last contact (months)") |>
+  cols_label(
+    rand_stage ~ "Study stage",
+    discage ~ "Age at last contact (months)"
+  ) |>
   tab_options(table.font.size = "10px")
 ```
 
@@ -75,6 +212,7 @@ The timing of withdrawal for praticipants who did not complete the protocol and 
 
 ```{r}
 #| label: tbl-discharge-timing
+#| code-summary: Early terminations for other reasons
 #| tbl-cap: Timing of loss-to-follow-up for study withdrawals.
 tt <- dat_base_st |>
   filter(
@@ -105,7 +243,97 @@ How many participants attended visits in the specified windows?
 ### Stage 1
 
 ```{r}
-dat_grid_vs |>
+#| label: tbl-stage1-visit-attendance
+#| code-summary: Stage 1 missed visits
+#| tbl-cap: |
+#|   Number and proportion of infants who attended each visit.
+#|   Based on presence of "visit date".
+#|   6-month + 72 hour was optional visit.
+vs_by_trt <- dat_grid_vs |>
   filter(rand_stage == 1) |>
-  count(visage, windyn)
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = c(trt, visage)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+vs_ovr <- dat_grid_vs |>
+  filter(rand_stage == 1) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = visage
+  )
+
+left_join(vs_by_trt, vs_ovr) |>
+  gt() |>
+  cols_label(
+    visage ~ md("**Visit**"),
+    aP ~ md("**aP**<br>(N = 75)"),
+    wP ~ md("**wP**<br>(N = 75)"),
+    Overall ~ md("**Overall**<br>(N = 150)")
+  ) |>
+  cols_align(align = "left", columns = visage) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px")
+```
+
+### Stage 2
+
+```{r}
+#| label: tbl-stage2-visit-attendance
+#| code-summary: Stage 2 missed visits
+#| tbl-cap: |
+#|   Number and proportion of infants who attended each visit.
+#|   Based on presence of "visit date".
+#|   19-month visit was for first 150 at PCH only.
+vs_by_trt <- dat_grid_vs |>
+  filter(rand_stage == 2, visage %in% c("12-month", "18-month", "19-month")) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = c(trt, visage)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+vs_ovr <- dat_grid_vs |>
+  filter(rand_stage == 2, visage %in% c("12-month", "18-month", "19-month")) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = visage
+  )
+
+left_join(vs_by_trt, vs_ovr) |>
+  gt() |>
+  cols_label(
+    visage ~ md("**Visit**"),
+    aP ~ md("**aP**<br>(N = 411)"),
+    wP ~ md("**wP**<br>(N = 411)"),
+    Overall ~ md("**Overall**<br>(N = 822)")
+  ) |>
+  cols_align(align = "left", columns = visage) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px")
 ```

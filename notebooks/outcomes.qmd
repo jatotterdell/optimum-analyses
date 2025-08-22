@@ -232,6 +232,23 @@ dat_spt |>
 ```{r}
 #| label: data-eczema
 dat_ecz <- get_eczema_data(dat_raw)
+
+dat_ecz |>
+  filter(!is.na(outageval)) |>
+  select(record_id, birthdat, outdiagdat, outageval, outageunit) |>
+  mutate(
+    outageval = as.numeric(outageval),
+    outagedat = case_when(
+      outageunit == "Weeks" ~ birthdat + weeks(round(outageval)),
+      outageunit == "Months" ~ birthdat + months(round(outageval)),
+      outageunit == "Years" ~ birthdat + years(round(outageval))
+    ),
+    outageval2 = interval(birthdat, outagedat) %/% months(1),
+    outagediag = interval(birthdat, outdiagdat) %/% months(1),
+    diff = outdiagdat - outagedat
+  ) |>
+    arrange(desc(diff)) |>
+    print(n = Inf)
 ```
 
 ## Derivation
@@ -239,6 +256,8 @@ dat_ecz <- get_eczema_data(dat_raw)
 There are multiple sources of information for new eczema diagnoses: the outcome report, the food and household questionnaire (FHQ), and for stage 1 the adverse event of special interest form (AESI). The primary source of truth for clinician-diagnosed eczema should be the outcome form, but we would like to check the sources for consistency.
 
 The protocol definitions specify "new onset" eczema, which means we do not wish to count infants who already had an eczema diagnosis at enrolment (6-weeks). Again, this may be on the FHQ or could also be reported in the medical history (MH) form. It may also be reported on the outcome report in some cases.
+
+It's also not entirely clear as to what timing should be used. The outcome requires "clinicain-diagnosed", so I presume we should only consider eczema present from the data of clinician diagnosis, however, the "age at which allergy was first present" may be much earlier than the diagnosis date. Need clarification on this point.
 
 On the FHQ, the response to `feecz` may be either `Yes` or `N/A (child has already been diagnosed with eczema before the last visit)`. In both cases, we should check that there is also an eczema record on the outcome report. If not, we should query.
 

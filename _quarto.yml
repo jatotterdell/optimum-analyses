@@ -26,15 +26,16 @@ website:
 format:
   html:
     theme: journal
+    page-layout: article
     fontsize: 1em
     html-table-processing: none
     cap-location: margin
     toc: true
     toc-expand: true
     grid:
-      body-width: 800px
-      sidebar-width: 250px
-      margin-width: 200px
+      body-width: 1000px
+      sidebar-width: 300px
+      margin-width: 300px
 
 execute: 
   freeze: false

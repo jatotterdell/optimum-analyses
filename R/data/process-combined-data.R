@@ -18,14 +18,45 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
     rnd <- select_form(dat_raw, "randomisation")
   }
   rnd |>
-    left_join(
-      select_form(dat_raw, "demographics"),
-      join_by(record_id)
+    mutate(randdat = date(randdattim)) |>
+    select(
+      record_id,
+      subjid,
+      rand_site,
+      rand_stage,
+      rand,
+      randdattim,
+      randdat,
+      trt
     ) |>
     left_join(
-      select_form(dat_raw, "birth_history"),
+      select_form(dat_raw, "study_termination"),
+    ) |>
+    left_join(
+      select_form(dat_raw, "demographics") |>
+        select(-ptinit, -calcagem, -starts_with("eto")),
+      join_by(record_id)
+    ) |>
+    mutate(
+      rand_age_wk = interval(birthdat, randdat) %/% weeks(1),
+      disc_age_mth = interval(birthdat, discdat) %/% months(1)
+    ) |>
+    left_join(
+      select_form(dat_raw, "birth_history") |>
+        select(-starts_with("sibage"), -matches("(prevac|prevdat)[4-5]")),
       join_by(record_id)
     )
+}
+
+get_food_allergy <- function(dat_raw) {
+  # Source of truth is outcome report
+  # But cross check FHQ
+  dat_base <- select_form(dat_raw, "demographics")
+  dat_out <- select_form(dat_raw, "outcome_report")
+  dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire")
+
+  fa_out <- dat_base |>
+    select(record_id, birthdat, visdat1) 
 }
 
 get_eczema_data <- function(dat_raw) {

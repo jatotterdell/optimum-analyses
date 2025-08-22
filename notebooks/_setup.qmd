@@ -1,5 +1,6 @@
 ```{r}
 #| label: packages-and-setup
+#| code-summary: Setup session
 suppressPackageStartupMessages({
   # Data
   library(here)
@@ -43,6 +44,7 @@ options(
 
 ```{r}
 #| label: data
+#| code-summary: Load raw data
 st2_file <- file.path(
   Sys.getenv("RDS_PATH"),
   config::get("raw_data_stage2_path"),

@@ -804,7 +804,15 @@ combine_food_household <- function() {
 combine_outcome_report <- function() {
   st2_out <- extract_tibble(st2_data, "outcome_report") |>
     select(-c(redcap_event, redcap_data_access_group, form_status_complete)) |>
-    rename(record_id_num = redcap_form_instance)
+    rename(record_id_num = redcap_form_instance) |>
+    mutate(
+      outallyn2 = case_when(
+        all(is.na(outallyn)) ~ NA,
+        any(outallyn, na.rm = TRUE) ~ TRUE,
+        TRUE ~ FALSE
+      ),
+      .by = record_id
+    )
   st1_out <- read_delim(
     file.path(st1_path, "outcomes.txt"),
     show_col_types = FALSE
@@ -823,6 +831,7 @@ combine_outcome_report <- function() {
     mutate(
       record_id = as.character(medrioid),
       outallyn = outallyn == "No",
+      outallyn2 = outallyn,
       outfraeldose = as.character(outfraeldose),
       outfrarashyn = outfrarashyn == "Yes",
       outfrasoth1yn = outfrasoth1yn == "Yes",
