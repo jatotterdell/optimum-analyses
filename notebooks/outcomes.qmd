@@ -1,6 +1,7 @@
 ---
 title: Trial Outcomes
 description: Document derivation, summaries, and analyses related to primary and secondary clinical outcomes.
+code-fold: true
 ---
 
 {{< include _setup.qmd >}}
@@ -34,34 +35,21 @@ Some of the above is open to interpretation, but generally:
 - we consider any SPT before 18-months of age to be valid (i.e. approximately 12 months of age)
 - sensitisation on SPT requires a reaction greater than 1mm compared to negative control solution (i.e. >1mm)
 - new-onset eczema means we exclude any infants with pre-existing eczema at 6-weeks of age (enrolment)
+- for timing (both food allergy and eczema), we consider the age at which a reaction was first observed, although it's unclear how accurate this is, and may be subject to recall bias. If a clinician diagnosis date is missing ("outdiagdat"), then we consider that it was not clinician-diagnosed.
 - by at least one allergen, we mean any allergen tested, either from the base set or any additionally tested allergens
 
 ```{r}
 #| label: data-derive
-# Randomisation
-dat_ran <- select_form(dat_raw, "randomisation") |>
-  mutate(randdat = date(randdattim)) |>
-  left_join(select_form(dat_raw, "allocations"), join_by(rand))
+#| code-summary: Raw datasets
 
-# Add study termination info to baseline data
-dat_st <- select_form(dat_raw, "study_termination")
-dat_dem <- select_form(dat_raw, "demographics") |>
-  select(record_id, visdat1, birthdat, gender) |>
-  left_join(dat_st, join_by(record_id)) |>
-  mutate(discage = interval(birthdat, discdat) %/% months(1)) |>
-  relocate(discage, .after = discdat)
-
+# Medical history
 dat_mh <- select_form(dat_raw, "medical_history")
 
-# Main baseline information
-dat_base <- dat_ran |>
-  left_join(dat_dem, join_by(record_id))
-
 # Outcomes
-dat_out <- select_form(dat_raw, "outcome_report")
-dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire")
-dat_spt <- select_form(dat_raw, "skin_prick_test")
-dat_fch <- select_form(dat_raw, "food_challenge")
+dat_out_raw <- select_form(dat_raw, "outcome_report")
+dat_fhq_raw <- select_form(dat_raw, "food_and_household_questionnaire")
+dat_spt_raw <- select_form(dat_raw, "skin_prick_test")
+dat_fch_raw <- select_form(dat_raw, "food_challenge")
 ```
 
 # Skin Prick Test
@@ -70,8 +58,8 @@ I start with the skin prick tests (SPTs) [outcomes 2c. and 2d.], as all other ou
 
 ```{r}
 #| label: data-spt
+#| code-summary: Summarise positve SPTs
 dat_spt <- get_skin_prick_long(dat_raw)
-
 dat_spt_pos <- dat_spt |>
   summarise(
     any_spt_pos_0mm = if_else(all(!priyn), NA, any(spt_0mm == 1, na.rm = TRUE)),
@@ -110,15 +98,18 @@ dat_spt_pos <- dat_spt |>
 
 For reference, the following REDCap form fields correspond to these foods:
 
+- `prires1` - D.pteronyssinus (dust mite)
+- `prires2` - cat dander
+- `prires3` - perennial ryegrass
 - `prires4` - whole egg
 - `prires5` - cashew
 - `prires6` - cow's milk
 - `prires7` - peanut
 - `prires8` - sesame
 
-The protocol defined a panel of allergens to be tested: cow's milk, hen egg, peanut, cashew, house dust mite, cat fur, rye grass. In addition to these, further allergens could also be tested at parental request or at discretion of the site PI. When the outcomes say "at least one allergen" we mean any allergen, including any additional allergens tested beyond the panel defined in the protocol.
+The protocol defined a panel of allergens to be tested (those listed above). In addition to these, further allergens could also be tested at parental request or at discretion of the site PI. When the outcomes say "at least one allergen" [i.e. for eczema] we mean any allergen, including any additional allergens tested beyond the panel defined in the protocol.
 
-In the REDCap form, there is a field `prireact[1-9]` which indicates if a reaction occurred. However, this only indicates that the wheal diameter was greater than zero, not that it was >1mm more than negative control. Therefore, positive SPTs need to be determined. For example, in the following some participants have `prireact1` "Yes", because the reaction was >0mm, but the reaction may not have been >1mm more than the negative control (`pripos1`).
+In the REDCap form, there is a field `prireact[1-9]` which indicated if a reaction occurred. However, this appears to only indicate that the wheal diameter was greater than zero, not that it was >1mm more than negative control. Therefore, positive SPTs need to be determined. For example, in the following some participants have `prireact1` "Yes", because the reaction was >0mm, but the reaction may not have been >1mm more than the negative control (`pripos1`).
 
 There are two types of skin prick tests: those conducted as part of a scheduled visit as soon as possible after 12-months of age and no later than 18-months of age, and unscheduled skin prick tests which may be performed at any time. When we say "by approximately 12 months of age", my understanding is we mean "no more than 19-months of age" given the window allowed for performing SPTs, but need to confirm.
 
@@ -126,10 +117,10 @@ The following participants had *no* SPT records. In some cases this was likely d
 
 ```{r}
 #| label: tbl-infants-no-spt-record
+#| code-summary: Listing - no SPT
 dat_spt |>
   filter(!priyn) |>
   filter(row_number() == 1, .by = c(record_id, spt_occasion)) |>
-  left_join(dat_st, join_by(record_id)) |>
   select(
     record_id,
     birthdat,
@@ -148,10 +139,11 @@ All other participants had at least one scheduled SPT.
 
 ```{r}
 #| label: tbl-infants-count-spts
+#| code-summary: Number and proportion with SPTs
 #| tbl-cap: |
 #|   Number and percentage of infants with scheduled and unscheduled skin prick tests.
 spt_nums <- dat_spt |>
-  left_join(dat_ran, join_by(record_id)) |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
   filter(row_number() == 1, .by = c(record_id, trt, spt_occasion, spt_num)) |>
   summarise(
     spt_num_sch = sum(spt_occasion == "scheduled" & priyn, na.rm = TRUE),
@@ -170,35 +162,54 @@ tbl_summary(
   tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
 ```
 
+The were a few SPTs which were performed after 18 months of age. If adhereing to the "approximately 12 months of age" as any SPT by 18 months of age, these SPTs should be excluded.
+
 ```{r}
 #| label: fig-age-at-spt
+#| code-summary: Age at SPT
 #| fig-cap: |
 #|   Age at skin prick test by type (scheduled or unscheduled).
 #| fig-height: 3
 dat_spt |>
-  left_join(dat_ran, join_by(record_id)) |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
   filter(row_number() == 1, .by = c(record_id, trt, spt_occasion, spt_num)) |>
   filter(!is.na(spt_age)) |>
   ggplot(aes(spt_age)) +
-  facet_wrap( ~ spt_occasion, scales = "free_y") +
+  facet_wrap(~spt_occasion, scales = "free_y") +
   geom_bar() +
   scale_x_continuous("Age at SPT (months)", breaks = seq(0, 30, 2)) +
   labs(y = "Skin prick tests")
+```
+
+```{r}
+#| label: tbl-spt-after-18-months
+#| code-summary: SPTs after 18-months of age
+#| tbl-cap: Listing of SPTs after 18-months of age.
+dat_spt |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
+  filter(
+    row_number() == 1,
+    .by = c(record_id, trt, spt_occasion, spt_num, spt_age)
+  ) |>
+  filter(spt_age > 18) |>
+  select(record_id, birthdat, spt_occasion, pridat, spt_num, spt_age) |>
+  gt() |>
+  tab_options(table.font.size = "10px")
 ```
 
 If a participant has no (scheduled) SPT record, then we should treat their SPT outcomes as missing, and therefore as unknown whether they had a positive SPT or not.
 
 ## Summary
 
-There was no difference between groups with respect to SPT sensitisation.
+The number of proportion of infants with a positive SPT by 18 months of age is given in @tbl-infants-spt-positive.
 
 ```{r}
 #| label: tbl-infants-spt-positive
 #| tbl-cap: |
 #|   Number and percentage of infants with a positive SPT by 18-months of age.
 #|   Infants with no SPT records counted as missing.
-dat_spt |>
-  left_join(dat_ran, join_by(record_id)) |>
+tab <- dat_spt |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
   summarise(
     across(
       spt_0mm:spt_3mm,
@@ -225,30 +236,16 @@ dat_spt |>
   as_gt() |>
   tab_options(table.font.size = "10px") |>
   tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
+tab
 ```
+
+---
 
 # Eczema
 
 ```{r}
 #| label: data-eczema
 dat_ecz <- get_eczema_data(dat_raw)
-
-dat_ecz |>
-  filter(!is.na(outageval)) |>
-  select(record_id, birthdat, outdiagdat, outageval, outageunit) |>
-  mutate(
-    outageval = as.numeric(outageval),
-    outagedat = case_when(
-      outageunit == "Weeks" ~ birthdat + weeks(round(outageval)),
-      outageunit == "Months" ~ birthdat + months(round(outageval)),
-      outageunit == "Years" ~ birthdat + years(round(outageval))
-    ),
-    outageval2 = interval(birthdat, outagedat) %/% months(1),
-    outagediag = interval(birthdat, outdiagdat) %/% months(1),
-    diff = outdiagdat - outagedat
-  ) |>
-    arrange(desc(diff)) |>
-    print(n = Inf)
 ```
 
 ## Derivation
@@ -257,14 +254,17 @@ There are multiple sources of information for new eczema diagnoses: the outcome 
 
 The protocol definitions specify "new onset" eczema, which means we do not wish to count infants who already had an eczema diagnosis at enrolment (6-weeks). Again, this may be on the FHQ or could also be reported in the medical history (MH) form. It may also be reported on the outcome report in some cases.
 
-It's also not entirely clear as to what timing should be used. The outcome requires "clinicain-diagnosed", so I presume we should only consider eczema present from the data of clinician diagnosis, however, the "age at which allergy was first present" may be much earlier than the diagnosis date. Need clarification on this point.
+It's not transparent as to what timing should be used. The outcome requires "clinicain-diagnosed", however, the "age at which allergy was first present" may be much earlier than the diagnosis date. From discussions, it sounds as though age at first reaction was what was of interest. Therefore, this will be used to decide whether eczema was present at 6 or 12 months of age.
 
 On the FHQ, the response to `feecz` may be either `Yes` or `N/A (child has already been diagnosed with eczema before the last visit)`. In both cases, we should check that there is also an eczema record on the outcome report. If not, we should query.
 
 Check for differences between FHQ and outcome report. For those with eczema diagnosis on FHQ:
 
 ```{r}
-# FHA eczema but no outcome report
+#| label: tbl-fha-eczema-no-outcome
+#| code-summary: FHA eczema but no outcome report
+#| tbl-cap: |
+#|   Eczema diagnosis reported on FHQ, but no outcome report available.
 filter(dat_ecz, fhq_ecz == "Yes" & fhq_ecz_date > visdat1 & ecz == 0) |>
   select(
     record_id,
@@ -282,7 +282,10 @@ For this with "previous eczema" on FHQ:
 
 ```{r}
 # FHA "prior eczema" but no outcome report
-filter(dat_ecz, fhq_ecz == "Previous diagnosis" & ecz == 0 & fhq_vis_age != "6-week") |>
+filter(
+  dat_ecz,
+  fhq_ecz == "Previous diagnosis" & ecz == 0 & fhq_vis_age != "6-week"
+) |>
   select(
     record_id,
     birthdat,
@@ -321,6 +324,8 @@ For the protocol defined outcomes [2a. and 2b.], the eczema diagnosis needs to b
 
 ## Summary
 
+The number and percentage of infants with eczema by a given age is reported in @tbl-eczema-trt.
+
 ```{r}
 #| label: tbl-eczema-trt
 #| tbl-cap: |
@@ -331,17 +336,17 @@ dat_ecz |>
   filter(ecz_preexisting) |>
   summarise(n = sum(ecz_preexisting), .by = trt)
 dat_ecz |>
-  left_join(select(dat_ran, record_id, trt)) |>
+  left_join(select(dat_ran, record_id, trt), join_by(record_id)) |>
   filter(!ecz_preexisting) |>
   mutate(
     ecz = ecz & !ecz_preexisting,
-    ecz_6m = ecz & !ecz_preexisting & ecz_age_months <= 6,
-    ecz_12m = ecz & !ecz_preexisting & ecz_age_months <= 12,
-    ecz_18m = ecz & !ecz_preexisting & ecz_age_months <= 18
+    ecz_6m = ecz & !ecz_preexisting & outageval_months <= 6,
+    ecz_12m = ecz & !ecz_preexisting & outageval_months <= 12,
+    ecz_18m = ecz & !ecz_preexisting & outageval_months <= 18
   ) |>
-    tbl_summary(
-      by = trt,
-      include = c(ecz, ecz_6m, ecz_12m, ecz_18m),
+  tbl_summary(
+    by = trt,
+    include = c(ecz, ecz_6m, ecz_12m, ecz_18m),
     label = c(
       ecz ~ "Eczema",
       ecz_6m ~ "Eczema by 6-months",
@@ -350,61 +355,212 @@ dat_ecz |>
     ),
     missing_text = "Missing"
   ) |>
-    add_overall(last = TRUE) |>
+  add_overall(last = TRUE) |>
   modify_header(label = "**Outcome**") |>
   as_gt() |>
   tab_options(table.font.size = "10px") |>
   tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
 ```
 
+A summary of the characteristics of these eczema diagnoses are given in @tbl-eczema-characteristics.
+
+```{r}
+#| label: tbl-eczema-characteristics
+#| tbl-cap: |
+#|   Characteristics of eczema cases.
+dat_ecz |>
+  filter(!is.na(outalltp), !ecz_preexisting) |>
+  left_join(select(dat_ran, record_id, trt), join_by(record_id)) |>
+  mutate(outeczsrce = fct_infreq(outeczsrce)) |>
+  tbl_summary(
+    by = trt,
+    include = c(outsev, outeczsrce, outageval_months, ecz_age_months),
+    label = list(
+      outeczsrce ~ "Source of information",
+      outageval_months ~ "Age at first reaction",
+      ecz_age_months ~ "Age at diagnosis"
+    ),
+    missing_text = "Missing"
+  ) |>
+  add_overall(last = TRUE) |>
+  modify_header(label = "**Outcome**") |>
+  as_gt() |>
+  tab_options(table.font.size = "10px") |>
+  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
+```
+
+```{r}
+dat_ecz |>
+  filter(outageval_months < 1.5) |>
+  select(
+    record_id,
+    ecz_age_months,
+    outageval_months,
+    outageval,
+    outageunit,
+    ecz_preexisting,
+    fhq_ecz
+  )
+dat_ecz |>
+  filter(!is.na(outalltp), outageval_months > 1.5) |>
+  ggplot(aes(ecz_age_months, floor(outageval_months))) +
+  geom_point() +
+  geom_abline() +
+  coord_fixed() +
+  labs(
+    x = "Age allergy confirmed by clinician (months)",
+    y = "Age allergy first occurred (months)"
+  ) +
+  scale_x_continuous(breaks = 1:20) +
+  scale_y_continuous(breaks = 1:20)
+```
+
+---
+
 # Food allergy
 
 The primary source of information is the outcome form, in particular, records where `outalltp` is one of *Anaphylaxis*, *Highly probably IgE mediated food allergy*, or *Oral food challenge*. There is also a form `food_challenge` for the oral food challenges themselves.
 
 ```{r}
-fa_recs <- dat_out |>
+dat_fa <- dat_out_raw |>
   filter(!is.na(outalltp), outalltp != "Eczema")
-fa_recs |> count(outalltp)
+dat_fa |> count(outalltp)
 ```
 
 Generally, there is one record per allergen and reaction type. For example,
 
 ```{r}
-fa_recs |>
+dat_fa |>
   filter(record_id == "4629-92") |>
-  select(record_id, outalltp, outrepdat, outdiagdat, outfrasrcespec , outfrafood)
+  select(
+    record_id,
+    outalltp,
+    outrepdat,
+    outdiagdat,
+    outfrasrcespec,
+    outfrafood,
+    outageval,
+    outageunit
+  )
 ```
 
 How many individuals had some kind of food allergy outcome recorded, and how many records did they?
 
 ```{r}
-fa_recs |>
+dat_fa |>
   count(record_id, name = "records") |>
   count(records, name = "infants")
 ```
-As mentioned above, to meet the primary outcome we require a positive skin prick test to the relevant allergen in addition to an outcome report of anaphylaxis, positive oral food challenge, or highly probable IgE mediated food allergy. Rather than checking for *any* positive SPT, need to check specifically for one which is positive to the relevant food.
+
+To meet the primary outcome we require a positive skin prick test to the relevant allergen in addition to an outcome report of anaphylaxis, positive oral food challenge, or highly probable IgE mediated food allergy. Rather than checking for *any* positive SPT, need to check specifically for one which is positive to the relevant food.
+
+## Food Challenge
+
+For reference, in the oral food challenge records:
+
+- `ofcfoodtp1` - peanut
+- `ofcfoodtp2` - egg
+- `ofcfoodtp3` - milk
+- `ofcfoodtp4` - cashew
+
+From the outcome report, there were 21 infants with a positive oral food challenge outcome. 
+
+```{r}
+ofc_recs <- dat_out_raw |>
+  filter(outalltp == "Oral food challenge") |>
+  arrange(record_id) |>
+  select(
+    record_id,
+    outsev,
+    outrepdat,
+    outawardat,
+    outdiagdat,
+    outageval,
+    outageunit,
+    outageval_months,
+    outfrafood,
+    outfraeldose
+  )
+ofc_recs |>
+  arrange(outageval_months) |>
+  gt() |>
+  tab_options(table.font.size = "10px")
+```
+
+All had a positive SPT to the relevant food by 18 months of age.
+
+```{r}
+out_ofc_foods <- dat_out_raw |>
+  filter(outalltp == "Oral food challenge") |>
+  arrange(record_id) |>
+  select(
+    record_id,
+    outfrafood
+  ) |>
+  summarise(
+    outfrafood = paste(tolower(outfrafood), collapse = ", "),
+    .by = record_id
+  ) |>
+  left_join(dat_spt_pos, join_by(record_id)) |>
+  select(record_id, outfrafood, spt_age, spt_pos_1mm) |>
+  arrange(str_rank(record_id, numeric = TRUE))
+out_ofc_foods |>
+  gt() |>
+  tab_options(table.font.size = "10px")
+```
+
+Some infants had oral food challenges but no outcome report for oral food challenge, despite a positive result. 
+
+```{r}
+ofc_positive <- dat_fch_raw |>
+  filter(
+    ofcfoodtp1 == "Positive" |
+      ofcfoodtp2 == "Positive" |
+      ofcfoodtp3 == "Positive" |
+      ofcfoodtp4 == "Positive" |
+      ofcoutoth1 == "Positive" |
+      ofcoutoth2 == "Positive"
+  ) |>
+  arrange(str_rank(record_id, numeric = TRUE))
+right_join(out_ofc_foods, ofc_positive, relationship = "many-to-many") |>
+  filter(is.na(outfrafood))
+```
+
+Usually, either anaphylaxis or IgE mediated food allergy was reported. An exception was 5785-123 who have only eczema reported.
+
+```{r}
+ids <- right_join(out_ofc_foods, ofc_positive, relationship = "many-to-many") |>
+  filter(is.na(outfrafood)) |>
+  pull(record_id)
+dat_out_raw |>
+  filter(record_id %in% ids) |>
+  print(n = Inf)
+```
 
 ## Anaphylaxis
 
 There were 6 participants with a record of anaphylaxis. One participant did not have a positive skin prick test to the reported food (5785-283), however, this appears to have been a data entry issue. Apparently there was a positive SPT to sesame, it's just not recorded in REDCap, awaiting an update to this record.
 
 ```{r}
-ana_recs <- dat_out |>
+ana_recs <- dat_out_raw |>
   filter(outalltp == "Anaphylaxis") |>
+  arrange(record_id) |>
   select(
     record_id,
-    outalltp,
     outsev,
+    outrepdat,
+    outawardat,
     outdiagdat,
-    outfrasource,
+    outageval,
+    outageunit,
+    outageval_months,
     outfrafood,
-    outfraexptp
-  ) |>
-  arrange(record_id) |>
-  summarise(
-    foods = paste(outfrafood, collapse = ", "),
-    .by = record_id
+    outfraeldose
   )
+ana_recs |>
+  arrange(outageval_months) |>
+  gt() |>
+  tab_options(table.font.size = "10px")
 ```
 
 ## Highly Probably IgE Mediated Food Allergy
@@ -418,7 +574,7 @@ From manual review, a few were missing positive SPT:
 - 75
 
 ```{r}
-ige_recs <- dat_out |>
+ige_recs <- dat_out_raw |>
   filter(outalltp == "Highly probably IgE mediated food allergy") |>
   select(
     record_id,
@@ -434,58 +590,4 @@ ige_recs <- dat_out |>
     foods = paste(outfrafood, collapse = ", "),
     .by = record_id
   )
-```
-
-## Food Challenge
-
-From the outcome report, there were 19 infants with a positive oral food challenge. 
-Again, some did not have a positive SPT:
-
-- 4630-45 (peanut)
-- 5785-39 (sesame)
-
-```{r}
-ofc_recs <- dat_out |>
-  filter(outalltp == "Oral food challenge") |>
-  select(
-    record_id,
-    outalltp,
-    outsev,
-    outdiagdat,
-    outfrasource,
-    outfrafood,
-    outfraexptp
-  ) |>
-  arrange(record_id) |>
-  summarise(
-    foods = paste(outfrafood, collapse = ", "),
-    .by = record_id
-  )
-```
-
-For reference, in the oral food challenge records:
-
-- `ofcfoodtp1` - peanut
-- `ofcfoodtp2` - egg
-- `ofcfoodtp3` - milk
-- `ofcfoodtp4` - cashew
-
-
-Some infants may have multiple food challenges, others may have only one.
-
-```{r}
-dat_fch |>
-  count(record_id, name = "records") |>
-  count(records, name = "infants")
-```
-
-For example, the following infant had three separate food challenges, each for a different allergen: peanut, milk, and egg, all being positive. However, in the outcomes form, they only have two oral food challenge records (no record for the egg). To be safe, need to check both sources.
-
-```{r}
-fa_recs |>
-  filter(record_id == "5785-333") |>
-  select(record_id, outalltp, outsev, outrepdat, outfrafood, outfraexptp)
-dat_fch |>
-  filter(record_id == "5785-333") |>
-  select(record_id, ofc_num, ofcdat, ofcwindyn, starts_with("ofcfoodtp"))
 ```

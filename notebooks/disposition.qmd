@@ -12,6 +12,15 @@ code-fold: true
 dat_st <- select_form(dat_raw, "study_termination")
 dat_vs <- select_form(dat_raw, "participant_assessment") |>
   select(record_id, visdat, windyn, windreas, windothspec, visit, visage)
+dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire") |>
+  select(
+    record_id,
+    redcap_survey_timestamp,
+    visit_age,
+    fe_phone,
+    fedat,
+    fecurr
+  )
 
 dat_base_st <- dat_base |>
   select(record_id, subjid, rand_stage, rand_site, trt, birthdat, visdat1) |>
@@ -40,6 +49,46 @@ dat_grid_vs <- dat_grid |>
     .by = record_id
   ) |>
   mutate(visit_attended = !is.na(visdat))
+
+dat_grid <- dat_base_st |>
+  crossing(visit_age = unique(dat_fhq$visit_age)) |>
+  mutate(
+    discage = interval(birthdat, discdat) %/% months(1),
+    visit_age = factor(
+      visit_age,
+      levels = c(
+        "6-week",
+        "4-month",
+        "6-month",
+        "7-month",
+        "9-month",
+        "12-month",
+        "15-month",
+        "18-month",
+        "19-month"
+      )
+    )
+  ) |>
+  arrange(
+    str_rank(record_id, numeric = TRUE),
+    visit_age
+  )
+
+dat_grid_fhq <- dat_grid |>
+  left_join(dat_fhq, join_by(record_id, visit_age)) |>
+  mutate(
+    record_id = fct_inorder(record_id),
+    visit_age = fct_inorder(visit_age)
+  ) |>
+  mutate(
+    age_weeks = interval(birthdat, fedat) %/% weeks(1),
+    age_months = interval(birthdat, fedat) %/% months(1)
+  ) |>
+  mutate(
+    visit_gap = interval(lag(fedat), fedat) %/% days(1),
+    .by = record_id
+  ) |>
+  mutate(visit_attended = !is.na(fedat))
 ```
 
 If a participant withdrew from the study too early, it may not have been possible to obtain their outcome status. However, it's not clear what minimum follow-up would be required to obtain the outcome. The primary outcome of food allergy requires diagnosis with positive SPT by 12 months of age, however, we generally accept any report up to 18-months of age. This would suggest at a minium we need follow-up to either 12 or 18 months of age for the outcome to have been observable. If follow-up was insufficient, and no allergy reported, then the outcome should probably be "missing" instead of "no allergy". However, this may make little difference given there was little difference in early termination between groups.
@@ -335,5 +384,136 @@ left_join(vs_by_trt, vs_ovr) |>
     style = cell_text(align = "center"),
     location = cells_column_labels()
   ) |>
+  tab_options(table.font.size = "10px")
+```
+
+## Food and household quesionnaire
+
+The food and household questionnaire is to be completed at visit 2 and 3 for stage 2, but also via phone at 6,9, and 15 months of age. For stage 1, all were in person.
+
+### Stage 1
+
+```{r}
+#| label: tbl-stage1-fhq-completion
+#| code-summary: Stage 1 missed FHQ
+#| tbl-cap: |
+#|   Number and proportion of infants with completed FHQ for each visit.
+#|   Based on presence of "visit date".
+#|   6-month + 72 hour was optional visit.
+fhq_by_trt <- dat_grid_fhq |>
+  filter(rand_stage == 1) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = c(trt, visit_age)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+fhq_ovr <- dat_grid_fhq |>
+  filter(rand_stage == 1) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = visit_age
+  )
+
+left_join(fhq_by_trt, fhq_ovr) |>
+  gt() |>
+  cols_label(
+    visit_age ~ md("**Visit**"),
+    aP ~ md("**aP**<br>(N = 75)"),
+    wP ~ md("**wP**<br>(N = 75)"),
+    Overall ~ md("**Overall**<br>(N = 150)")
+  ) |>
+  cols_align(align = "left", columns = visit_age) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px")
+```
+
+### Stage 2
+
+```{r}
+#| label: tbl-stage2-fhq-completion
+#| code-summary: Stage 2 missed FHQ
+#| tbl-cap: |
+#|   Number and proportion of infants with completed FHQ for each visit.
+#|   Based on presence of "fedat".
+fhq_by_trt <- dat_grid_fhq |>
+  filter(
+    rand_stage == 2,
+    visit_age %in%
+      c("6-week", "6-month", "9-month", "12-month", "15-month", "18-month")
+  ) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = c(trt, visit_age)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+fhq_ovr <- dat_grid_fhq |>
+  filter(
+    rand_stage == 2,
+    visit_age %in%
+      c("6-week", "6-month", "9-month", "12-month", "15-month", "18-month")
+  ) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = visit_age
+  )
+
+left_join(fhq_by_trt, fhq_ovr) |>
+  gt() |>
+  cols_label(
+    visit_age ~ md("**Visit**"),
+    aP ~ md("**aP**<br>(N = 411)"),
+    wP ~ md("**wP**<br>(N = 411)"),
+    Overall ~ md("**Overall**<br>(N = 822)")
+  ) |>
+  cols_align(align = "left", columns = visit_age) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px")
+```
+
+ In many cases where early termination reportedly occurred, follow-up actually continued for surveys etc (e.g. those cases with protocol deviation or consent withdrawal related to blood collection, it may only have been blood collection that ceased, not all data collection).
+
+```{r}
+#| code-summary: No FHQ date
+dat_grid_fhq |>
+  filter(visit_age == "18-month") |>
+  filter(is.na(fedat)) |>
+  select(record_id, discdat, discage, streas, stetrreas, ippvspec) |>
+  gt() |>
+  tab_options(table.font.size = "10px")
+```
+
+```{r}
+#| code-summary: Did not complete protocol but has 18-month FHQ
+dat_grid_fhq |>
+  filter(visit_age == "18-month") |>
+  filter(streas != "Completed protocol", !is.na(fedat)) |>
+  select(record_id, discdat, discage, streas, stetrreas, ippvspec, fedat) |>
+  gt() |>
   tab_options(table.font.size = "10px")
 ```
