@@ -806,12 +806,22 @@ combine_outcome_report <- function() {
     select(-c(redcap_event, redcap_data_access_group, form_status_complete)) |>
     rename(record_id_num = redcap_form_instance) |>
     mutate(
-      outallyn2 = case_when(
-        all(is.na(outallyn)) ~ NA,
-        any(outallyn, na.rm = TRUE) ~ TRUE,
-        TRUE ~ FALSE
-      ),
+      no_outcome_report = all(is.na(outallyn) & is.na(outalltp)),
       .by = record_id
+    ) |>
+    filter(!(record_id_num > 1 & is.na(outalltp))) |>
+    mutate(
+      outageval = as.numeric(outageval),
+      outageval_months = case_when(
+        outageunit == "Months" ~ outageval,
+        outageunit == "Weeks" ~ outageval / 4.345,
+        outageunit == "Years" ~ outageval * 12
+      ),
+      outallyn2 = case_when(
+        no_outcome_report ~ NA,
+        !is.na(outalltp) ~ TRUE,
+        is.na(outalltp) ~ FALSE
+      )
     )
   st1_out <- read_delim(
     file.path(st1_path, "outcomes.txt"),
@@ -831,13 +841,24 @@ combine_outcome_report <- function() {
     mutate(
       record_id = as.character(medrioid),
       outallyn = outallyn == "No",
-      outallyn2 = outallyn,
       outfraeldose = as.character(outfraeldose),
       outfrarashyn = outfrarashyn == "Yes",
       outfrasoth1yn = outfrasoth1yn == "Yes",
       outeczmedyn = outeczmedyn == "Yes",
       outeczscoryn = outeczscoryn == "Yes",
       across(outrepdat:outbirthdat, ~ as_date(.x, format = "%d-%b-%Y"))
+    ) |>
+    mutate(
+      no_outcome_report = all(is.na(outallyn) & is.na(outalltp)),
+      .by = record_id
+    ) |>
+    mutate(
+      outageval_months = 12 * outageyrs + outagemnth + ouagewk / 4.345,
+      outallyn2 = case_when(
+        no_outcome_report ~ NA,
+        !is.na(outalltp) ~ TRUE,
+        is.na(outalltp) ~ FALSE
+      )
     ) |>
     mutate(record_id_num = row_number(), .by = record_id) |>
     select(-medrioid)
