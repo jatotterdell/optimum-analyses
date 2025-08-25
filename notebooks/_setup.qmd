@@ -54,4 +54,5 @@ com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
 
 dat_raw <- qread(com_file)
 dat_base <- get_baseline_data(dat_raw, TRUE)
+dat_ran <- select(dat_base, record_id, trt, randdat)
 ```
