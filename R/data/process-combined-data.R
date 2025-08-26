@@ -31,6 +31,7 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
     ) |>
     left_join(
       select_form(dat_raw, "study_termination"),
+      join_by(record_id)
     ) |>
     left_join(
       select_form(dat_raw, "demographics") |>
@@ -52,11 +53,54 @@ get_food_allergy <- function(dat_raw) {
   # Source of truth is outcome report
   # But cross check FHQ
   dat_base <- select_form(dat_raw, "demographics")
-  dat_out <- select_form(dat_raw, "outcome_report")
+  dat_out <- select_form(dat_raw, "outcome_report") |>
+    arrange(str_rank(record_id, numeric = TRUE))
   dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire")
+  dat_ofc <- select_form(dat_raw, "food_challenge") |>
+    arrange(str_rank(record_id, numeric = TRUE))
+
+  # Oral food challenge
+  dat_out_ofc <- dat_out |>
+    filter(outalltp == "Oral food challenge")
+
+  # Anaphylaxis
+  dat_out_ana <- dat_out |>
+    filter(outalltp == "Anaphylaxis")
 
   fa_out <- dat_base |>
-    select(record_id, birthdat, visdat1) 
+    select(record_id, birthdat, visdat1) |>
+    left_join(
+      dat_out |>
+        filter(outalltp != "Eczema") |>
+        select(
+          record_id,
+          outallyn,
+          outallyn2,
+          outalltp,
+          outsev,
+          outrepdat,
+          outawardat,
+          outdiagdat,
+          outageval,
+          outageunit,
+          outfrasource,
+          outfrasrcespec,
+          outfrafood,
+          outfraexptp,
+          outfrafdamt,
+          outfracrdose,
+          outfraeldose,
+          outfrarxntm,
+          outfrarashyn,
+          outfrraspec,
+          outfrasym1:outfrasym13
+        ),
+      join_by(record_id)
+    ) |>
+    mutate(
+      diag_age_weeks = interval(birthdat, outdiagdat) %/% weeks(1),
+      diag_age_months = interval(birthdat, outdiagdat) %/% months(1)
+    )
 }
 
 get_eczema_data <- function(dat_raw) {
@@ -86,6 +130,7 @@ get_eczema_data <- function(dat_raw) {
           outdiagdat,
           outageval,
           outageunit,
+          outageval_months,
           outeczsrce,
           outeczsrcoth,
           outeczmedyn,
@@ -191,6 +236,7 @@ get_eczema_data <- function(dat_raw) {
 
 get_skin_prick_long <- function(dat_raw) {
   dat_base <- select_form(dat_raw, "demographics")
+  dat_st <- select_form(dat_raw, "study_termination")
   c_allergens <- c(
     "D.pteronyssinus",
     "cat dander",
@@ -247,6 +293,10 @@ get_skin_prick_long <- function(dat_raw) {
 
   dat_base |>
     select(record_id, birthdat, visdat1) |>
+    left_join(
+      select(dat_st, record_id, discdat, streas, stetrreas),
+      join_by(record_id)
+    ) |>
     left_join(dat_spt_1, join_by(record_id)) |>
     # Fill in for those with missing records
     mutate(

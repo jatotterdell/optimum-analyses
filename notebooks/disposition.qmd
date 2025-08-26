@@ -483,9 +483,9 @@ left_join(fhq_by_trt, fhq_ovr) |>
   gt() |>
   cols_label(
     visit_age ~ md("**Visit**"),
-    aP ~ md("**aP**<br>(N = 411)"),
-    wP ~ md("**wP**<br>(N = 411)"),
-    Overall ~ md("**Overall**<br>(N = 822)")
+    aP ~ md("**aP**  \n(N = 411)"),
+    wP ~ md("**wP**  \n(N = 411)"),
+    Overall ~ md("**Overall**  \n(N = 822)")
   ) |>
   cols_align(align = "left", columns = visit_age) |>
   cols_align(align = "right", columns = aP:Overall) |>

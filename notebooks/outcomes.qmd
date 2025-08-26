@@ -422,6 +422,7 @@ dat_ecz |>
 The primary source of information is the outcome form, in particular, records where `outalltp` is one of *Anaphylaxis*, *Highly probably IgE mediated food allergy*, or *Oral food challenge*. There is also a form `food_challenge` for the oral food challenges themselves.
 
 ```{r}
+#| code-summary: Food allergy records
 dat_fa <- dat_out_raw |>
   filter(!is.na(outalltp), outalltp != "Eczema")
 dat_fa |> count(outalltp)
@@ -430,6 +431,7 @@ dat_fa |> count(outalltp)
 Generally, there is one record per allergen and reaction type. For example,
 
 ```{r}
+#| code-summary: Example infant
 dat_fa |>
   filter(record_id == "4629-92") |>
   select(
@@ -447,6 +449,7 @@ dat_fa |>
 How many individuals had some kind of food allergy outcome recorded, and how many records did they?
 
 ```{r}
+#| code-summary: Food allergy records per infant
 dat_fa |>
   count(record_id, name = "records") |>
   count(records, name = "infants")
@@ -539,7 +542,7 @@ dat_out_raw |>
 
 ## Anaphylaxis
 
-There were 6 participants with a record of anaphylaxis. One participant did not have a positive skin prick test to the reported food (5785-283), however, this appears to have been a data entry issue. Apparently there was a positive SPT to sesame, it's just not recorded in REDCap, awaiting an update to this record.
+There were 7 participants with a record of anaphylaxis. 5785-283 did not have a positive skin prick test to the reported food (sesame) however, this appears to have been a data entry issue. Apparently there was a positive SPT to sesame, it's just not recorded in REDCap, awaiting an update to this record. Record ID 68 had a positive SPT, however it was at 19 months of age which does not meet the 18 month cut-off. Participant 4629-92 did not have a positive SPT for the two anaphylaxis foods, cow's milk and walnut, however, for cow's milk this was due to a missing negative control. The response to cow's milk was 9mm, which may have been positive.
 
 ```{r}
 ana_recs <- dat_out_raw |>
@@ -561,6 +564,32 @@ ana_recs |>
   arrange(outageval_months) |>
   gt() |>
   tab_options(table.font.size = "10px")
+```
+
+```{r}
+out_ana_foods <- dat_out_raw |>
+  filter(outalltp == "Anaphylaxis") |>
+  arrange(record_id) |>
+  select(
+    record_id,
+    outfrafood
+  ) |>
+  summarise(
+    outfrafood = paste(tolower(outfrafood), collapse = ", "),
+    .by = record_id
+  ) |>
+  left_join(dat_spt_pos, join_by(record_id)) |>
+  select(record_id, outfrafood, spt_age, spt_pos_1mm) |>
+  arrange(str_rank(record_id, numeric = TRUE))
+out_ana_foods |>
+  gt() |>
+  tab_options(table.font.size = "10px")
+```
+
+```{r}
+dat_spt |>
+  filter(record_id == "4629-92") |>
+  filter(spt_tested == "cow's milk", !is.na(spt_result))
 ```
 
 ## Highly Probably IgE Mediated Food Allergy
