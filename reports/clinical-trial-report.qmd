@@ -1,0 +1,383 @@
+---
+title: OPTIMUM
+subtitle: Clinical Trial Report
+---
+
+```{r}
+#| label: packages-and-setup
+suppressPackageStartupMessages({
+  # Data
+  library(here)
+  library(qs)
+  library(dplyr)
+  library(forcats)
+  library(lubridate)
+
+  # Figures
+  library(ggplot2)
+  library(showtext)
+
+  # Tables
+  library(gt)
+  library(gtsummary)
+})
+
+readRenviron(here(".env"))
+source(here("R", "util.R"))
+source(here("R", "data", "process-combined-data.R"))
+
+sysfonts::font_add(
+  family = "TeX Gyre Pagella",
+  regular = "texgyrepagella-regular.otf",
+  bold = "texgyrepagella-bold.otf",
+  italic = "texgyrepagella-italic.otf",
+  bolditalic = "texgyrepagella-bolditalic.otf"
+)
+
+showtext::showtext_auto()
+showtext::showtext_opts(dpi = 244)
+
+theme_set(
+  theme_bw(base_size = 10, base_family = "TeX Gyre Pagella") +
+    theme(panel.grid.minor = element_blank())
+)
+
+theme_gtsummary_compact(font_size = 10)
+```
+
+```{r}
+#| label: data-setup
+com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
+dat_raw <- qread(com_file)
+```
+
+```{r}
+#| label: data-base
+dat_base <- get_baseline_data(dat_raw, TRUE)
+```
+
+```{r}
+#| label: data-visits
+dat_vs <- select_form(dat_raw, "participant_assessment") |>
+  select(record_id, visdat, windyn, windreas, windothspec, visit, visage)
+```
+
+\clearpage
+
+# Introduction
+
+\clearpage
+
+# Enrolment, Characteristics and Completion
+
+## Enrolment
+
+```{r}
+#| label: fig-enrolment-overall
+#| fig-cap: Cumulative enrolment.
+#| fig-height: 3
+#| fig-width: 6
+dat_enrol <- dat_base |>
+  select(record_id, randdattim) |>
+  mutate(randdate = as_date(randdattim)) |>
+  arrange(randdate) |>
+  summarise(n = n(), .by = randdate) |>
+  mutate(cn = cumsum(n))
+
+ggplot(
+  dat_enrol,
+  aes(randdate, cn)
+) +
+  geom_step() +
+  scale_x_date("Calendar time", breaks = "3 months", date_labels = "%d %b %y") +
+  scale_y_continuous("Number enrolled", breaks = seq(0, 1000, 100)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+\clearpage
+
+## Characteristics
+
+The baseline characteristics of participants are reported in @tbl-baseline-characteristics.
+
+```{r}
+#| label: tbl-baseline-characteristics
+#| tbl-cap: Baseline characteristics of trial participants.
+#| tbl-pos: "H"
+#| output: "asis"
+dat_base |>
+  tbl_summary(
+    include = c(gender, parinc, delt, wgt, len, inhc),
+    by = trt,
+    missing_text = "(Missing)"
+  ) |>
+  add_n() |>
+  add_overall(last = TRUE) |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
+\clearpage
+
+## Study Completion
+
+The study completion status as reported in the database is summarised in @tbl-discharge-outcome. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* are due to the first 300 PCH participants with the additional blood collections, a number of which withdrew consent for blood collection at the 18-month visit (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of the blood collection.
+
+```{r}
+#| label: tbl-discharge-outcome
+#| code-summary: Study completion
+#| tbl-cap: Number of early study withdrawals and associated reasons.
+#| tbl-pos: "H"
+#| output: "asis"
+tbl_study_termination <- function(dat) {
+  st_by_trt <- dat |>
+    count(streas, stetrreas, trt) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n), .by = trt) |>
+    pivot_wider(names_from = trt, values_from = c(n, p))
+
+  st_ovr <- dat |>
+    count(streas, stetrreas) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n)) |>
+    rename(n_ovr = n, p_ovr = p)
+
+  left_join(st_by_trt, st_ovr, join_by(streas, stetrreas)) |>
+    gt() |>
+    cols_align(
+      align = "left",
+      columns = c(streas, stetrreas)
+    ) |>
+    fmt_percent(starts_with("p_"), decimals = 1) |>
+    cols_merge(c(n_aP, p_aP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_wP, p_wP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_ovr, p_ovr), pattern = "{1} ({2})") |>
+    cols_label(
+      streas ~ md("**Participant status**"),
+      stetrreas ~ md("**Reason**"),
+      n_aP ~ "\\makecell{\\textbf{aP} \\\\ N = 486}",
+      n_wP ~ "\\makecell{\\textbf{wP} \\\\ N = 486}",
+      n_ovr ~ "\\makecell{\\textbf{Overall} \\\\ N = 972}"
+    ) |>
+    tab_options(table.font.size = "10px") |>
+    sub_missing() |>
+    tab_style(
+      style = cell_text(align = "left"),
+      locations = cells_footnotes()
+    ) |>
+    tab_style(
+      style = cell_text(align = "center"),
+      locations = cells_column_labels(n_aP:n_ovr)
+    )
+}
+
+tbl_study_termination(dat_base) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-discharge-outcome-site
+#| code-summary: Study completion by site
+#| tbl-cap: Number of early study withdrawals and associated reasons by study site.
+#| tbl-pos: "H"
+#| output: "asis"
+tbl_study_termination_by <- function(dat, by = rand_site) {
+  st_by_trt <- dat |>
+    count({{ by }}, streas, stetrreas, trt) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n), .by = c({{ by }}, trt)) |>
+    pivot_wider(names_from = trt, values_from = c(n, p))
+
+  st_ovr <- dat |>
+    count({{ by }}, streas, stetrreas) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n), .by = {{ by }}) |>
+    rename(n_ovr = n, p_ovr = p)
+
+  left_join(st_by_trt, st_ovr, join_by({{ by }}, streas, stetrreas)) |>
+    group_by({{ by }}) |>
+    gt() |>
+    cols_align(
+      align = "left",
+      columns = c(streas, stetrreas)
+    ) |>
+    fmt_percent(starts_with("p_"), decimals = 1) |>
+    cols_merge(c(n_aP, p_aP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_wP, p_wP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_ovr, p_ovr), pattern = "{1} ({2})") |>
+    cols_label(
+      streas ~ md("**Participant status**"),
+      stetrreas ~ md("**Reason**"),
+      n_aP ~ "\\makecell{\\textbf{aP} \\\\ N = 486}",
+      n_wP ~ "\\makecell{\\textbf{wP} \\\\ N = 486}",
+      n_ovr ~ "\\makecell{\\textbf{Overall} \\\\ N = 972}"
+    ) |>
+    tab_options(table.font.size = "10px") |>
+    sub_missing() |>
+    tab_style(
+      style = cell_text(align = "left"),
+      locations = cells_footnotes()
+    ) |>
+    tab_style(
+      style = cell_text(align = "center"),
+      locations = cells_column_labels(n_aP:n_ovr)
+    )
+}
+
+tbl_study_termination_by(dat_base) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+## Missed visits
+
+```{r}
+dat_grid <- dat_base |>
+  crossing(visage = unique(dat_vs$visage)) |>
+  arrange(
+    str_rank(record_id, numeric = TRUE),
+    str_rank(visage, numeric = TRUE)
+  ) |>
+  mutate(discage = interval(birthdat, discdat) %/% months(1))
+
+dat_grid_vs <- dat_grid |>
+  left_join(dat_vs, join_by(record_id, visage)) |>
+  mutate(record_id = fct_inorder(record_id), visage = fct_inorder(visage)) |>
+  mutate(
+    age_weeks = interval(birthdat, visdat) %/% weeks(1),
+    age_months = interval(birthdat, visdat) %/% months(1)
+  ) |>
+  mutate(
+    visit_gap = interval(lag(visdat), visdat) %/% days(1),
+    .by = record_id
+  ) |>
+  mutate(visit_attended = !is.na(visdat))
+```
+
+```{r}
+#| label: tbl-stage1-visit-attendance
+#| tbl-cap: |
+#|   Number and proportion of infants who attended each visit in stage 1.
+#|   (based on presence of "visit date").
+#    6-month + 72 hour was optional visit.
+#| tbl-pos: "H"
+#| output: "asis"
+vs_by_trt <- dat_grid_vs |>
+  filter(rand_stage == 1) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = c(trt, visage)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+vs_ovr <- dat_grid_vs |>
+  filter(rand_stage == 1) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = visage
+  )
+
+left_join(vs_by_trt, vs_ovr) |>
+  gt() |>
+  cols_label(
+    visage ~ md("**Visit**"),
+    aP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 150}"
+  ) |>
+  cols_align(align = "left", columns = visage) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-stage2-visit-attendance
+#| tbl-cap: |
+#|   Number and proportion of infants who attended each visit in stage 2.
+#|   (based on presence of "visit date").
+#|   19-month visit was for first 150 at PCH only.
+#| tbl-pos: "H"
+#| output: "asis"
+vs_by_trt <- dat_grid_vs |>
+  filter(rand_stage == 2, visage %in% c("12-month", "18-month", "19-month")) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = c(trt, visage)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+vs_ovr <- dat_grid_vs |>
+  filter(rand_stage == 2, visage %in% c("12-month", "18-month", "19-month")) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = visage
+  )
+
+left_join(vs_by_trt, vs_ovr) |>
+  gt() |>
+  cols_label(
+    visage ~ md("**Visit**"),
+    aP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 822}"
+  ) |>
+  cols_align(align = "left", columns = visage) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+
+\clearpage
+
+# Primary Outcome
+
+\clearpage
+
+# Secondary Outcomes
+
+\clearpage
+
+# Safety
