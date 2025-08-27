@@ -92,6 +92,11 @@ dat_spt_pos <- dat_spt |>
     .by = c(record_id, pridat, spt_occasion, spt_age)
   ) |>
   arrange(str_rank(record_id, numeric = TRUE), pridat)
+dat_spt_pos_any <- dat_spt_pos |>
+  summarise(
+    any_pos_spt = any(any_spt_pos_1mm & spt_age < 19),
+    .by = record_id
+  )
 ```
 
 ## Derivation
@@ -245,7 +250,8 @@ tab
 
 ```{r}
 #| label: data-eczema
-dat_ecz <- get_eczema_data(dat_raw)
+dat_ecz <- get_eczema_data(dat_raw) |>
+  left_join(dat_spt_pos_any, join_by(record_id))
 ```
 
 ## Derivation
@@ -330,12 +336,15 @@ The number and percentage of infants with eczema by a given age is reported in @
 #| label: tbl-eczema-trt
 #| tbl-cap: |
 #|   Number and percentage of infants with an clinician-diagnosed eczema.
-#|   Those with "Missing" were because the date of clinician diagnosis was missing.
+#|   Those with "Missing" under total cases were because the date of reaction was missing.
+#|   Additional missing under cases with positive SPT were due to missing SPT status.
 dat_ecz |>
   left_join(select(dat_ran, record_id, trt)) |>
   filter(ecz_preexisting) |>
   summarise(n = sum(ecz_preexisting), .by = trt)
-dat_ecz |>
+
+# With eczema
+tbl1 <- dat_ecz |>
   left_join(select(dat_ran, record_id, trt), join_by(record_id)) |>
   filter(!ecz_preexisting) |>
   mutate(
@@ -356,10 +365,42 @@ dat_ecz |>
     missing_text = "Missing"
   ) |>
   add_overall(last = TRUE) |>
-  modify_header(label = "**Outcome**") |>
+  modify_header(label = "**Outcome**")
+
+# With positive SPT
+tbl2 <- dat_ecz |>
+  left_join(select(dat_ran, record_id, trt), join_by(record_id)) |>
+  filter(!ecz_preexisting) |>
+  mutate(
+    ecz = ecz & !ecz_preexisting & any_pos_spt,
+    ecz_6m = ecz & !ecz_preexisting & outageval_months <= 6 & any_pos_spt,
+    ecz_12m = ecz & !ecz_preexisting & outageval_months <= 12 & any_pos_spt,
+    ecz_18m = ecz & !ecz_preexisting & outageval_months <= 18 & any_pos_spt
+  ) |>
+  tbl_summary(
+    by = trt,
+    include = c(ecz, ecz_6m, ecz_12m, ecz_18m),
+    label = c(
+      ecz ~ "Eczema",
+      ecz_6m ~ "Eczema by 6-months",
+      ecz_12m ~ "Eczema by 12-months",
+      ecz_18m ~ "Eczema by 18-months"
+    ),
+    missing_text = "Missing"
+  ) |>
+  add_overall(last = TRUE) |>
+  modify_header(label = "**Outcome**")
+
+tbl_stack(
+  list(tbl1, tbl2),
+  group_header = c("Total cases", "Cases with positive SPT")
+) |>
   as_gt() |>
-  tab_options(table.font.size = "10px") |>
-  tab_style(style = cell_text(align = "left"), locations = cells_footnotes())
+  tab_options(table.font.size = px(10)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  )
 ```
 
 A summary of the characteristics of these eczema diagnoses are given in @tbl-eczema-characteristics.
