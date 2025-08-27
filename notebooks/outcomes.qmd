@@ -304,7 +304,7 @@ filter(
   tab_options(table.font.size = "10px")
 ```
 
-I identified 16 infants with past diagnosis of eczema at baseline: 6 due to medical history, 11 due to food and household questionnaire at 6 weeks of age, and 8 due to outcome report with diagnosis prior to enrolment. However, two appear to be a coding errors (4629-198 and 5785-111) given the reported dates are prior to date of birth.
+I identified 15 infants with past diagnosis of eczema at baseline: 6 due to medical history, 11 due to food and household questionnaire at 6 weeks of age, and 8 due to outcome report with diagnosis prior to enrolment. However, two appear to be a coding errors (4629-198 and 5785-111) given the reported dates are prior to date of birth.
 
 ```{r}
 filter(
@@ -323,7 +323,18 @@ filter(
     out_ecz_preexisting,
     outdiagdat,
     ecz_age_weeks
-  )
+  ) |>
+  gt() |>
+  tab_options(table.font.size = px(9))
+```
+
+For some infants who have an outcome report, the date of first reaction is missing (`outageval` and `outageunit`).
+In these cases we assume that the diagnosis date was the date of first reaction (`outdiagdat`).
+
+```{r}
+dat_out_raw |>
+  filter(outalltp == "Eczema", is.na(outageval), nchar(record_id) > 3) |>
+  print(n = Inf)
 ```
 
 For the protocol defined outcomes [2a. and 2b.], the eczema diagnosis needs to be accompanied by an SPT to at least one allergen by approximately 12 months of age.
