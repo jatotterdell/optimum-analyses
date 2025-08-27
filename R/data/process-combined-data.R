@@ -7,6 +7,11 @@ suppressPackageStartupMessages({
 
 source(file.path("R", "util.R"))
 
+# Derive a "baseline" dataset, including:
+# - randomisation
+# - demographics
+# - study termination (for date of loss-to-follow-up if applicable)
+# - any other baseline form fields as required
 get_baseline_data <- function(dat_raw, unblind = FALSE) {
   if (unblind) {
     rnd <- left_join(
@@ -39,6 +44,7 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
       join_by(record_id)
     ) |>
     mutate(
+      v1_age_wk = interval(birthdat, visdat1) %/% weeks(1),
       rand_age_wk = interval(birthdat, randdat) %/% weeks(1),
       disc_age_mth = interval(birthdat, discdat) %/% months(1)
     ) |>
@@ -103,6 +109,12 @@ get_food_allergy <- function(dat_raw) {
     )
 }
 
+# Derive an "eczema" dataset which considers
+# all sources of information:
+# - outcome report
+# - food and household questionnaire
+# - medical history
+# - AESI (stage 1 only)
 get_eczema_data <- function(dat_raw) {
   dat_base <- select_form(dat_raw, "demographics")
   dat_out <- select_form(dat_raw, "outcome_report")
@@ -130,6 +142,7 @@ get_eczema_data <- function(dat_raw) {
           outdiagdat,
           outageval,
           outageunit,
+          outageval_weeks,
           outageval_months,
           outeczsrce,
           outeczsrcoth,
@@ -142,8 +155,19 @@ get_eczema_data <- function(dat_raw) {
       join_by(record_id)
     ) |>
     mutate(
+      v1_age_weeks = interval(birthdat, visdat1) %/% weeks(1),
       ecz_age_weeks = interval(birthdat, outdiagdat) %/% weeks(1),
-      ecz_age_months = interval(birthdat, outdiagdat) %/% months(1)
+      ecz_age_months = interval(birthdat, outdiagdat) %/% months(1),
+      outageval_weeks2 = if_else(
+        is.na(outageval_weeks) & outalltp == "Eczema",
+        ecz_age_weeks,
+        outageval_weeks
+      ),
+      outageval_months2 = if_else(
+        is.na(outageval_months) & outalltp == "Eczema",
+        ecz_age_months,
+        outageval_months
+      )
     )
 
   # Medical history of eczema

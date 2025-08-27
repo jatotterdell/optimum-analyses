@@ -817,6 +817,7 @@ combine_outcome_report <- function() {
         outageunit == "Weeks" ~ outageval / 4.345,
         outageunit == "Years" ~ outageval * 12
       ),
+      outageval_weeks = outageval_months * 4.345,
       outallyn2 = case_when(
         no_outcome_report ~ NA,
         !is.na(outalltp) ~ TRUE,
@@ -854,6 +855,7 @@ combine_outcome_report <- function() {
     ) |>
     mutate(
       outageval_months = 12 * outageyrs + outagemnth + ouagewk / 4.345,
+      outageval_weeks = outageval_months * 4.345,
       outallyn2 = case_when(
         no_outcome_report ~ NA,
         !is.na(outalltp) ~ TRUE,
