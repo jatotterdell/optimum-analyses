@@ -921,16 +921,16 @@ combine_skin_prick_test <- function() {
       prinegres = as.numeric(prinegres),
       prireact8 = if_else(prireact8 == "N/A", "Not Done", prireact8)
     ) |>
-    select(
-      -c(
-        unvisyn,
-        unvisdat,
-        unvisreas___1,
-        unvisreas___2,
-        unvisreas___99,
-        unvisreasoth
-      )
-    ) |>
+    # select(
+    #   -c(
+    #     unvisyn,
+    #     unvisdat,
+    #     unvisreas___1,
+    #     unvisreas___2,
+    #     unvisreas___99,
+    #     unvisreasoth
+    #   )
+    # ) |>
     rename(
       priallspec9 = priallspec,
       priallspec10 = priallspec_2,
@@ -996,6 +996,10 @@ combine_skin_prick_test <- function() {
       select(
         medrioid,
         spt_occasion,
+        unvisyn,
+        unvisdat,
+        unvisreas,
+        unsreasoth,
         priyn_un,
         prispec_un,
         pridat_un,
@@ -1021,10 +1025,23 @@ combine_skin_prick_test <- function() {
 
   st1_spt_1 <- st1_spt_all |>
     filter(is.na(vargroup1row)) |>
-    select(medrioid, spt_occasion, spt_num, priyn, prispec, pridat) |>
+    select(
+      medrioid,
+      spt_occasion,
+      unvisyn,
+      unvisdat,
+      unvisreas,
+      unsreasoth,
+      spt_num,
+      priyn,
+      prispec,
+      pridat
+    ) |>
     mutate(
       priyn = priyn == "Yes",
-      pridat = as_date(pridat, format = "%d-%b-%Y")
+      pridat = as_date(pridat, format = "%d-%b-%Y"),
+      unvisyn = unvisyn == "Yes",
+      unvisdat = as_date(unvisdat, format = "%d-%b-%Y")
     ) |>
     rename(prinspec = prispec)
 

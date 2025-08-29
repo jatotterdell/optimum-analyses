@@ -123,8 +123,7 @@ get_eczema_data <- function(dat_raw) {
   dat_ae <- select_form(dat_raw, "adverse_events")
 
   # Source of truth is outcome report.
-  # Need FHQ and MH for existing eczema,
-  # and FHQ to cross-check with OR
+  # However, want to check FHQ and MH for existing eczema and to cross-check outcomes
   ecz_out <- dat_base |>
     select(record_id, birthdat, visdat1) |>
     left_join(
@@ -158,6 +157,7 @@ get_eczema_data <- function(dat_raw) {
       v1_age_weeks = interval(birthdat, visdat1) %/% weeks(1),
       ecz_age_weeks = interval(birthdat, outdiagdat) %/% weeks(1),
       ecz_age_months = interval(birthdat, outdiagdat) %/% months(1),
+      # If outageval (first allergy) is missing, use the clinician diagnosis date
       outageval_weeks2 = if_else(
         is.na(outageval_weeks) & outalltp == "Eczema",
         ecz_age_weeks,
@@ -229,6 +229,7 @@ get_eczema_data <- function(dat_raw) {
     rename(ae_stdat = aestdat) |>
     mutate(ae_ecz = 1)
 
+  # Merge all sources together and create derived fields
   out <- ecz_out |>
     left_join(ecz_ae, join_by(record_id)) |>
     left_join(ecz_mh, join_by(record_id)) |>
@@ -247,18 +248,23 @@ get_eczema_data <- function(dat_raw) {
         fhq_ecz_age_u == "Weeks" ~ fhq_ecz_age / 4,
         !is.na(fhq_ecz_age_u) ~ fhq_ecz_age / 4
       ),
-      out_ecz_preexisting = !is.na(outdiagdat) & (outdiagdat <= visdat1),
+      # Was eczema outcome first allergy prior to enrolment?
+      out_ecz_preexisting = outageval_weeks2 <= v1_age_weeks,
+      # Any pre-existing reported in medical history
       mh_ecz_preexisting = !is.na(mh_stdat) & (mh_stdat <= visdat1),
+      # Any pre-existing reported on FHQ
       fhq_ecz_preexisting = !is.na(fhq_ecz_date) & (fhq_ecz_date <= visdat1),
+      # Any pre-existing reported?
       ecz_preexisting = out_ecz_preexisting |
         mh_ecz_preexisting |
         fhq_ecz_preexisting,
-      ecz = !is.na(outalltp),
-      ecz_newonset = ecz & (outdiagdat > visdat1 & ecz_age_months < 18)
+      # Eczema outcome reported?
+      ecz = !is.na(outalltp)
     )
 }
 
 get_skin_prick_long <- function(dat_raw) {
+  dat_rand <- select_form(dat_raw, "randomisation")
   dat_base <- select_form(dat_raw, "demographics")
   dat_st <- select_form(dat_raw, "study_termination")
   c_allergens <- c(
@@ -272,14 +278,18 @@ get_skin_prick_long <- function(dat_raw) {
     "sesame"
   )
   dat_spt <- select_form(dat_raw, "skin_prick_test") |>
-    filter(!is.na(priyn)) |>
-    filter(!(spt_occasion == "unscheduled" & !priyn))
+    filter(!is.na(priyn)) |> # Exclude 2 "records" with no data
+    filter(!(spt_occasion == "unscheduled" & !priyn)) # Exclude 1 "record" with no data
 
+  # Transform negative/positive controls to long format
+  # And constant fields
   dat_spt_1 <- dat_spt |>
     select(
       record_id,
       spt_occasion,
       spt_num,
+      unvisyn,
+      unvisdat,
       priyn,
       prinspec,
       pridat,
@@ -290,8 +300,17 @@ get_skin_prick_long <- function(dat_raw) {
       names_pattern = "pri(neg|pos)res",
       names_to = c(".value")
     ) |>
-    rename(spt_neg = neg, spt_pos = pos)
+    rename(spt_neg = neg, spt_pos = pos) |>
+    # There's one infant where the SPT date was at 28 months of age
+    # This is 18 months later than the reported visit date
+    # Use `unvisdat` instead of `pridat` for that participant
+    # In all but 3 infants the two fields are equal
+    # In those other 2, the difference is only about a week
+    mutate(
+      pridat = if_else(record_id == "4629-115", unvisdat, pridat)
+    )
 
+  # Transform standard panel to long format
   dat_spt_2 <- dat_spt |>
     select(record_id, spt_num, prires1:prireact8) |>
     pivot_longer(
@@ -304,6 +323,7 @@ get_skin_prick_long <- function(dat_raw) {
       spt_tested = factor(spt_tested, labels = c_allergens)
     )
 
+  # Transform extra allergens tested to long format
   dat_spt_3 <- dat_spt |>
     select(record_id, spt_num, prireact9:prires13) |>
     pivot_longer(
@@ -315,8 +335,14 @@ get_skin_prick_long <- function(dat_raw) {
     rename(spt_tested = allspec, spt_reaction = react, spt_result = res) |>
     mutate(spt_tested = tolower(spt_tested))
 
-  dat_base |>
-    select(record_id, birthdat, visdat1) |>
+  # Merge all SPT fields and some baseline fields
+  dat_rand |>
+    select(record_id, subjid) |>
+    left_join(
+      dat_base |>
+        select(record_id, birthdat, visdat1),
+      join_by(record_id)
+    ) |>
     left_join(
       select(dat_st, record_id, discdat, streas, stetrreas),
       join_by(record_id)
