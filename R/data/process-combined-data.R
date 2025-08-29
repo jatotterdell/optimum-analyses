@@ -265,6 +265,7 @@ get_eczema_data <- function(dat_raw) {
 
 get_skin_prick_long <- function(dat_raw) {
   dat_rand <- select_form(dat_raw, "randomisation")
+  dat_allo <- select_form(dat_raw, "allocations")
   dat_base <- select_form(dat_raw, "demographics")
   dat_st <- select_form(dat_raw, "study_termination")
   c_allergens <- c(
@@ -337,7 +338,11 @@ get_skin_prick_long <- function(dat_raw) {
 
   # Merge all SPT fields and some baseline fields
   dat_rand |>
-    select(record_id, subjid) |>
+    select(record_id, subjid, rand) |>
+    left_join(
+      select(dat_allo, rand, trt, rand_site, rand_stage),
+      join_by(rand)
+    ) |>
     left_join(
       dat_base |>
         select(record_id, birthdat, visdat1),
@@ -360,6 +365,7 @@ get_skin_prick_long <- function(dat_raw) {
       join_by(record_id, spt_num)
     ) |>
     mutate(
+      dis_age = interval(birthdat, discdat) %/% months(1),
       spt_age = interval(birthdat, pridat) %/% months(1),
       spt_0mm = as.numeric(spt_result > 0),
       spt_1mm = as.numeric(spt_result > spt_neg + 1),

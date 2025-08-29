@@ -54,6 +54,7 @@ dat_raw <- qread(com_file)
 ```{r}
 #| label: data-base
 dat_base <- get_baseline_data(dat_raw, TRUE)
+dat_spt <- get_skin_prick_long(dat_raw)
 ```
 
 ```{r}
@@ -65,6 +66,27 @@ dat_vs <- select_form(dat_raw, "participant_assessment") |>
 \clearpage
 
 # Introduction
+
+## Trial outcomes
+
+### Primary outcome (1)
+
+IgE mediated food allergy with evidence of food sensitisation on skin prick test (SPT) by 12 months old and confirmed (where necessary) by medically supervised oral food challenge(s) (OFC). For the purpose of this trial, if either of the following conditions are met, the study participant will be considered to have reached the primary endpoint:
+
+1. Unequivocal evidence of IgE mediated food allergy, defined as:
+     i. A positive OFC with evidence of sensitisation on SPT to the food of interest *OR*
+     ii. History of clinician-confirmed food anaphylaxis, with symptoms affecting at least two of the following: skin, gastrointestinal tract, respiratory tract, cardiovascular system; *AND* evidence of sensitisation on SPT to the food of interest.
+2. Highly probable IgE-mediated food allergy defined as a history of food allergic reaction (consistent with PRACTALL criteria), with evidence of sensitisation on SPT to the food of interest.
+
+We will report on the number and proportion who satisfy this composite definition, and the number and proportion satisfying each of the three sub-components as per a hierarchy in order of 1.i, 1.ii, 2.
+
+### Secondary outcomes (2)
+
+a. A history of parent-reported clinician-diagnosed new onset eczema by **6 months** *AND* a positive SPT to any allergen by approximately 12 months old.
+b. A history of parent-reported clinician-diagnosed new onset eczema by **12 months** *AND* a positive SPT to any allergen by approximately 12 months old.
+c. A SPT **>1mm** greater than the negative control to at least one allergen by approximately 12 months of age
+d. A SPT **≥3mm** greater than the negative control to at least one allergen by approximately 12 months of age
+
 
 \clearpage
 
@@ -131,7 +153,7 @@ dat_base |>
 
 ## Study Completion
 
-The study completion status as reported in the database is summarised in @tbl-discharge-outcome. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* are due to the first 300 PCH participants with the additional blood collections, a number of which withdrew consent for blood collection at the 18-month visit (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of the blood collection.
+The study completion status as reported in the database is summarised in @tbl-discharge-outcome. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who protocolised for the additional blood collections, a number of which withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of these blood collections.
 
 ```{r}
 #| label: tbl-discharge-outcome
@@ -270,9 +292,9 @@ dat_grid_vs <- dat_grid |>
 ```{r}
 #| label: tbl-stage1-visit-attendance
 #| tbl-cap: |
-#|   Number and proportion of infants who attended each visit in stage 1.
+#|   Number and proportion of infants who attended each visit in stage 1
 #|   (based on presence of "visit date").
-#    6-month + 72 hour was optional visit.
+#|    6-month + 72 hour was optional visit.
 #| tbl-pos: "H"
 #| output: "asis"
 vs_by_trt <- dat_grid_vs |>
@@ -321,7 +343,7 @@ left_join(vs_by_trt, vs_ovr) |>
 ```{r}
 #| label: tbl-stage2-visit-attendance
 #| tbl-cap: |
-#|   Number and proportion of infants who attended each visit in stage 2.
+#|   Number and proportion of infants who attended each visit in stage 2
 #|   (based on presence of "visit date").
 #|   19-month visit was for first 150 at PCH only.
 #| tbl-pos: "H"
@@ -369,14 +391,170 @@ left_join(vs_by_trt, vs_ovr) |>
   cat()
 ```
 
+\clearpage
+
+# Outcomes
+
+All of the trial outcomes depend upon a positive SPT to either a specific allergen or to any allergen. Therefore, this section first reports on the SPT data, and outcomes 2c and 2d, followed by the primary (food allergy) and other secondary (eczema) outcomes.
+
+## Skin Prick Tests
+
+```{r}
+#| label: spt-no-records
+no_spt_record <- dat_spt |>
+  filter(row_number() == 1, .by = record_id) |>
+  filter(!priyn)
+```
+
+There were `r nrow(no_spt_record)` participants with no documented SPTs. In many cases this was due to early withdrawal from the study, or non-consent from the parent.
+
+```{r}
+#| label: tbl-spt-no-records-listing
+#| tbl-cap: |
+#|   Listing of infants with no SPT records.
+#| tbl-pos: "H"
+no_spt_record |>
+  select(record_id, rand_site, streas, dis_age) |>
+  gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(50)
+  )
+```
+
+All other participants had a record for at least the scheduled SPT, and in a few cases additional unscheduled SPT.
+
+```{r}
+#| label: tbl-spt-number
+#| tbl-cap: |
+#|   Number and percentage of infants with scheduled and unscheduled skin prick tests.
+#| tbl-pos: "H"
+#| output: "asis"
+spt_nums <- dat_spt |>
+  filter(row_number() == 1, .by = c(record_id, trt, spt_occasion, spt_num)) |>
+  summarise(
+    spt_num_sch = sum(spt_occasion == "scheduled" & priyn, na.rm = TRUE),
+    spt_num_unsch = sum(spt_occasion == "unscheduled" & priyn, na.rm = TRUE),
+    .by = c(record_id, trt)
+  )
+tbl_summary(
+  spt_nums,
+  by = trt,
+  include = c(spt_num_sch, spt_num_unsch),
+  label = c(spt_num_sch ~ "Scheduled SPT", spt_num_unsch ~ "Unscheduled SPTs")
+) |>
+  add_overall(last = TRUE) |>
+  remove_footnote_header(columns = everything()) |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(10), table.width = pct(50)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT in months was derived from  `birthdat` (date of birth) and `pridat` (date of skin prick test) or in some cases `univdat` (date of unscheduled visit). Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age.
+
+```{r}
+#| label: fig-spt-age
+#| fig-cap: |
+#|   Age at skin prick test by type (scheduled or unscheduled).
+#| fig-height: 2.5
+dat_spt |>
+  filter(row_number() == 1, .by = c(record_id, trt, spt_occasion, spt_num)) |>
+  filter(!is.na(spt_age)) |>
+  mutate(spt_occasion = str_to_sentence(spt_occasion)) |>
+  ggplot(aes(spt_age)) +
+  facet_wrap(~spt_occasion, scales = "free_y") +
+  geom_bar() +
+  scale_x_continuous("Age (months)", breaks = seq(0, 30, 2)) +
+  scale_y_continuous(
+    "Number of skin prick tests",
+    breaks = scales::pretty_breaks(10)
+  )
+```
+
+```{r}
+#| label: tbl-spt-listing-after-18months
+#| tbl-cap: Listing of SPTs after 18-months of age.
+#| tbl-pos: "H"
+dat_spt |>
+  filter(
+    row_number() == 1,
+    .by = c(record_id, trt, spt_occasion, spt_num, spt_age)
+  ) |>
+  filter(spt_age > 18) |>
+  select(record_id, spt_occasion, spt_num, spt_age) |>
+  gt() |>
+  cols_label(
+    spt_occasion ~ "SPT type",
+    spt_num = "SPT occasion",
+    spt_age = "Age (months)"
+  ) |>
+  tab_options(table.font.size = px(10), table.width = pct(50))
+```
+
+@tbl-spt-positive reports on the number and percentage of infants who had a SPT result of >1mm and ≥3mm relative to negative control for at least one tested allergen (outcomes 2c and 2d). Any infants with no SPT records by 18 months of age are reported as missing.
+
+```{r}
+#| label: tbl-spt-positive
+#| tbl-cap: |
+#|   Number and percentage of infants with a positive SPT by 18 months of age.
+#|   Infants with no SPT records counted as missing.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_spt |>
+  summarise(
+    across(
+      spt_0mm:spt_3mm,
+      ~ if_else(
+        all(!priyn) | all(spt_age > 18),
+        NA,
+        any(.x == 1 & spt_age < 19, na.rm = TRUE)
+      )
+    ),
+    .by = c(record_id, trt)
+  ) |>
+  tbl_summary(
+    by = trt,
+    include = c(spt_1mm, spt_3mm),
+    label = c(
+      # spt_0mm ~ "Any SPT >0mm",
+      spt_1mm ~ "Any SPT >1mm vs. neg control",
+      spt_3mm ~ "Any SPT ≥3mm vs neg. control"
+    ),
+    missing_text = "Missing"
+  ) |>
+  add_overall(last = TRUE) |>
+  remove_footnote_header() |>
+  modify_header(label = "**Outcome**") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(10), table.width = pct(70)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
 
 \clearpage
 
-# Primary Outcome
+## Food Allergy
 
 \clearpage
 
-# Secondary Outcomes
+## Eczema
 
 \clearpage
 

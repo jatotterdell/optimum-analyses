@@ -148,7 +148,6 @@ All other participants had at least one scheduled SPT.
 #| tbl-cap: |
 #|   Number and percentage of infants with scheduled and unscheduled skin prick tests.
 spt_nums <- dat_spt |>
-  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
   filter(row_number() == 1, .by = c(record_id, trt, spt_occasion, spt_num)) |>
   summarise(
     spt_num_sch = sum(spt_occasion == "scheduled" & priyn, na.rm = TRUE),
@@ -176,14 +175,13 @@ The were a few SPTs which were performed after 18 months of age. If adhereing to
 #|   Age at skin prick test by type (scheduled or unscheduled).
 #| fig-height: 3
 dat_spt |>
-  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
   filter(row_number() == 1, .by = c(record_id, trt, spt_occasion, spt_num)) |>
   filter(!is.na(spt_age)) |>
   ggplot(aes(spt_age)) +
   facet_wrap(~spt_occasion, scales = "free_y") +
   geom_bar() +
   scale_x_continuous("Age at SPT (months)", breaks = seq(0, 30, 2)) +
-  labs(y = "Skin prick tests")
+  scale_y_continuous("Skin prick tests", breaks = scales::pretty_breaks(10))
 ```
 
 ```{r}
@@ -191,7 +189,6 @@ dat_spt |>
 #| code-summary: SPTs after 18-months of age
 #| tbl-cap: Listing of SPTs after 18-months of age.
 dat_spt |>
-  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
   filter(
     row_number() == 1,
     .by = c(record_id, trt, spt_occasion, spt_num, spt_age)
