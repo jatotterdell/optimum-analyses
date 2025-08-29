@@ -309,6 +309,15 @@ get_skin_prick_long <- function(dat_raw) {
     # In those other 2, the difference is only about a week
     mutate(
       pridat = if_else(record_id == "4629-115", unvisdat, pridat)
+    ) |>
+    # For one infant, 4629-92, they had no negative control result
+    # however, they did have a strong positive reaction to cows milk
+    # this infant was deemed to have food allergy.
+    # It's unknown why the negative result is missing, but these were genreally 0,
+    # with a largest value of 5 observed.
+    # This SPT was discussed, and should probably be counted as "positive" despite the missing negative control
+    mutate(
+      spt_neg = if_else(record_id == "4629-92", 0, spt_neg)
     )
 
   # Transform standard panel to long format
