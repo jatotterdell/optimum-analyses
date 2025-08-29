@@ -87,6 +87,13 @@ b. A history of parent-reported clinician-diagnosed new onset eczema by **12 mon
 c. A SPT **>1mm** greater than the negative control to at least one allergen by approximately 12 months of age
 d. A SPT **≥3mm** greater than the negative control to at least one allergen by approximately 12 months of age
 
+### Details
+
+For both food allergy and eczema, sensitisation on (positive) SPT was defined to be a result more than 1mm greater than negative control by 18 months of age.
+
+For eczema, the age requirement (by 6 or 12 months of age) was determined by the "age at which allergy first occurred" (`outageval`). To be considered "new-onset" eczema, this age at which allergy first occurred needed to be after the infants enrolment date. Infants with clinician-diagnosed eczema first occurring prior to enrolment should be excluded as it's not possible for them to have "new-onset eczema".
+
+## Analyses
 
 \clearpage
 
@@ -406,10 +413,10 @@ no_spt_record <- dat_spt |>
   filter(!priyn)
 ```
 
-There were `r nrow(no_spt_record)` participants with no documented SPTs. In many cases this was due to early withdrawal from the study, or non-consent from the parent.
+There were `r nrow(no_spt_record)` participants with no documented SPTs (@tbl-spt-listing-no-records). In many cases this was due to early withdrawal from the study, or non-consent from the parent.
 
 ```{r}
-#| label: tbl-spt-no-records-listing
+#| label: tbl-spt-listing-no-records
 #| tbl-cap: |
 #|   Listing of infants with no SPT records.
 #| tbl-pos: "H"
@@ -422,7 +429,7 @@ no_spt_record |>
   )
 ```
 
-All other participants had a record for at least the scheduled SPT, and in a few cases additional unscheduled SPT.
+All other participants had a record for at least the scheduled SPT, and in a few cases additional unscheduled SPT (@tbl-spt-number).
 
 ```{r}
 #| label: tbl-spt-number
@@ -459,7 +466,7 @@ tbl_summary(
   cat()
 ```
 
-For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT in months was derived from  `birthdat` (date of birth) and `pridat` (date of skin prick test) or in some cases `univdat` (date of unscheduled visit). Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age.
+For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT in months was derived from  `birthdat` (date of birth) and `pridat` (date of skin prick test) or in some cases `univdat` (date of unscheduled visit). Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age (@fig-spt-age). There were 5 infants who did have an SPT, but none by 18-months of age (@tbl-spt-listing-after-18months).
 
 ```{r}
 #| label: fig-spt-age
