@@ -211,7 +211,6 @@ The number of proportion of infants with a positive SPT by 18 months of age is g
 #|   Number and percentage of infants with a positive SPT by 18-months of age.
 #|   Infants with no SPT records counted as missing.
 tab <- dat_spt |>
-  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
   summarise(
     across(
       spt_0mm:spt_3mm,
