@@ -137,8 +137,10 @@ dat_ref_vax_total |>
   filter(polio_total < 3) |>
   print(n = Inf)
 
+
+# check_id <- "5785-47"
 # dat_ref_vax3 |>
-#   filter(record_id == "5785-47") |>
+#   filter(record_id == check_id) |>
 #   select(
 #     record_id,
 #     streas,
@@ -152,7 +154,7 @@ dat_ref_vax_total |>
 #     vac7iploc
 #   )
 # dat_ref_nstv |>
-#   filter(record_id == "5785-47") |>
+#   filter(record_id == check_id) |>
 #   select(
 #     record_id,
 #     discage_mth,
@@ -167,7 +169,7 @@ dat_ref_vax_total |>
 #   arrange(nstv_age)
 
 # dat_ref_nstv |>
-#   filter(record_id == "5785-47") |>
+#   filter(record_id == check_id) |>
 #   filter_polio() |>
 #   select(
 #     record_id,
