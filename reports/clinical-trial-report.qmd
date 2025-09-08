@@ -15,12 +15,23 @@ suppressPackageStartupMessages({
 
   # Figures
   library(ggplot2)
+  library(ggdist)
   library(showtext)
+  library(patchwork)
 
   # Tables
   library(gt)
   library(gtsummary)
+
+  # Models
+  library(cmdstanr)
+  library(posterior)
+  library(brms)
+  library(tidybayes)
+  library(distributional)
 })
+
+options(brms.backend = "cmdstanr", mc.cores = 4)
 
 readRenviron(here(".env"))
 source(here("R", "util.R"))
@@ -69,6 +80,101 @@ dat_vs <- select_form(dat_raw, "participant_assessment") |>
       as_date("2023-03-30"),
       visdat
     )
+  )
+
+dat_grid <- dat_base |>
+  crossing(
+    visage = factor(
+      unique(dat_vs$visage),
+      levels = c(
+        "4-montH",
+        "6-month",
+        "6-month + 72 hrs",
+        "7-month",
+        "12-month",
+        "18-month",
+        "19-month"
+      )
+    )
+  ) |>
+  arrange(
+    str_rank(record_id, numeric = TRUE),
+    str_rank(visage, numeric = TRUE)
+  ) |>
+  mutate(discage = interval(birthdat, discdat) %/% months(1))
+
+dat_grid_vs <- dat_grid |>
+  left_join(dat_vs, join_by(record_id, visage)) |>
+  mutate(record_id = fct_inorder(record_id), visage = fct_inorder(visage)) |>
+  mutate(
+    age_weeks = interval(birthdat, visdat) %/% weeks(1),
+    age_months = interval(birthdat, visdat) %/% months(1)
+  ) |>
+  mutate(
+    visit_gap = interval(lag(visdat), visdat) %/% days(1),
+    .by = record_id
+  ) |>
+  mutate(visit_attended = !is.na(visdat))
+```
+
+```{r}
+#| label: data-fhq
+dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire")
+
+dat_grid <- dat_base |>
+  crossing(
+    visit_age = factor(
+      unique(dat_fhq$visit_age),
+      levels = c(
+        "6-week",
+        "4-month",
+        "6-month",
+        "7-month",
+        "9-month",
+        "12-month",
+        "15-month",
+        "18-month",
+        "19-month"
+      )
+    )
+  ) |>
+  arrange(
+    str_rank(record_id, numeric = TRUE),
+    visit_age
+  ) |>
+  mutate(discage = interval(birthdat, discdat) %/% months(1)) |>
+  select(-fecurr)
+
+dat_grid_fhq <- dat_grid |>
+  left_join(dat_fhq, join_by(record_id, visit_age)) |>
+  mutate(
+    record_id = fct_inorder(record_id),
+    visit_age = fct_inorder(visit_age)
+  ) |>
+  mutate(
+    age_weeks = interval(birthdat, fedat) %/% weeks(1),
+    age_months = interval(birthdat, fedat) %/% months(1)
+  ) |>
+  mutate(
+    visit_gap = interval(lag(fedat), fedat) %/% days(1),
+    .by = record_id
+  ) |>
+  mutate(fhq_completed = !is.na(fedat)) |>
+  filter(
+    !(rand_stage == 2 & visit_age %in% c("4-month", "7-month", "19-month"))
+  ) |>
+  select(
+    record_id,
+    trt,
+    rand_stage,
+    discdat,
+    disc_age_mth,
+    visit_age,
+    visit_gap,
+    age_weeks,
+    age_months,
+    all_of(names(dat_fhq)),
+    fhq_completed
   )
 ```
 
@@ -285,51 +391,52 @@ tbl_study_termination_by(dat_base) |>
   cat()
 ```
 
-There were 6 participants where contact was lost prior to 12 months of age.
+There were 17 participants where contact was lost at or before 15 months of age (based on `discdat`) (@tbl-listing-early-withdrawal).
 
 ```{r}
 #| label: tbl-listing-early-withdrawal
 #| tbl-cap: |
-#|   Listing of infants with last contact occuring prior to 12 months of age.
+#|   Listing of infants with last contact occuring at or prior to 15 months of age.
 dat_base |>
-  filter(disc_age_mth < 12) |>
-  select(record_id, stetrreas, birthdat, discdat, disc_age_mth) |>
+  select(record_id, stetrreas, birthdat, disc_age_mth) |>
+  left_join(
+    filter(dat_grid_vs, visage == "12-month") |>
+      select(record_id, visit_attended, windreas, windothspec) |>
+      rename(
+        visit_attend_12m = visit_attended,
+        reas_12m = windreas,
+        oth_12m = windothspec
+      ),
+    join_by(record_id)
+  ) |>
+  left_join(
+    filter(dat_grid_vs, visage == "18-month") |>
+      select(record_id, visit_attended, windreas, windothspec) |>
+      rename(
+        visit_attend_18m = visit_attended,
+        reas_18m = windreas,
+        oth_18m = windothspec
+      ),
+    join_by(record_id)
+  ) |>
+  arrange(disc_age_mth) |>
+  filter(disc_age_mth <= 15) |>
+  select(-starts_with("reas"), -starts_with("oth")) |>
   gt() |>
   cols_label(
-    stetrreas = "Reason",
-    discdat = "Date of last contact",
-    disc_age_mth = "Contact age"
+    stetrreas = "Withdrawal reason",
+    disc_age_mth = "Age at last contact",
+    visit_attend_12m = "Attend 12-month visit",
+    visit_attend_18m = "Attend 18-month visit"
   ) |>
   fmt_date(
-    c(birthdat, discdat)
+    c(birthdat)
   ) |>
-  tab_options(table.font.size = px(10), table.width = pct(80))
+  sub_missing() |>
+  tab_options(table.font.size = px(10), table.width = pct(100))
 ```
 
 ## Missed visits
-
-```{r}
-dat_grid <- dat_base |>
-  crossing(visage = unique(dat_vs$visage)) |>
-  arrange(
-    str_rank(record_id, numeric = TRUE),
-    str_rank(visage, numeric = TRUE)
-  ) |>
-  mutate(discage = interval(birthdat, discdat) %/% months(1))
-
-dat_grid_vs <- dat_grid |>
-  left_join(dat_vs, join_by(record_id, visage)) |>
-  mutate(record_id = fct_inorder(record_id), visage = fct_inorder(visage)) |>
-  mutate(
-    age_weeks = interval(birthdat, visdat) %/% weeks(1),
-    age_months = interval(birthdat, visdat) %/% months(1)
-  ) |>
-  mutate(
-    visit_gap = interval(lag(visdat), visdat) %/% days(1),
-    .by = record_id
-  ) |>
-  mutate(visit_attended = !is.na(visdat))
-```
 
 ```{r}
 #| label: tbl-stage1-visit-attendance
@@ -433,6 +540,106 @@ left_join(vs_by_trt, vs_ovr) |>
   cat()
 ```
 
+## Missed food and household questionnaires
+
+```{r}
+#| label: tbl-stage1-fhq-completion
+#| tbl-cap: |
+#|   Number and proportion of infants who completed food and household questionnaire for each occasion in stage 1.
+#| tbl-pos: "H"
+#| output: "asis"
+fhq_by_trt <- dat_grid_fhq |>
+  filter(rand_stage == 1) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(fhq_completed),
+      100 * mean(fhq_completed)
+    ),
+    .by = c(trt, visit_age)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+fhq_ovr <- dat_grid_fhq |>
+  filter(rand_stage == 1) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(fhq_completed),
+      100 * mean(fhq_completed)
+    ),
+    .by = visit_age
+  )
+
+left_join(fhq_by_trt, fhq_ovr) |>
+  gt() |>
+  cols_label(
+    visit_age ~ md("**Visit**"),
+    aP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 150}"
+  ) |>
+  cols_align(align = "left", columns = visit_age) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-stage2-fhq-completion
+#| tbl-cap: |
+#|   Number and proportion of infants who completed food and household questionnaire for each occasion in stage 2.
+#| tbl-pos: "H"
+#| output: "asis"
+fhq_by_trt <- dat_grid_fhq |>
+  filter(rand_stage == 2) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(fhq_completed),
+      100 * mean(fhq_completed)
+    ),
+    .by = c(trt, visit_age)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+fhq_ovr <- dat_grid_fhq |>
+  filter(rand_stage == 2) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(fhq_completed),
+      100 * mean(fhq_completed)
+    ),
+    .by = visit_age
+  )
+
+left_join(fhq_by_trt, fhq_ovr) |>
+  gt() |>
+  cols_label(
+    visit_age ~ md("**Visit**"),
+    aP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 822}"
+  ) |>
+  cols_align(align = "left", columns = visit_age) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
 \clearpage
 
 # Outcomes
@@ -448,7 +655,7 @@ no_spt_record <- dat_spt |>
   filter(!priyn)
 ```
 
-There were `r nrow(no_spt_record)` participants with no documented SPTs (@tbl-spt-listing-no-records). In many cases this was due to early withdrawal from the study, or non-consent from the parent.
+There were `r nrow(no_spt_record)` participants with no documented SPTs (@tbl-spt-listing-no-records). In many cases this was due to early withdrawal from the study, with the remaining due to non-consent from the parent.
 
 ```{r}
 #| label: tbl-spt-listing-no-records
@@ -458,9 +665,12 @@ There were `r nrow(no_spt_record)` participants with no documented SPTs (@tbl-sp
 no_spt_record |>
   select(record_id, rand_site, streas, dis_age) |>
   gt() |>
+  cols_label(
+    dis_age = "Last contact age (months)"
+  ) |>
   tab_options(
     table.font.size = px(9),
-    table.width = pct(50)
+    table.width = pct(100)
   )
 ```
 
@@ -598,7 +808,7 @@ The primary source of information for food allergy was the `outcome_report` form
 
 Age at first reaction was derived from `outageval`. If this was missing then `birthdat` (date of birth) and `outdiagdat` (clinician-diagnosis date) was used to derive age in months.
 
-For those participants who withdrew from the study prior to completion, it's not always clear if they had sufficient follow-up for a potential allergy to have been confirmed and documented. For example, some participants have "early termination" documented due to having moved from the study area with a missed study visit, but may also have a last contact date of 18 months of age and an outcome report record with "no allergies reported". In such cases, allergy status might more accurately be reported as "missing" rather than "no allergy", however, without a defined minimum follow-up requirement, the current report treats any absence of clinician-diagnosed food allergy as "no food allergy" irrespective of study completion.
+In some cases participants may have withdrawn from the study without sufficient follow-up for food allergy to have been identified. The report makes no allowance for "missing" food allergy status, with absence of clinician diagnosed allergy (with or without adequate follow-up) counted as not meeting the primary outcome. Only 17 participants had an age of last contact 15 months or younger.
 
 ### Oral food challenge
 
@@ -714,16 +924,8 @@ dat_po_ige <- dat_fa |>
 
 ### Primary outcome
 
-@tbl-primary-outcome-criteria reports on the number of participants who met each of the primary outcome criteria (1.i, 1.ii, and 2) as outlined in the sections above. 
-
-@tbl-primary-outcome-overall reports the total number of infants who met the primary outcome, and the primary reason grouped hierarchically according to the ordering in the definition (i.e. OFC &rarr; Anaphylaxis &rarr; IgE mediated) (irrespective of their timing).
-
 ```{r}
-#| label: tbl-primary-outcome-criteria
-#| tbl-cap: |
-#|   Number and percentage of infants who met each primary outcome condition and treatment group.
-#| tbl-pos: "H"
-#| results: "asis"
+#| label: primary-outcome-data
 dat_po <- dat_base |>
   left_join(dat_po_ofc) |>
   left_join(dat_po_ana) |>
@@ -739,7 +941,30 @@ dat_po <- dat_base |>
       po_ige == 1 ~ "Criteria 2.",
       .default = "None"
     )
+  ) |>
+  select(
+    record_id,
+    rand_site,
+    trt,
+    gender,
+    parinc,
+    delt,
+    fecurr,
+    fborn,
+    starts_with("po")
   )
+```
+
+@tbl-primary-outcome-criteria reports on the number of participants who met each of the primary outcome criteria (1.i, 1.ii, and 2) as outlined in the sections above. 
+
+@tbl-primary-outcome-overall reports the total number of infants who met the primary outcome, and the primary reason grouped hierarchically according to the ordering in the definition (i.e. OFC &rarr; Anaphylaxis &rarr; IgE mediated) (irrespective of their timing).
+
+```{r}
+#| label: tbl-primary-outcome-criteria
+#| tbl-cap: |
+#|   Number and percentage of infants who met each primary outcome condition and treatment group.
+#| tbl-pos: "H"
+#| results: "asis"
 dat_po |>
   tbl_summary(
     by = trt,
@@ -761,6 +986,7 @@ dat_po |>
         "N = {formatC(n, format='d', big.mark=',')}}}"
       )
   ) |>
+  modify_column_alignment(all_stat_cols(), "right") |>
   as_gt() |>
   tab_options(table.font.size = px(10), table.width = pct(70)) |>
   as_latex() |>
@@ -794,11 +1020,116 @@ dat_po |>
         "N = {formatC(n, format='d', big.mark=',')}}}"
       )
   ) |>
+  modify_table_body(
+    ~ .x |>
+      filter(label != "None")
+  ) |>
+  modify_column_alignment(all_stat_cols(), "right") |>
   as_gt() |>
   tab_options(table.font.size = px(10), table.width = pct(70)) |>
   as_latex() |>
   latex_unescape() |>
   cat()
+```
+
+### Analyses
+
+```{r}
+#| label: primary-outcome-analysis
+po_sum <- dat_po |>
+  summarise(
+    n = n(),
+    y = sum(po),
+    p = y / n,
+    a = 1 + y,
+    b = 1 + n - y,
+    post = dist_beta(a, b),
+    .by = trt
+  ) |>
+  mutate(p_sup = c(NA, beta_ineq_sim(a, b)))
+po_diff <- po_sum |>
+  mutate(post_drws = generate(post, 1e6)) |>
+  select(trt, post_drws) |>
+  unnest(post_drws) |>
+  group_by(trt) |>
+  mutate(.draw = 1:n()) |>
+  ungroup() |>
+  pivot_wider(names_from = "trt", values_from = "post_drws") |>
+  mutate(delta = wP - aP)
+
+prior <- c(
+  prior(logistic(0, 1), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = "b")
+)
+fit <- brm(
+  po ~ trt + rand_site + gender + fborn,
+  data = dat_po,
+  family = bernoulli(),
+  prior = prior,
+  warmup = 500,
+  iter = 5500,
+  refresh = 0,
+  silent = 2
+)
+
+wgt <- c(rdo(rdirichlet(1, rep(1, 972)), ndraws = ndraws(fit)))
+dat_rd_po <- dat_po |>
+  mutate(trt = "aP") |>
+  add_epred_rvars(fit, value = ".epred_aP") |>
+  mutate(trt = "wP") |>
+  add_epred_rvars(fit, value = ".epred_wP") |>
+  mutate(wgt = wgt) |>
+  summarise(
+    .rd_empirical = rvar_mean(.epred_wP - .epred_aP),
+    .rd_bootstrap = rvar_sum((.epred_wP - .epred_aP) * wgt)
+  )
+```
+
+```{r}
+#| label: fig-posterior-density
+#| fig-cap: Posterior density for difference in probability of primary outcome, unadjusted primary model.
+#| fig-height: 2
+#| fig-width: 5
+po_diff |>
+  nest_rvars() |>
+  ggplot(aes(xdist = delta)) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    fill = "Interval",
+    x = "Difference in food allergy probability, wP - aP",
+    y = "Density"
+  )
+```
+
+```{r}
+#| label: fig-posterior-difference-adjusted
+#| fig-cap: Posterior difference in probability of food allergy for wP compared to aP, adjusted model.
+#| fig-height: 2
+ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    fill = "Interval",
+    x = "Difference in food allergy probability, wP - aP",
+    y = "Density"
+  )
 ```
 
 \clearpage

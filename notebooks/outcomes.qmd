@@ -532,7 +532,7 @@ ids <- setdiff(
   pull(dat_fhq_diag, record_id),
   pull(dat_fa, record_id)
 )
-filter(dat_fhq_diag, record_id %in% ids)
+dat_fhq_diag
 ```
 
 To meet the primary outcome we require a positive skin prick test to the relevant allergen in addition to an outcome report of anaphylaxis, positive oral food challenge, or highly probable IgE mediated food allergy. Rather than checking for *any* positive SPT, need to check specifically for one which is positive to the relevant food.

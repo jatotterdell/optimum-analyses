@@ -88,6 +88,18 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
   } else {
     rnd <- select_form(dat_raw, "randomisation")
   }
+  dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire") |>
+    filter(visit_age == "6-week") |>
+    select(record_id, fecurr)
+  dat_bh <- select_form(dat_raw, "birth_history") |>
+    mutate(
+      fborn = if_else(
+        is.na(sibnum) | (sibnum %in% c("Not Applicable", "Unknown")),
+        "Yes",
+        "No"
+      )
+    ) |>
+    select(record_id, fborn)
   dat_st <- get_study_termination(dat_raw)
   rnd |>
     mutate(randdat = date(randdattim)) |>
@@ -107,6 +119,8 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
         select(-ptinit, -calcagem, -starts_with("eto")),
       join_by(record_id)
     ) |>
+    left_join(dat_fhq, join_by(record_id)) |>
+    left_join(dat_bh, join_by(record_id)) |>
     mutate(
       v1_age_wk = interval(birthdat, visdat1) %/% weeks(1),
       rand_age_wk = interval(birthdat, randdat) %/% weeks(1),
