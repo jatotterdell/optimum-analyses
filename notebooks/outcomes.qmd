@@ -515,6 +515,26 @@ dat_fa |>
   count(records, name = "infants")
 ```
 
+Food allergy may be reported on the food and household questionnaire. We want to check for consistency like we did for eczema. Are there any infants with a food allergy documented on the FHQ but with no outcome report?
+
+```{r}
+dat_fhq_diag <- dat_fhq_raw |>
+  filter(fefadiag == "Yes") |>
+  select(
+    record_id,
+    redcap_survey_timestamp,
+    visit_age,
+    fefadiag,
+    fefadiagspec,
+    fefadiadat
+  )
+ids <- setdiff(
+  pull(dat_fhq_diag, record_id),
+  pull(dat_fa, record_id)
+)
+filter(dat_fhq_diag, record_id %in% ids)
+```
+
 To meet the primary outcome we require a positive skin prick test to the relevant allergen in addition to an outcome report of anaphylaxis, positive oral food challenge, or highly probable IgE mediated food allergy. Rather than checking for *any* positive SPT, need to check specifically for one which is positive to the relevant food.
 
 ## Food Challenge

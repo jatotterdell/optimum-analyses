@@ -17,3 +17,4 @@ _reports
 _site
 _freeze
 /data/
+**/*.quarto_ipynb

@@ -803,9 +803,10 @@ combine_food_household <- function() {
 
 combine_outcome_report <- function() {
   st2_out <- extract_tibble(st2_data, "outcome_report") |>
-    select(-c(redcap_event, redcap_data_access_group, form_status_complete)) |>
+    select(-c(redcap_event, redcap_data_access_group)) |>
     rename(record_id_num = redcap_form_instance) |>
     mutate(
+      outcome_num = row_number(),
       no_outcome_report = all(is.na(outallyn) & is.na(outalltp)),
       .by = record_id
     ) |>
@@ -862,7 +863,7 @@ combine_outcome_report <- function() {
         is.na(outalltp) ~ FALSE
       )
     ) |>
-    mutate(record_id_num = row_number(), .by = record_id) |>
+    mutate(outcome_num = row_number(), .by = record_id) |>
     select(-medrioid)
   out <- bind_rows(st2_out, st1_out)
   var_label(out) <- var_label(st2_out)

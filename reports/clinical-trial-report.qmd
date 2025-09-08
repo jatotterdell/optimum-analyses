@@ -55,12 +55,26 @@ dat_raw <- qread(com_file)
 #| label: data-base
 dat_base <- get_baseline_data(dat_raw, TRUE)
 dat_spt <- get_skin_prick_long(dat_raw)
+dat_ecz <- get_eczema_data(dat_raw)
+dat_fa <- get_food_allergy(dat_raw)
 ```
 
 ```{r}
 #| label: data-visits
 dat_vs <- select_form(dat_raw, "participant_assessment") |>
-  select(record_id, visdat, windyn, windreas, windothspec, visit, visage)
+  select(record_id, visdat, windyn, windreas, windothspec, visit, visage) |>
+  mutate(
+    visdat = if_else(
+      record_id == "5785-83" & visit == 2,
+      as_date("2023-03-30"),
+      visdat
+    )
+  )
+```
+
+```{r}
+#| label: data-additional-processing
+dat_spt_pos <- summarise_spt_positive(dat_spt)
 ```
 
 \clearpage
@@ -269,6 +283,27 @@ tbl_study_termination_by(dat_base) |>
   as_latex() |>
   latex_unescape() |>
   cat()
+```
+
+There were 6 participants where contact was lost prior to 12 months of age.
+
+```{r}
+#| label: tbl-listing-early-withdrawal
+#| tbl-cap: |
+#|   Listing of infants with last contact occuring prior to 12 months of age.
+dat_base |>
+  filter(disc_age_mth < 12) |>
+  select(record_id, stetrreas, birthdat, discdat, disc_age_mth) |>
+  gt() |>
+  cols_label(
+    stetrreas = "Reason",
+    discdat = "Date of last contact",
+    disc_age_mth = "Contact age"
+  ) |>
+  fmt_date(
+    c(birthdat, discdat)
+  ) |>
+  tab_options(table.font.size = px(10), table.width = pct(80))
 ```
 
 ## Missed visits
@@ -559,9 +594,222 @@ dat_spt |>
 
 ## Food Allergy
 
+The primary source of information for food allergy was the `outcome_report` form. Reported outcomes were cross checked against the food and household questionnaire form (`food_and_household_questionnaire`) and the oral food challenge form (`food_challenge`).
+
+Age at first reaction was derived from `outageval`. If this was missing then `birthdat` (date of birth) and `outdiagdat` (clinician-diagnosis date) was used to derive age in months.
+
+For those participants who withdrew from the study prior to completion, it's not always clear if they had sufficient follow-up for a potential allergy to have been confirmed and documented. For example, some participants have "early termination" documented due to having moved from the study area with a missed study visit, but may also have a last contact date of 18 months of age and an outcome report record with "no allergies reported". In such cases, allergy status might more accurately be reported as "missing" rather than "no allergy", however, without a defined minimum follow-up requirement, the current report treats any absence of clinician-diagnosed food allergy as "no food allergy" irrespective of study completion.
+
+### Oral food challenge
+
+There were `r nrow(filter(dat_fa, outalltp == "Oral food challenge"))` outcome records for food allergy diagnoses resulting from oral food challenge amongst `r length(unique(filter(dat_fa, outalltp == "Oral food challenge")$record_id))` infants. All reactions reportedly first occurred by 18 months of age and all diagnoses occurred by 18 months of age. All records had a matching positive skin prick test to the reported allergen and so all 22 infants met the primary outcome according to the definition (1.i).
+
+```{r}
+#| label: check-positive-spt-ofc
+#| include: false
+dat_po_ofc <- dat_fa |>
+  filter(outalltp == "Oral food challenge") |>
+  select(
+    record_id,
+    trt,
+    outdiagdat,
+    outageval_months2,
+    out_age_months,
+    outfrafood
+  ) |>
+  left_join(
+    dat_spt_pos |>
+      filter(any_spt_pos_1mm) |>
+      select(record_id, spt_age, spt_pos_1mm),
+    join_by(record_id),
+    relationship = "many-to-many"
+  ) |>
+  rowwise() |>
+  mutate(
+    splt_foods = gsub("( |, )", "|", spt_pos_1mm),
+    match_food = str_match(tolower(outfrafood), splt_foods)[1]
+  ) |>
+  ungroup() |>
+  summarise(
+    any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
+    .by = record_id
+  ) |>
+  rename(po_ofc = any_food_match)
+```
+
+### Anaphylaxis
+
+There were `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` outcome records for food allergy diagnoses resulting from anaphylaxis amongst `r length(unique(filter(dat_fa, outalltp == "Anaphylaxis")$record_id))` infants. Two of these infants (`record_id: 68, 5785-283`) were diagnosed after 18 months of age with first reported reaction occuring after 18 months of age. One infant (`record_id = 8644-34`) had no skin prick test for the reported allergen. So of the infants with analphylaxis reported, 3 did not meet the criteria for the primary outcome according to the definition (1.ii).
+
+```{r}
+#| label: check-positive-spt-ana
+#| include: false
+dat_po_ana <- dat_fa |>
+  filter(outalltp == "Anaphylaxis") |>
+  select(
+    record_id,
+    trt,
+    outdiagdat,
+    outageval_months2,
+    out_age_months,
+    outfrafood
+  ) |>
+  left_join(
+    dat_spt_pos |>
+      filter(any_spt_pos_1mm) |>
+      select(record_id, spt_age, spt_pos_1mm),
+    join_by(record_id),
+    relationship = "many-to-many"
+  ) |>
+  rowwise() |>
+  mutate(
+    splt_foods = gsub("( |, )", "|", spt_pos_1mm),
+    match_food = str_match(tolower(outfrafood), splt_foods)[1]
+  ) |>
+  ungroup() |>
+  summarise(
+    any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
+    .by = record_id
+  ) |>
+  rename(po_ana = any_food_match)
+```
+
+### Highly probable IgE mediated food allergy
+
+There were `r nrow(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy"))` outcome records for food allergy diagnoses resulting from highly probable IgE mediated allergy amongst `r length(unique(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy")$record_id))` infants. For one infant (`record_id: 68`), the age at first reaction and age at diagnosis were after 18 months of age. Four infants (`record_id: 75, 5785-239, 5785-243, 5785-331`) had no positive SPT to the reported allergen. Of the infants with IgE-mediated food allergy reported, 5 did not meet the primary outcome according to the definition (2.).
+
+```{r}
+#| label: check-positive-spt-ige
+#| include: false
+dat_po_ige <- dat_fa |>
+  filter(outalltp == "Highly probably IgE mediated food allergy") |>
+  select(
+    record_id,
+    trt,
+    outdiagdat,
+    outageval_months2,
+    out_age_months,
+    outfrafood
+  ) |>
+  left_join(
+    dat_spt_pos |>
+      filter(any_spt_pos_1mm) |>
+      select(record_id, spt_age, spt_pos_1mm),
+    join_by(record_id),
+    relationship = "many-to-many"
+  ) |>
+  rowwise() |>
+  mutate(
+    splt_foods = gsub("( |, )", "|", spt_pos_1mm),
+    outfrafood_sub = gsub("Dairy", "milk", outfrafood),
+    match_food = str_match(tolower(outfrafood_sub), splt_foods)[1]
+  ) |>
+  ungroup() |>
+  summarise(
+    any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
+    .by = record_id
+  ) |>
+  rename(po_ige = any_food_match)
+```
+
+### Primary outcome
+
+@tbl-primary-outcome-criteria reports on the number of participants who met each of the primary outcome criteria (1.i, 1.ii, and 2) as outlined in the sections above. 
+
+@tbl-primary-outcome-overall reports the total number of infants who met the primary outcome, and the primary reason grouped hierarchically according to the ordering in the definition (i.e. OFC &rarr; Anaphylaxis &rarr; IgE mediated) (irrespective of their timing).
+
+```{r}
+#| label: tbl-primary-outcome-criteria
+#| tbl-cap: |
+#|   Number and percentage of infants who met each primary outcome condition and treatment group.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_po <- dat_base |>
+  left_join(dat_po_ofc) |>
+  left_join(dat_po_ana) |>
+  left_join(dat_po_ige) |>
+  mutate(
+    po_ofc = replace_na(po_ofc, 0),
+    po_ana = replace_na(po_ana, 0),
+    po_ige = replace_na(po_ige, 0),
+    po = po_ofc | po_ana | po_ige,
+    po_criteria = case_when(
+      po_ofc == 1 ~ "Criteria 1.i",
+      po_ana == 1 ~ "Criteria 1.ii",
+      po_ige == 1 ~ "Criteria 2.",
+      .default = "None"
+    )
+  )
+dat_po |>
+  tbl_summary(
+    by = trt,
+    include = c(po_ofc, po_ana, po_ige),
+    label = list(
+      po_ofc ~ "Met condition 1.i.",
+      po_ana ~ "Met condition 1.ii.",
+      po_ige ~ "Met condition 2."
+    ),
+    missing = "no"
+  ) |>
+  add_overall(last = TRUE) |>
+  remove_footnote_header() |>
+  modify_header(label = "**Outcome**") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(10), table.width = pct(70)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-primary-outcome-overall
+#| tbl-cap: |
+#|   Number and percentage of infants who met the primary outcome by primayr reason and treatment group.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_po |>
+  tbl_summary(
+    by = trt,
+    include = c(po, po_criteria),
+    label = list(
+      po ~ "Met primary outcome",
+      po_criteria ~ "Reason"
+    ),
+    missing = "no"
+  ) |>
+  add_overall(last = TRUE) |>
+  remove_footnote_header() |>
+  modify_header(label = "**Outcome**") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(10), table.width = pct(70)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
 \clearpage
 
 ## Eczema
+
+The primary source of information for eczema was the `outcome_report` form.
+
+```{r}
+dat_ecz
+```
 
 \clearpage
 
