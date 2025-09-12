@@ -409,6 +409,8 @@ get_food_allergy <- function(dat_raw) {
 # - medical history
 # - AESI (stage 1 only)
 get_eczema_data <- function(dat_raw) {
+  dat_rand <- select_form(dat_raw, "randomisation")
+  dat_allo <- select_form(dat_raw, "allocations")
   dat_base <- select_form(dat_raw, "demographics")
   dat_out <- select_form(dat_raw, "outcome_report")
   dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire")
@@ -417,8 +419,17 @@ get_eczema_data <- function(dat_raw) {
 
   # Source of truth is outcome report.
   # However, want to check FHQ and MH for existing eczema and to cross-check outcomes
-  ecz_out <- dat_base |>
-    select(record_id, birthdat, visdat1) |>
+  ecz_out <- dat_rand |>
+    select(record_id, subjid, rand) |>
+    left_join(
+      select(dat_allo, rand, trt, rand_site, rand_stage),
+      join_by(rand)
+    ) |>
+    left_join(
+      dat_base |>
+        select(record_id, birthdat, visdat1),
+      join_by(record_id)
+    ) |>
     left_join(
       dat_out |>
         filter(!(!is.na(outallyn) & !outallyn & outcome_num > 1)) |>
@@ -542,7 +553,7 @@ get_eczema_data <- function(dat_raw) {
         !is.na(fhq_ecz_age_u) ~ fhq_ecz_age / 4
       ),
       # Was eczema outcome first allergy prior to enrolment?
-      out_ecz_preexisting = outageval_weeks2 <= v1_age_weeks,
+      out_ecz_preexisting = !is.na(outageval_weeks2) & (outageval_weeks2 <= v1_age_weeks),
       # Any pre-existing reported in medical history
       mh_ecz_preexisting = !is.na(mh_stdat) & (mh_stdat <= visdat1),
       # Any pre-existing reported on FHQ
