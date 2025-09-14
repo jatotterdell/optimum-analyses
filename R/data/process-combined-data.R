@@ -305,6 +305,57 @@ summarise_spt_positive <- function(spt) {
     arrange(str_rank(record_id, numeric = TRUE), pridat)
 }
 
+
+get_ofc_long <- function(dat_raw) {
+  dat_ofc <- select_form(dat_raw, "food_challenge")
+  dat_ofc_1 <- dat_ofc |>
+    select(
+      record_id,
+      ofc_num,
+      ofcyn,
+      ofcdat,
+      ofcwindyn,
+      ofcwidreas,
+      ofcwinreasoth,
+      ofcfoodtp1:ofcfoodtp4
+    ) |>
+    pivot_longer(
+      ofcfoodtp1:ofcfoodtp4,
+      names_to = "ofcfood",
+      values_to = "ofcresult"
+    ) |>
+    mutate(
+      ofcfood = case_match(
+        ofcfood,
+        "ofcfoodtp1" ~ "peanut",
+        "ofcfoodtp2" ~ "egg",
+        "ofcfoodtp3" ~ "milk",
+        "ofcfoodtp4" ~ "cashew"
+      )
+    )
+  dat_ofc_2 <- dat_ofc |>
+    select(
+      record_id,
+      ofc_num,
+      ofcfoodoth1,
+      ofcoutoth1,
+      ofcfoodoth2,
+      ofcoutoth2
+    ) |>
+    pivot_longer(
+      ofcfoodoth1:ofcoutoth2,
+      names_pattern = "ofc(food|out)oth(1|2)",
+      names_to = c(".value", NA),
+    ) |>
+    rename(ofcfood = food, ofcresult = out) |>
+    filter(!is.na(ofcfood)) |>
+    mutate(ofcfood = tolower(ofcfood))
+  dat_ofc_long <- bind_rows(dat_ofc_1, dat_ofc_2) |>
+    arrange(str_rank(record_id, numeric = TRUE), ofc_num) |>
+    mutate(ofcresult = replace_na(ofcresult, "Not challenged"))
+  dat_ofc_long
+}
+
 get_food_allergy <- function(dat_raw) {
   dat_rand <- select_form(dat_raw, "randomisation")
   dat_allo <- select_form(dat_raw, "allocations")
@@ -553,7 +604,8 @@ get_eczema_data <- function(dat_raw) {
         !is.na(fhq_ecz_age_u) ~ fhq_ecz_age / 4
       ),
       # Was eczema outcome first allergy prior to enrolment?
-      out_ecz_preexisting = !is.na(outageval_weeks2) & (outageval_weeks2 <= v1_age_weeks),
+      out_ecz_preexisting = !is.na(outageval_weeks2) &
+        (outageval_weeks2 <= v1_age_weeks),
       # Any pre-existing reported in medical history
       mh_ecz_preexisting = !is.na(mh_stdat) & (mh_stdat <= visdat1),
       # Any pre-existing reported on FHQ
