@@ -68,6 +68,7 @@ dat_base <- get_baseline_data(dat_raw, TRUE)
 dat_spt <- get_skin_prick_long(dat_raw)
 dat_ecz <- get_eczema_data(dat_raw)
 dat_fa <- get_food_allergy(dat_raw)
+dat_fc <- get_ofc_long(dat_raw)
 ```
 
 ```{r}
@@ -917,6 +918,16 @@ There were `r nrow(filter(dat_fa, outalltp == "Highly probably IgE mediated food
 ```{r}
 #| label: check-positive-spt-ige
 #| include: false
+# Cross check food challenge data
+summ_fc <- dat_fc |>
+  filter(ofcresult != "Not challenged") |>
+  summarise(
+    ofcfood = paste(ofcfood, collapse = ", "),
+    ofcresult = paste(ofcresult, collapse = ", "),
+    ofcage = paste(ofcage, collapse = ", "),
+    .by = record_id
+  )
+
 dat_po_ige <- dat_fa |>
   filter(outalltp == "Highly probably IgE mediated food allergy") |>
   select(
@@ -950,6 +961,10 @@ dat_po_ige <- dat_fa |>
     .by = record_id
   ) |>
   rename(po_ige = any_food_match, po_ige_match = matched_foods)
+
+# dat_po_ige |>
+#   left_join(summ_fc, join_by(record_id)) |>
+#   print(n = Inf)
 ```
 
 ### Primary outcome
