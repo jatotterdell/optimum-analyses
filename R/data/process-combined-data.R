@@ -339,6 +339,11 @@ get_ofc_long <- function(dat_raw) {
     select(
       record_id,
       ofc_num,
+      ofcyn,
+      ofcdat,
+      ofcwindyn,
+      ofcwidreas,
+      ofcwinreasoth,
       ofcfoodoth1,
       ofcoutoth1,
       ofcfoodoth2,
