@@ -307,6 +307,8 @@ summarise_spt_positive <- function(spt) {
 
 
 get_ofc_long <- function(dat_raw) {
+  dat_base <- select_form(dat_raw, "demographics") |>
+    select(record_id, birthdat)
   dat_ofc <- select_form(dat_raw, "food_challenge")
   dat_ofc_1 <- dat_ofc |>
     select(
@@ -352,7 +354,10 @@ get_ofc_long <- function(dat_raw) {
     mutate(ofcfood = tolower(ofcfood))
   dat_ofc_long <- bind_rows(dat_ofc_1, dat_ofc_2) |>
     arrange(str_rank(record_id, numeric = TRUE), ofc_num) |>
-    mutate(ofcresult = replace_na(ofcresult, "Not challenged"))
+    mutate(ofcresult = replace_na(ofcresult, "Not challenged")) |>
+    left_join(dat_base, join_by(record_id)) |>
+    mutate(ofcage = interval(birthdat, ofcdat) %/% months(1)) |>
+    select(-birthdat)
   dat_ofc_long
 }
 
