@@ -150,7 +150,25 @@ get_skin_prick_long <- function(dat_raw) {
   )
   dat_spt <- select_form(dat_raw, "skin_prick_test") |>
     filter(!is.na(priyn)) |> # Exclude 2 "records" with no data
-    filter(!(spt_occasion == "unscheduled" & !priyn)) # Exclude 1 "record" with no data
+    filter(!(spt_occasion == "unscheduled" & !priyn)) |># Exclude 1 "record" with no data
+    filter(priyn)
+
+  dat_spt_other <- select_form(dat_raw, "other_immunological") |>
+    mutate(spt_num = 99)
+  dat_spt_oth_1 <- dat_spt_other |>
+    select(
+      record_id,
+      pridat,
+      prilocun,
+      spt_occasion,
+      spt_num,
+      spt_neg,
+      spt_pos
+    ) |>
+    distinct() |>
+    mutate(priyn = TRUE)
+  dat_spt_oth_2 <- dat_spt_other |>
+    select(record_id, spt_occasion, spt_num, spt_tested, spt_result)
 
   # Transform negative/positive controls to long format
   # And constant fields
@@ -183,7 +201,11 @@ get_skin_prick_long <- function(dat_raw) {
     # In all but 3 infants the two fields are equal
     # In those other 2, the difference is only about a week
     mutate(
-      pridat = if_else(record_id == "4629-115", unvisdat, pridat)
+      pridat = if_else(
+        record_id == "4629-115" & spt_occasion == "unscheduled",
+        unvisdat,
+        pridat
+      )
     ) |>
     # For one infant, 4629-92, they had no negative control result
     # however, they did have a strong positive reaction to cows milk
@@ -197,7 +219,7 @@ get_skin_prick_long <- function(dat_raw) {
 
   # Transform standard panel to long format
   dat_spt_2 <- dat_spt |>
-    select(record_id, spt_num, prires1:prireact8) |>
+    select(record_id, spt_occasion, spt_num, prires1:prireact8) |>
     pivot_longer(
       prires1:prireact8,
       names_pattern = "pri(res|react)([1-9])",
@@ -210,7 +232,7 @@ get_skin_prick_long <- function(dat_raw) {
 
   # Transform extra allergens tested to long format
   dat_spt_3 <- dat_spt |>
-    select(record_id, spt_num, prireact9:prires13) |>
+    select(record_id, spt_occasion, spt_num, prireact9:prires13) |>
     pivot_longer(
       prireact9:prires13,
       names_pattern = "pri(react|allspec|res)",
@@ -221,7 +243,7 @@ get_skin_prick_long <- function(dat_raw) {
     mutate(spt_tested = tolower(spt_tested))
 
   # Merge all SPT fields and some baseline fields
-  dat_rand |>
+  out <- dat_rand |>
     select(record_id, subjid, rand) |>
     left_join(
       select(dat_allo, rand, trt, rand_site, rand_stage),
@@ -236,7 +258,7 @@ get_skin_prick_long <- function(dat_raw) {
       select(dat_st, record_id, discdat, streas, stetrreas),
       join_by(record_id)
     ) |>
-    left_join(dat_spt_1, join_by(record_id)) |>
+    left_join(bind_rows(dat_spt_1, dat_spt_oth_1), join_by(record_id)) |>
     # Fill in for those with missing records
     mutate(
       spt_occasion = replace_na(spt_occasion, "scheduled"),
@@ -244,9 +266,9 @@ get_skin_prick_long <- function(dat_raw) {
       priyn = replace_na(priyn, FALSE)
     ) |>
     left_join(
-      bind_rows(dat_spt_2, dat_spt_3) |>
+      bind_rows(dat_spt_2, dat_spt_3, dat_spt_oth_2) |>
         mutate(spt_tested = fct_inorder(spt_tested)),
-      join_by(record_id, spt_num)
+      join_by(record_id, spt_occasion, spt_num)
     ) |>
     mutate(
       dis_age = interval(birthdat, discdat) %/% months(1),
@@ -255,7 +277,9 @@ get_skin_prick_long <- function(dat_raw) {
       spt_1mm = as.numeric(spt_result > spt_neg + 1),
       spt_3mm = as.numeric(spt_result >= spt_neg + 3)
     ) |>
-    arrange(str_rank(record_id, numeric = TRUE))
+    arrange(str_rank(record_id, numeric = TRUE), pridat) |>
+    mutate(spt_num = dense_rank(pridat), .by = record_id) |>
+    mutate(spt_num = if_else(is.na(spt_num), 1, spt_num))
 }
 
 summarise_spt_positive <- function(spt) {
