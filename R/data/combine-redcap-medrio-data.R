@@ -888,7 +888,8 @@ combine_other_immuno_data <- function() {
     ) |>
     filter(is.na(othimmtp) | othimmtp != "No other immunological data") |>
     mutate(othpridat = as_date(othpridat, format = "%d-%b-%Y")) |>
-    rename(record_id = medrioid)
+    rename(record_id = medrioid) |>
+    mutate(record_id = as.character(record_id))
 
   st1_imm_1 <- st1_imm |>
     filter(is.na(vargroup1row)) |>
@@ -961,7 +962,7 @@ combine_other_immuno_data <- function() {
       spt_result = res
     ) |>
     mutate(
-      spt_occasion = "Other immunological data"
+      spt_occasion = "other"
     ) |>
     filter(!is.na(spt_tested))
   bind_rows(st1_spt_oth, st2_spt_oth)
