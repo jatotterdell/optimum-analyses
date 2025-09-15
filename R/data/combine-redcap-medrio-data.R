@@ -912,7 +912,7 @@ combine_other_immuno_data <- function() {
     join_by(record_id)
   ) |>
     mutate(
-      spt_occasion = "Other immunological data"
+      spt_occasion = "other"
     ) |>
     filter(record_id != "136") |>
     select(-vargroup1row) |>
