@@ -870,10 +870,108 @@ combine_outcome_report <- function() {
   out
 }
 
+combine_other_immuno_data <- function() {
+  st1_imm <- read_delim(
+    file.path(st1_path, "oth_immun_data.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -ends_with("_coded"),
+      -subjectvisitformid,
+      -subjectid,
+      -site,
+      -subjectstatus,
+      -formentrydate,
+      -visit,
+      -form
+    ) |>
+    filter(is.na(othimmtp) | othimmtp != "No other immunological data") |>
+    mutate(othpridat = as_date(othpridat, format = "%d-%b-%Y")) |>
+    rename(record_id = medrioid)
+
+  st1_imm_1 <- st1_imm |>
+    filter(is.na(vargroup1row)) |>
+    select(record_id, othpridat, othprinegres, othpriposres) |>
+    rename_with(~ gsub("oth", "", .x))
+  st1_imm_2 <- st1_imm |>
+    filter(!is.na(vargroup1row)) |>
+    mutate(
+      othpriallspec = tolower(if_else(
+        is.na(othpriallspec),
+        othpriall,
+        othpriallspec
+      ))
+    ) |>
+    select(record_id, vargroup1row, othpriallspec, othprires) |>
+    rename_with(~ gsub("oth", "", .x))
+  st1_spt_oth <- left_join(
+    st1_imm_1,
+    st1_imm_2,
+    join_by(record_id)
+  ) |>
+    mutate(
+      spt_occasion = "Other immunological data"
+    ) |>
+    filter(record_id != "136") |>
+    select(-vargroup1row) |>
+    rename(
+      spt_neg = prinegres,
+      spt_pos = priposres,
+      spt_tested = priallspec,
+      spt_result = prires
+    )
+
+  st2_spt_oth <- extract_tibble(st2_data, "other_immunological_data") |>
+    filter(othimmtp___1) |>
+    select(
+      -redcap_event,
+      -redcap_data_access_group,
+      -starts_with("othimmtp___")
+    ) |>
+    rename_with(~ gsub("oth", "", .x)) |>
+    rename(prilocun = priloc) |>
+    select(record_id, starts_with("pri")) |>
+    mutate(
+      priallspec1 = tolower(if_else(is.na(priallspec1), priall1, priallspec1)),
+      priallspec2 = tolower(if_else(is.na(priallspec2), priall2, priallspec2)),
+      priallspec3 = tolower(if_else(is.na(priallspec3), priall3, priallspec3)),
+      priallspec4 = tolower(if_else(is.na(priallspec4), priall4, priallspec4)),
+      priallspec5 = tolower(if_else(is.na(priallspec5), priall5, priallspec5)),
+      priallspec6 = tolower(if_else(is.na(priallspec6), priall6, priallspec6)),
+      priallspec7 = tolower(if_else(is.na(priallspec7), priall7, priallspec7)),
+      priallspec8 = tolower(if_else(is.na(priallspec8), priall8, priallspec8)),
+      priallspec9 = tolower(if_else(is.na(priallspec9), priall9, priallspec9)),
+      priallspec10 = tolower(if_else(
+        is.na(priallspec10),
+        priall10,
+        priallspec10
+      ))
+    ) |>
+    select(-matches("priall[1-9]")) |>
+    pivot_longer(
+      priallspec1:prires10,
+      names_pattern = "pri(allspec|res)",
+      names_to = c(".value")
+    ) |>
+    rename(
+      spt_neg = prinegres,
+      spt_pos = priposres,
+      spt_tested = allspec,
+      spt_result = res
+    ) |>
+    mutate(
+      spt_occasion = "Other immunological data"
+    ) |>
+    filter(!is.na(spt_tested))
+  bind_rows(st1_spt_oth, st2_spt_oth)
+}
+
 combine_skin_prick_test <- function() {
-  # There are two sources of skin prick tests:
+  # There are three sources of skin prick tests:
   #    - the scheduled visit at 12-months of age (visit 2 in REDCap, visit 6 in Medrio)
   #    - at any unscheduled visit
+  #    - other immunological data
   # Each child should have a "scheduled" SPT, and may have none or multiple "unscheduled".
   # When joining the two datasets, I will just refer to these as SPT's as
   # "spt_occasion" with values of "scheduled" or "unscheduled"
@@ -902,6 +1000,7 @@ combine_skin_prick_test <- function() {
   #
   # Extra allergens were rare in Medrio, only two subjects, each with one additiona allergen
   # will map these to prireact9, prires9, and priallspec9
+
   st2_spt <- extract_tibble(st2_data, "skin_prick_test") |>
     filter((unvisyn & unvisreas___1) | is.na(unvisyn)) |>
     mutate(
@@ -1223,6 +1322,14 @@ combine_adverse_events <- function() {
   var_label(ae)$aestdat <- "Start date"
   var_label(ae)$aeenddat <- "End date"
   ae
+}
+
+combine_sae <- function() {
+  st2_sae <- extract_tibble(st2_data, "sae_reporting_log") |>
+    select(-redcap_event, -redcap_data_access_group, -form_status_complete) |>
+    rename(sae_num = redcap_form_instance) |>
+    filter((is.na(saeyn) & sae_num > 1) | saeyn)
+  st2_sae
 }
 
 combine_blood_collection <- function() {
@@ -1610,6 +1717,7 @@ dat_vax_v1 <- combine_vax_admin_v1()
 dat_spt <- combine_skin_prick_test()
 dat_fc <- combine_food_challenge()
 dat_ae <- combine_adverse_events()
+dat_sae <- combine_sae()
 dat_out <- combine_outcome_report()
 dat_food <- combine_food_household()
 dat_fha <- combine_family_history_atopy()
@@ -1625,8 +1733,10 @@ optimum_data <- list(
   "medical_history" = dat_mh,
   "vaccine_administration_v1" = dat_vax_v1,
   "skin_prick_test" = dat_spt,
+  "other_immunological" = combine_other_immuno_data,
   "food_challenge" = dat_fc,
   "adverse_events" = dat_ae,
+  "serious_adverse_events" = dat_sae,
   "study_termination" = dat_st,
   "participant_assessment" = dat_pass,
   "outcome_report" = dat_out,
