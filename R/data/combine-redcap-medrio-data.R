@@ -1715,6 +1715,7 @@ dat_bh <- combine_birth_history()
 dat_mh <- combine_medical_history()
 dat_vax_v1 <- combine_vax_admin_v1()
 dat_spt <- combine_skin_prick_test()
+dat_oth_imm <- combine_other_immuno_data()
 dat_fc <- combine_food_challenge()
 dat_ae <- combine_adverse_events()
 dat_sae <- combine_sae()
@@ -1733,7 +1734,7 @@ optimum_data <- list(
   "medical_history" = dat_mh,
   "vaccine_administration_v1" = dat_vax_v1,
   "skin_prick_test" = dat_spt,
-  "other_immunological" = combine_other_immuno_data,
+  "other_immunological" = dat_oth_imm,
   "food_challenge" = dat_fc,
   "adverse_events" = dat_ae,
   "serious_adverse_events" = dat_sae,
