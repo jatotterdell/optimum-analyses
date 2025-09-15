@@ -1317,11 +1317,65 @@ combine_adverse_events <- function() {
         aecmyn = aecm
       )
   )
-  ae <- bind_rows(st2_ae, st1_ae)
+
+  # For Stage 1 MedDRA coded terms
+  # LLT: lowest level terms
+  # PT: preferred terms
+  # HLT: high level terms
+  # HLGT: high level group terms
+  # SOCs: system organ classes
+  dat_rand <- combine_randomisation() |>
+    select(record_id, subjid)
+  st1_med <- read_xlsx(
+    file.path(
+      st1_path,
+      "2024-12",
+      "OPTIMUM Medrio CodingReport 17 Dec 2024.xlsx"
+    )
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -site,
+      -group,
+      -visit,
+      -form,
+      -`coded date`,
+      -`coded by`,
+      -`coding status`,
+      -`coding dictionary`
+    ) |>
+    rename(
+      subjid = `subject id`,
+      aeterm = `verbatim term`
+    ) |>
+    select(-ends_with(" id")) |>
+    mutate(
+      subjid = gsub("01", "01-", subjid)
+    ) |>
+    # One record has the same aeterm twice, which results in many-to-many join
+    # Just keep distinct coded terms
+    distinct()
+  st1_ae_coded <- st1_ae |>
+    left_join(
+      dat_rand,
+      join_by(record_id)
+    ) |>
+    left_join(st1_med, join_by(subjid, aeterm)) |>
+    rename(
+      aecode1 = pt
+    ) |>
+    select(-subjid)
+
+  ae <- bind_rows(st2_ae, st1_ae_coded)
   var_label(ae) <- var_label(st2_ae)
+  var_label(ae)$aecode1 <- "Preferred term"
   var_label(ae)$ae_num <- "Adverse event number"
   var_label(ae)$aestdat <- "Start date"
   var_label(ae)$aeenddat <- "End date"
+  var_label(ae)$llt <- "MedDRA Lowest level term"
+  var_label(ae)$hlt <- "MedDRA High level term"
+  var_label(ae)$hlgt <- "MedDRA High level group term"
+  var_label(ae)$soc <- "MedDRA System organ class"
   ae
 }
 
