@@ -1,6 +1,8 @@
 ---
 title: OPTIMUM
 subtitle: Clinical Trial Report
+date: today
+author: James Totterdell
 ---
 
 ```{r}
@@ -202,19 +204,19 @@ dat_ecz_spt <- dat_ecz |>
 
 IgE mediated food allergy with evidence of food sensitisation on skin prick test (SPT) by 12 months old and confirmed (where necessary) by medically supervised oral food challenge(s) (OFC). For the purpose of this trial, if either of the following conditions are met, the study participant will be considered to have reached the primary endpoint:
 
-1. Unequivocal evidence of IgE mediated food allergy, defined as:
-     i. A positive OFC with evidence of sensitisation on SPT to the food of interest *OR*
-     ii. History of clinician-confirmed food anaphylaxis, with symptoms affecting at least two of the following: skin, gastrointestinal tract, respiratory tract, cardiovascular system; *AND* evidence of sensitisation on SPT to the food of interest.
-2. Highly probable IgE-mediated food allergy defined as a history of food allergic reaction (consistent with PRACTALL criteria), with evidence of sensitisation on SPT to the food of interest.
+1.  Unequivocal evidence of IgE mediated food allergy, defined as:
+    i.  A positive OFC with evidence of sensitisation on SPT to the food of interest *OR*
+    ii. History of clinician-confirmed food anaphylaxis, with symptoms affecting at least two of the following: skin, gastrointestinal tract, respiratory tract, cardiovascular system; *AND* evidence of sensitisation on SPT to the food of interest.
+2.  Highly probable IgE-mediated food allergy defined as a history of food allergic reaction (consistent with PRACTALL criteria), with evidence of sensitisation on SPT to the food of interest.
 
 We will report on the number and proportion who satisfy this composite definition, and the number and proportion satisfying each of the three sub-components as per a hierarchy in order of 1.i, 1.ii, 2.
 
 ### Secondary outcomes (2)
 
-a. A history of parent-reported clinician-diagnosed new onset eczema by **6 months** *AND* a positive SPT to any allergen by approximately 12 months old.
-b. A history of parent-reported clinician-diagnosed new onset eczema by **12 months** *AND* a positive SPT to any allergen by approximately 12 months old.
-c. A SPT **>1mm** greater than the negative control to at least one allergen by approximately 12 months of age
-d. A SPT **≥3mm** greater than the negative control to at least one allergen by approximately 12 months of age
+a.  A history of parent-reported clinician-diagnosed new onset eczema by **6 months** *AND* a positive SPT to any allergen by approximately 12 months old.
+b.  A history of parent-reported clinician-diagnosed new onset eczema by **12 months** *AND* a positive SPT to any allergen by approximately 12 months old.
+c.  A SPT **\>1mm** greater than the negative control to at least one allergen by approximately 12 months of age
+d.  A SPT **≥3mm** greater than the negative control to at least one allergen by approximately 12 months of age
 
 ### Details
 
@@ -452,6 +454,8 @@ dat_base |>
   sub_missing() |>
   tab_options(table.font.size = px(10), table.width = pct(100))
 ```
+
+\clearpage
 
 ## Missed visits
 
@@ -703,7 +707,10 @@ spt_nums <- dat_spt |>
   filter(row_number() == 1, .by = c(record_id, trt, spt_occasion, spt_num)) |>
   summarise(
     spt_num_sch = sum(spt_occasion == "scheduled" & priyn, na.rm = TRUE),
-    spt_num_unsch = sum(spt_occasion == "unscheduled" & priyn, na.rm = TRUE),
+    spt_num_unsch = sum(
+      spt_occasion %in% c("unscheduled", "other") & priyn,
+      na.rm = TRUE
+    ),
     .by = c(record_id, trt)
   )
 tbl_summary(
@@ -728,7 +735,7 @@ tbl_summary(
   cat()
 ```
 
-For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT in months was derived from  `birthdat` (date of birth) and `pridat` (date of skin prick test) or in some cases `univdat` (date of unscheduled visit). Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age (@fig-spt-age). There were 5 infants who did have an SPT, but none by 18-months of age (@tbl-spt-listing-after-18months).
+For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT in months was derived from `birthdat` (date of birth) and `pridat` (date of skin prick test) or in some cases `univdat` (date of unscheduled visit). Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age (@fig-spt-age). There were 5 infants who did have an SPT, but none by 18-months of age (@tbl-spt-listing-after-18months).
 
 ```{r}
 #| label: fig-spt-age
@@ -738,7 +745,13 @@ For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT
 dat_spt |>
   filter(row_number() == 1, .by = c(record_id, trt, spt_occasion, spt_num)) |>
   filter(!is.na(spt_age)) |>
-  mutate(spt_occasion = str_to_sentence(spt_occasion)) |>
+  mutate(
+    spt_occasion = str_to_sentence(if_else(
+      spt_occasion == "other",
+      "unscheduled",
+      spt_occasion
+    ))
+  ) |>
   ggplot(aes(spt_age)) +
   facet_wrap(~spt_occasion, scales = "free_y") +
   geom_bar() +
@@ -760,6 +773,14 @@ dat_spt |>
   ) |>
   filter(spt_age > 18) |>
   select(record_id, spt_occasion, spt_num, spt_age) |>
+  mutate(
+    spt_occasion = str_to_sentence(if_else(
+      spt_occasion == "other",
+      "unscheduled",
+      spt_occasion
+    ))
+  ) |>
+  distinct() |>
   gt() |>
   cols_label(
     spt_occasion ~ "SPT type",
@@ -769,7 +790,7 @@ dat_spt |>
   tab_options(table.font.size = px(10), table.width = pct(50))
 ```
 
-@tbl-spt-positive reports on the number and percentage of infants who had a SPT result of >1mm and ≥3mm relative to negative control for at least one tested allergen (outcomes 2c and 2d). Any infants with no SPT records by 18 months of age are reported as missing.
+@tbl-spt-positive reports on the number and percentage of infants who had a SPT result of \>1mm and ≥3mm relative to negative control for at least one tested allergen (outcomes 2c and 2d). Any infants with no SPT records by 18 months of age are reported as missing.
 
 ```{r}
 #| label: tbl-spt-positive
@@ -816,6 +837,8 @@ dat_spt |>
   latex_unescape() |>
   cat()
 ```
+
+### Analyses
 
 \clearpage
 
@@ -1000,9 +1023,9 @@ dat_po <- dat_base |>
   )
 ```
 
-@tbl-primary-outcome-criteria reports on the number of participants who met each of the primary outcome criteria (1.i, 1.ii, and 2) as outlined in the sections above. 
+@tbl-primary-outcome-criteria reports on the number of participants who met each of the primary outcome criteria (1.i, 1.ii, and 2) as outlined in the sections above.
 
-@tbl-primary-outcome-overall reports the total number of infants who met the primary outcome, and the primary reason grouped hierarchically according to the ordering in the definition (i.e. OFC &rarr; Anaphylaxis &rarr; IgE mediated) (irrespective of their timing).
+@tbl-primary-outcome-overall reports the total number of infants who met the primary outcome, and the primary reason grouped hierarchically according to the ordering in the definition (i.e. OFC → Anaphylaxis → IgE mediated) (irrespective of their timing).
 
 ```{r}
 #| label: tbl-primary-outcome-criteria
@@ -1183,27 +1206,78 @@ ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
 
 The primary source of information for eczema was the `outcome_report` form. Reported outcomes were cross checked against the food and household questionnaire form and medical history forms. Infants whose first reaction date for clinician-diagnosed eczema was prior to enrolment were considered to have "pre-existing" eczema and were excluded from the analysis set. There were `r sum(dat_ecz$out_ecz_preexisting)` such infants.
 
-The number and percentage of infants with any clinician-diagnosed eczema is reported in @tbl-eczema-trt under **total cases**. For the protocol defined outcomes [2a. and 2b.], the eczema diagnosis needed to be accompanied by a positive SPT to at least one allergen by approximately 12 months of age. These are reported in the table under **cases with positive SPT**.
+The number and percentage of infants with any clinician-diagnosed eczema is reported in @tbl-eczema-trt. For the protocol defined outcomes \[2a. and 2b.\], the eczema diagnosis needed to be new-onset and accompanied by a positive SPT to at least one allergen by approximately 12 months of age. These are reported in @tbl-eczema-trt-newonset.
 
 ```{r}
 #| label: tbl-eczema-trt
 #| tbl-cap: |
-#|   Number and percentage of infants with an clinician-diagnosed eczema.
-#|   Those with "missing" under cases with positive SPT were due to no SPT records being available.
+#|   Number and percentage of infants with any clinician-diagnosed eczema.
+#|   Those with missing under cases with positive SPT were due to no SPT records being available.
 #| tbl-pos: "H"
 #| results: "asis"
-dat_ecz |>
-  filter(out_ecz_preexisting) |>
-  summarise(n = sum(out_ecz_preexisting), .by = trt)
 
-# With eczema
+# dat_ecz |>
+#   filter(out_ecz_preexisting) |>
+#   summarise(n = sum(out_ecz_preexisting), .by = trt)
+
+tbl0 <- dat_ecz_spt |>
+  mutate(
+    ecz = ecz,
+    ecz_6m = ecz & outageval_months2 <= 6,
+    ecz_12m = ecz & outageval_months2 <= 12,
+    ecz_18m = ecz & outageval_months2 <= 18
+  ) |>
+  tbl_summary(
+    by = trt,
+    include = c(ecz, ecz_6m, ecz_12m, ecz_18m),
+    label = c(
+      ecz ~ "Eczema",
+      ecz_6m ~ "Eczema by 6-months",
+      ecz_12m ~ "Eczema by 12-months",
+      ecz_18m ~ "Eczema by 18-months"
+    ),
+    missing_text = "Missing"
+  ) |>
+  add_overall(last = TRUE) |>
+  remove_footnote_header() |>
+  modify_header(label = "**Outcome**") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  modify_table_body(
+    ~ .x |>
+      filter(label != "None")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(10), table.width = pct(55)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-eczema-trt-newonset
+#| tbl-cap: |
+#|   Number and percentage of infants with new-onset clinician-diagnosed eczema.
+#|   To be new-onset the first reaction date needed to be after the infants randomisation date.
+#|   Those with missing under cases with positive SPT were due to no SPT records being available.
+#| tbl-pos: "H"
+#| results: "asis"
 tbl1 <- dat_ecz_spt |>
   filter(!out_ecz_preexisting) |>
   mutate(
     ecz = ecz & !out_ecz_preexisting,
-    ecz_6m = ecz & !out_ecz_preexisting & outageval_months <= 6,
-    ecz_12m = ecz & !out_ecz_preexisting & outageval_months <= 12,
-    ecz_18m = ecz & !out_ecz_preexisting & outageval_months <= 18
+    ecz_6m = ecz & !out_ecz_preexisting & outageval_months2 <= 6,
+    ecz_12m = ecz & !out_ecz_preexisting & outageval_months2 <= 12,
+    ecz_18m = ecz & !out_ecz_preexisting & outageval_months2 <= 18
   ) |>
   tbl_summary(
     by = trt,
@@ -1224,9 +1298,12 @@ tbl2 <- dat_ecz_spt |>
   filter(!out_ecz_preexisting) |>
   mutate(
     ecz = ecz & !out_ecz_preexisting & any_pos_spt,
-    ecz_6m = ecz & !out_ecz_preexisting & outageval_months <= 6 & any_pos_spt,
-    ecz_12m = ecz & !out_ecz_preexisting & outageval_months <= 12 & any_pos_spt,
-    ecz_18m = ecz & !out_ecz_preexisting & outageval_months <= 18 & any_pos_spt
+    ecz_6m = ecz & !out_ecz_preexisting & outageval_months2 <= 6 & any_pos_spt,
+    ecz_12m = ecz &
+      !out_ecz_preexisting &
+      outageval_months2 <= 12 &
+      any_pos_spt,
+    ecz_18m = ecz & !out_ecz_preexisting & outageval_months2 <= 18 & any_pos_spt
   ) |>
   tbl_summary(
     by = trt,
@@ -1244,7 +1321,10 @@ tbl2 <- dat_ecz_spt |>
 
 tbl_stack(
   list(tbl1, tbl2),
-  group_header = c("Total cases", "Cases with positive SPT")
+  group_header = c(
+    "New-onset cases",
+    "New-onset cases with positive SPT"
+  )
 ) |>
   remove_footnote_header() |>
   modify_header(label = "**Outcome**") |>
@@ -1259,7 +1339,6 @@ tbl_stack(
     ~ .x |>
       filter(label != "None")
   ) |>
-  modify_column_alignment(all_stat_cols(), "right") |>
   as_gt() |>
   tab_options(table.font.size = px(10), table.width = pct(55)) |>
   tab_style(
@@ -1271,10 +1350,60 @@ tbl_stack(
   cat()
 ```
 
-
 \clearpage
 
 # Safety
+
+## Serious adverse events
+
+A listing of serious adverse events are reported in @tbl-listing-sae. These are any events reported either in the SAE reporting log (`sae_reporting_log`, stage 2 only) or on the adverse events form (`adverse_events`) with `aetype = "SAE"`. In some cases, a record was on the SAE log but not the adverse event log.
+
+```{r}
+#| label: tbl-listing-sae
+#| tbl-cap: |
+#|   Listing of serious adverse events.
+#|   Missing values were due to no adverse event record for corresponding SAE log record.
+#| tbl-pos: "H"
+dat_sae <- dat_raw |>
+  select_form("serious_adverse_events") |>
+  select(record_id, saestdat, saemeddra) |>
+  distinct() |>
+  arrange(str_rank(record_id, numeric = TRUE))
+
+dat_ae_sae <- dat_raw |>
+  select_form("adverse_events") |>
+  filter(aetype == "SAE") |>
+  select(record_id, aecode1, aesev, aetymead, aerel, aestdat, aeenddat) |>
+  rename(saestdat = aestdat) |>
+  arrange(str_rank(record_id, numeric = TRUE))
+
+dat_saes <- full_join(dat_sae, dat_ae_sae, join_by(record_id, saestdat)) |>
+  arrange(str_rank(record_id, numeric = TRUE), saestdat) |>
+  mutate(saemeddra = if_else(is.na(aecode1), saemeddra, aecode1))
+
+dat_saes |>
+  left_join(select(dat_base, record_id, visdat1)) |>
+  mutate(aeday = interval(visdat1, saestdat) %/% days(1)) |>
+  select(-visdat1, -saestdat, -aeenddat, -aecode1) |>
+  gt() |>
+  cols_label(saemeddra ~ "MedDRA code", aeday ~ "Days after visit 1") |>
+  sub_missing() |>
+  tab_options(table.font.size = px(8), table.width = pct(100))
+```
+
+```{r}
+#| label: tbl-listing-ae
+#| tbl-cap: |
+#|   Listing of adverse events.
+#| tbl-pos: "H"
+#| include: false
+dat_ae <- dat_base |>
+  left_join(
+    dat_raw |>
+      select_form("adverse_events"),
+    join_by(record_id)
+  )
+```
 
 \clearpage
 
@@ -1290,7 +1419,7 @@ dat_po_ofc |>
   select(record_id, po_ofc_match) |>
   gt() |>
   cols_label(po_ofc_match ~ "SPT positive foods") |>
-  tab_options(table.font.size = px(9), table.width = pct(50))
+  tab_options(table.font.size = px(9), table.width = pct(40))
 ```
 
 ```{r}
@@ -1301,7 +1430,7 @@ dat_po_ana |>
   select(record_id, po_ana_match) |>
   gt() |>
   cols_label(po_ana_match ~ "SPT positive foods") |>
-  tab_options(table.font.size = px(9), table.width = pct(50))
+  tab_options(table.font.size = px(9), table.width = pct(40))
 ```
 
 ```{r}
@@ -1312,5 +1441,28 @@ dat_po_ige |>
   select(record_id, po_ige_match) |>
   gt() |>
   cols_label(po_ige_match ~ "SPT positive foods") |>
-  tab_options(table.font.size = px(9), table.width = pct(50))
+  tab_options(table.font.size = px(9), table.width = pct(40))
+```
+
+\clearpage
+
+## Secondary outcome listings
+
+```{r}
+#| label: tbl-listing-eczema
+#| tbl-cap: Listing of infants with eczema diagnosis and positive SPT to any allergen.
+#| tbl-pos: "H"
+dat_ecz_spt |>
+  filter(!out_ecz_preexisting, ecz, any_pos_spt) |>
+  select(record_id, outageval_months2) |>
+  gt() |>
+  fmt_number(decimals = 0) |>
+  cols_label(
+    outageval_months2 ~ "Age at first reaction (months)"
+  ) |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(40),
+    latex.use_longtable = TRUE
+  )
 ```
