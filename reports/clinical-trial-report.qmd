@@ -561,6 +561,8 @@ left_join(vs_by_trt, vs_ovr) |>
   cat()
 ```
 
+\clearpage
+
 ## Missed food and household questionnaires
 
 ```{r}
