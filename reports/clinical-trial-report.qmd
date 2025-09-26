@@ -189,6 +189,8 @@ dat_spt_pos_any <- dat_spt_pos |>
     any_pos_spt = any(any_spt_pos_1mm & spt_age < 19),
     .by = record_id
   )
+
+# Dataset used for SPT outcome analyses
 dat_spt_analysis <- dat_spt |>
   summarise(
     across(
@@ -214,6 +216,30 @@ dat_spt_analysis <- dat_spt |>
 
 dat_ecz_spt <- dat_ecz |>
   left_join(dat_spt_pos_any, join_by(record_id))
+
+# Dataset used for Eczema outcome analyses
+dat_ecz_analysis <- dat_ecz_spt |>
+  filter(!out_ecz_preexisting) |>
+  mutate(
+    ecz_6m = ecz &
+      !out_ecz_preexisting &
+      outageval_months2 <= 6 &
+      any_pos_spt,
+    ecz_12m = ecz &
+      !out_ecz_preexisting &
+      outageval_months2 <= 12 &
+      any_pos_spt,
+    ecz_18m = ecz &
+      !out_ecz_preexisting &
+      outageval_months2 <= 18 &
+      any_pos_spt
+  ) |>
+  select(record_id, trt, ecz_6m, ecz_12m, ecz_18m) |>
+  left_join(
+    dat_base |>
+      select(record_id, rand_site, gender, fborn),
+    join_by(record_id)
+  )
 ```
 
 \clearpage
@@ -1367,7 +1393,6 @@ The number and percentage of infants with any clinician-diagnosed eczema is repo
 #| label: tbl-eczema-trt
 #| tbl-cap: |
 #|   Number and percentage of infants with any clinician-diagnosed eczema.
-#|   Those with missing under cases with positive SPT were due to no SPT records being available.
 #| tbl-pos: "H"
 #| results: "asis"
 
@@ -1423,7 +1448,7 @@ tbl0 <- dat_ecz_spt |>
 #| tbl-cap: |
 #|   Number and percentage of infants with new-onset clinician-diagnosed eczema.
 #|   To be new-onset the first reaction date needed to be after the infants randomisation date.
-#|   Those with missing under cases with positive SPT were due to no SPT records being available.
+#|   Those with missing were due to eczema diagnosis being present but no SPT records being available.
 #| tbl-pos: "H"
 #| results: "asis"
 tbl1 <- dat_ecz_spt |>
@@ -1503,6 +1528,141 @@ tbl_stack(
   as_latex() |>
   latex_unescape() |>
   cat()
+```
+
+### Analyses
+
+```{r}
+#| label: eczema-analysis
+dat_outcome <- dat_ecz_analysis |>
+  pivot_longer(
+    ecz_6m:ecz_18m,
+    names_pattern = "ecz_([0-9]+m)",
+    names_to = "age",
+    values_to = "outcome"
+  ) |>
+  mutate(age = factor(age, levels = c("6m", "12m", "18m"))) |>
+  filter(!is.na(outcome)) |>
+  summarise(
+    n = n(),
+    y = sum(outcome),
+    p = y / n,
+    a = 1 + y,
+    b = 1 + n - y,
+    post = dist_beta(a, b),
+    .by = c(trt, age)
+  ) |>
+  mutate(p_sup = c(NA, beta_ineq_sim(a, b)), .by = age)
+diff_outcome <- dat_outcome |>
+  mutate(post_drws = generate(post, 1e6)) |>
+  select(age, trt, post_drws) |>
+  unnest(post_drws) |>
+  group_by(age, trt) |>
+  mutate(.draw = 1:n()) |>
+  ungroup() |>
+  pivot_wider(names_from = "trt", values_from = "post_drws") |>
+  mutate(delta = wP - aP)
+
+prior <- c(
+  prior(logistic(0, 1), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = "b")
+)
+
+fit_outcome <- dat_ecz_analysis |>
+  pivot_longer(
+    ecz_6m:ecz_18m,
+    names_pattern = "ecz_([0-9]+m)",
+    names_to = "age",
+    values_to = "outcome"
+  ) |>
+  mutate(age = factor(age, levels = c("6m", "12m", "18m"))) |>
+  nest(-age) |>
+  mutate(
+    fit = map(
+      data,
+      \(x) {
+        brm(
+          outcome ~ trt + rand_site + gender + fborn,
+          data = x,
+          family = bernoulli(),
+          prior = prior,
+          warmup = 500,
+          iter = 5500,
+          refresh = 0,
+          silent = 2
+        )
+      }
+    ),
+    rd = map2(data, fit, \(x, y) {
+      wgt <- c(rdo(rdirichlet(1, rep(1, nrow(x))), ndraws = ndraws(y)))
+      x |>
+        mutate(trt = "aP") |>
+        add_epred_rvars(y, value = ".epred_aP") |>
+        mutate(trt = "wP") |>
+        add_epred_rvars(y, value = ".epred_wP") |>
+        mutate(wgt = wgt) |>
+        summarise(
+          .rd_empirical = rvar_mean(.epred_wP - .epred_aP),
+          .rd_bootstrap = rvar_sum((.epred_wP - .epred_aP) * wgt)
+        )
+    })
+  )
+```
+
+```{r}
+#| label: fig-posterior-density-eczema
+#| fig-cap: |
+#|    Posterior density for difference in probability of eczema diagnosis by age at reaction,
+#|    unadjusted primary model.
+#| fig-height: 4
+#| fig-width: 5
+diff_outcome |>
+  group_by(age) |>
+  nest_rvars() |>
+  ggplot(aes(xdist = delta)) +
+  facet_wrap(~age, ncol = 1) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    fill = "Interval",
+    x = "Difference in food allergy probability, wP - aP",
+    y = "Density"
+  )
+```
+
+```{r}
+#| label: fig-posterior-difference-eczema-adjusted
+#| fig-cap: |
+#|   Posterior difference in probability of eczema diagnosis for wP compared to aP, adjusted model.
+#| fig-height: 4
+#| fig-width: 5
+fit_outcome |>
+  unnest(rd) |>
+  ggplot(aes(xdist = .rd_bootstrap)) +
+  facet_wrap(~age, ncol = 1) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    fill = "Interval",
+    x = "Difference in food allergy probability, wP - aP",
+    y = "Density"
+  )
 ```
 
 \clearpage
