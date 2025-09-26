@@ -812,6 +812,7 @@ combine_outcome_report <- function() {
     ) |>
     filter(!(record_id_num > 1 & is.na(outalltp))) |>
     mutate(
+      outdiagdat = as_date(outdiagdat),
       outageval = as.numeric(outageval),
       outageval_months = case_when(
         outageunit == "Months" ~ outageval,
@@ -1020,6 +1021,8 @@ combine_skin_prick_test <- function() {
     mutate(
       prinegres = if_else(prinegres == "MI", NA_character_, prinegres),
       prinegres = as.numeric(prinegres),
+      priposres = if_else(priposres == "UNK", NA_character_, priposres),
+      priposres = as.numeric(priposres),
       prireact8 = if_else(prireact8 == "N/A", "Not Done", prireact8)
     ) |>
     # select(
