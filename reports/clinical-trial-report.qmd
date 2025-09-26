@@ -189,6 +189,28 @@ dat_spt_pos_any <- dat_spt_pos |>
     any_pos_spt = any(any_spt_pos_1mm & spt_age < 19),
     .by = record_id
   )
+dat_spt_analysis <- dat_spt |>
+  summarise(
+    across(
+      spt_0mm:spt_3mm,
+      ~ if_else(
+        all(!priyn) | all(spt_age > 18),
+        NA,
+        any(.x == 1 & spt_age < 19, na.rm = TRUE)
+      )
+    ),
+    .by = c(record_id, trt)
+  ) |>
+  right_join(
+    select(
+      dat_base,
+      record_id,
+      rand_site,
+      gender,
+      fborn
+    ),
+    join_by(record_id)
+  )
 
 dat_ecz_spt <- dat_ecz |>
   left_join(dat_spt_pos_any, join_by(record_id))
@@ -841,6 +863,137 @@ dat_spt |>
 ```
 
 ### Analyses
+
+```{r}
+#| label: spt-analysis
+dat_outcome <- dat_spt_analysis |>
+  pivot_longer(
+    spt_0mm:spt_3mm,
+    names_pattern = "spt_([0-3]mm)",
+    names_to = "size",
+    values_to = "outcome"
+  ) |>
+  filter(!is.na(outcome)) |>
+  summarise(
+    n = n(),
+    y = sum(outcome),
+    p = y / n,
+    a = 1 + y,
+    b = 1 + n - y,
+    post = dist_beta(a, b),
+    .by = c(trt, size)
+  ) |>
+  mutate(p_sup = c(NA, beta_ineq_sim(a, b)), .by = size)
+diff_outcome <- dat_outcome |>
+  mutate(post_drws = generate(post, 1e6)) |>
+  select(size, trt, post_drws) |>
+  unnest(post_drws) |>
+  group_by(size, trt) |>
+  mutate(.draw = 1:n()) |>
+  ungroup() |>
+  pivot_wider(names_from = "trt", values_from = "post_drws") |>
+  mutate(delta = wP - aP)
+
+prior <- c(
+  prior(logistic(0, 1), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = "b")
+)
+
+fit_outcome <- dat_spt_analysis |>
+  pivot_longer(
+    spt_0mm:spt_3mm,
+    names_pattern = "spt_([0-3]mm)",
+    names_to = "size",
+    values_to = "outcome"
+  ) |>
+  nest(-size) |>
+  mutate(
+    fit = map(
+      data,
+      \(x) {
+        brm(
+          outcome ~ trt + rand_site + gender + fborn,
+          data = x,
+          family = bernoulli(),
+          prior = prior,
+          warmup = 500,
+          iter = 5500,
+          refresh = 0,
+          silent = 2
+        )
+      }
+    ),
+    rd = map2(data, fit, \(x, y) {
+      wgt <- c(rdo(rdirichlet(1, rep(1, nrow(x))), ndraws = ndraws(y)))
+      x |>
+        mutate(trt = "aP") |>
+        add_epred_rvars(y, value = ".epred_aP") |>
+        mutate(trt = "wP") |>
+        add_epred_rvars(y, value = ".epred_wP") |>
+        mutate(wgt = wgt) |>
+        summarise(
+          .rd_empirical = rvar_mean(.epred_wP - .epred_aP),
+          .rd_bootstrap = rvar_sum((.epred_wP - .epred_aP) * wgt)
+        )
+    })
+  )
+```
+
+```{r}
+#| label: fig-posterior-density-spt
+#| fig-cap: |
+#|    Posterior density for difference in probability of positive skin prick test by size,
+#|    unadjusted primary model.
+#| fig-height: 5
+#| fig-width: 5
+diff_outcome |>
+  group_by(size) |>
+  nest_rvars() |>
+  ggplot(aes(xdist = delta)) +
+  facet_wrap(~size, ncol = 1) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    fill = "Interval",
+    x = "Difference in food allergy probability, wP - aP",
+    y = "Density"
+  )
+```
+
+```{r}
+#| label: fig-posterior-difference-spt-adjusted
+#| fig-cap: |
+#|   Posterior difference in probability of food allergy for wP compared to aP, adjusted model.
+#| fig-height: 5
+#| fig-width: 5
+fit_outcome |>
+  unnest(rd) |>
+  ggplot(aes(xdist = .rd_bootstrap)) +
+  facet_wrap(~size, ncol = 1) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    fill = "Interval",
+    x = "Difference in food allergy probability, wP - aP",
+    y = "Density"
+  )
+```
 
 \clearpage
 
