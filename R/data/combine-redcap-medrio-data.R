@@ -1353,7 +1353,7 @@ combine_adverse_events <- function() {
     ) |>
     select(-ends_with(" id")) |>
     mutate(
-      subjid = gsub("01", "01-", subjid)
+      subjid = gsub("^01", "01-", subjid)
     ) |>
     # One record has the same aeterm twice, which results in many-to-many join
     # Just keep distinct coded terms
@@ -1706,6 +1706,286 @@ combine_igg <- function() {
   igg_trans
 }
 
+combine_diary <- function() {
+  # Stage 1 vaccination locations check, 6-week and 18-month only
+  st1_vax1 <- read_delim(
+    file.path(st1_path, "VAX V1.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded")) |>
+    select(medrioid, vacblloc, vacpnloc, vacprotyn, vacprotreas) |>
+    mutate(
+      across(
+        ends_with("loc"),
+        ~ gsub("Thigh", "Leg", gsub(" IM injection", "", .x))
+      )
+    )
+  st1_vax7 <- read_delim(
+    file.path(st1_path, "VAX V7.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded")) |>
+    select(
+      medrioid,
+      vac7ipvloc,
+      vac7mmrloc,
+      vac7hibloc,
+      vac7adyn,
+      vac7adspec
+    ) |>
+    mutate(
+      across(
+        ends_with("loc"),
+        ~ gsub(
+          "Deltoid",
+          "Arm",
+          gsub("Thigh|thigh", "Leg", gsub(" (IM|SC) injection", "", .x))
+        )
+      )
+    )
+
+  # Stage 2 vaccination locations check
+  # Only first 150 at PCH, but due to delays, 153 had diary card
+  vax1 <- extract_tibble(st2_data, "vaccine_administration_v1") |>
+    filter(
+      substr(record_id, 1, 4) == "4629",
+      as.numeric(gsub("4629-", "", record_id)) <= 153
+    ) |>
+    select(
+      record_id,
+      sdadmdat,
+      vacpara,
+      vacparastr,
+      vacparadose,
+      vacadyn,
+      vacadreas
+    ) |>
+    mutate(visit = 1)
+  vax3 <- extract_tibble(st2_data, "vaccine_administration_v3") |>
+    filter(
+      substr(record_id, 1, 4) == "4629",
+      as.numeric(gsub("4629-", "", record_id)) <= 153
+    ) |>
+    select(
+      record_id,
+      vac7admdat,
+      vac7iploc,
+      vac7mmrloc,
+      vac7hibloc,
+      vac7adyn,
+      vac7adspec
+    ) |>
+    rename(
+      sdadmdat = vac7admdat,
+      vacadyn = vac7adyn,
+      vacadreas = vac7adspec
+    ) |>
+    mutate(
+      sdadmdat = as_date(sdadmdat)
+    ) |>
+    pivot_longer(
+      ends_with("loc"),
+      names_pattern = "vac7(ip|mmr|hib)loc",
+      names_to = "vaccine",
+      values_to = "location"
+    ) |>
+    mutate(
+      visit = 3,
+      vaxloc = gsub(
+        "deltoid|Deltoid",
+        "Arm",
+        gsub("thigh|Thigh", "Leg", gsub(" (IM|SC) injection", "", location))
+      ),
+      vaccine = case_match(
+        vaccine,
+        "ip" ~ "DTPa-IPV",
+        "mmr" ~ "MMR",
+        "hib" ~ "HiB"
+      ),
+    )
+
+  st2_dc1 <- extract_tibble(st2_data, "diary_card_data_page_1")
+  st2_dc2 <- extract_tibble(st2_data, "diary_card_data_page_2")
+  st2_dc <- left_join(
+    st2_dc1,
+    st2_dc2,
+    join_by(record_id, redcap_event, redcap_data_access_group)
+  ) |>
+    filter(
+      substr(record_id, 1, 4) == "4629",
+      as.numeric(gsub("4629-", "", record_id)) <= 153
+    ) |>
+    mutate(
+      visit = case_match(redcap_event, "visit_1" ~ 1, "visit_3" ~ 3),
+      vaxage = case_match(visit, 1 ~ "6-week", 3 ~ "18-month"),
+      # Fix some locations
+      solloca1 = if_else(
+        visit == 1 & solloca1 == "Right Leg" & solloca2 == "Right Leg",
+        "Left Leg",
+        solloca1
+      )
+    )
+
+  st2_dc_shared <- st2_dc |>
+    select(record_id, visit, vaxage, diaretyn, solvacdat, matches("solloca")) |>
+    pivot_longer(
+      contains("solloc"),
+      names_pattern = "solloca([1-3])",
+      names_to = "vaxloc_id",
+      values_to = "vaxloc"
+    ) |>
+    filter(!(visit == 1 & vaxloc_id == 3)) |>
+    mutate(
+      # Participant has "Right Leg" for two diary responses, don't know which is which
+      vaxloc = if_else(
+        record_id == "4629-106" & visit == 3 & vaxloc == "Right Leg",
+        NA_character_,
+        vaxloc
+      )
+    ) |>
+    left_join(
+      select(vax3, record_id, visit, vaxloc, vaccine),
+      join_by(record_id, visit, vaxloc)
+    ) |>
+    mutate(
+      vaccine = case_when(
+        visit == 1 & vaxloc == "Left Leg" ~ "PCv13",
+        visit == 1 & vaxloc == "Right Leg" ~ "aP/wP",
+        TRUE ~ vaccine
+      )
+    )
+
+  st2_temp <- st2_dc |>
+    select(record_id, visit, vaxage, matches("temp")) |>
+    pivot_longer(
+      matches("temp"),
+      names_pattern = "soltemp([0-6])",
+      names_to = "day",
+      values_to = "temp"
+    ) |>
+    mutate(
+      temp = as.numeric(if_else(temp == "MI", NA_character_, temp)),
+      temp_fac = cut(
+        temp,
+        c(-Inf, seq(38, 41, 0.5), Inf),
+        include.lowest = TRUE,
+        right = FALSE,
+        labels = c(
+          "None (<38)",
+          "38.0-38.4",
+          "38.5-38.9",
+          "39.0-39.4",
+          "39.5-39.9",
+          "40.0-40.4",
+          "40.5-40.9",
+          "41.0 or more"
+        )
+      )
+    ) |>
+    complete(
+      record_id,
+      nesting(visit, vaxage),
+      day
+    )
+
+  st2_sol <- st2_dc |>
+    select(record_id, visit, vaxage, matches("sol[0-6]int")) |>
+    pivot_longer(
+      contains("sol"),
+      names_pattern = "sol([0-6])int([1-6])",
+      names_to = c("day", "term"),
+      values_to = "intensity"
+    ) |>
+    mutate(
+      term = factor(
+        term,
+        labels = c(
+          "Irritability",
+          "Vomiting",
+          "Diarrhoea",
+          "Decreased feeding",
+          "Drowsiness",
+          "Restlessness"
+        )
+      ),
+      intensity = factor(
+        intensity,
+        levels = 0:3,
+        labels = c("None", "Mild", "Moderate", "Severe")
+      )
+    ) |>
+    complete(
+      record_id,
+      nesting(visit, vaxage),
+      term,
+      day
+    )
+
+  st2_pain <- st2_dc |>
+    select(record_id, visit, vaxage, matches("pain")) |>
+    pivot_longer(
+      contains("pain"),
+      names_pattern = "d([0-6])pain([1-3])",
+      names_to = c("day", "vaxloc_id"),
+      values_to = "pain"
+    ) |>
+    mutate(
+      pain = factor(
+        pain,
+        levels = 0:3,
+        labels = c("None", "Mild", "Moderate", "Severe")
+      )
+    ) |>
+    complete(
+      record_id,
+      nesting(visit, vaxage, vaxloc_id),
+      day
+    ) |>
+    filter(!(visit == 1 & vaxloc_id == 3))
+
+  st2_isr <- st2_dc |>
+    select(record_id, visit, vaxage, matches("siz")) |>
+    pivot_longer(
+      contains("siz"),
+      names_pattern = c("(rd|sw|hr)d([0-6])siz([1-3])"),
+      names_to = c("term", "day", "vaxloc_id"),
+      values_to = "size"
+    ) |>
+    mutate(
+      term = factor(
+        term,
+        levels = c("rd", "sw", "hr"),
+        labels = c("Erythema", "Swelling", "Induration")
+      ),
+      size_fac = cut(
+        size,
+        breaks = c(-Inf, 0, 10, 25, 50, Inf),
+        include.lowest = FALSE,
+        right = TRUE,
+        labels = c("None", ">0 to 10", ">10 to 25", ">25 to 50", ">50")
+      )
+    ) |>
+    complete(
+      record_id,
+      nesting(visit, vaxage, vaxloc_id),
+      term,
+      day
+    ) |>
+    filter(!(visit == 1 & vaxloc_id == 3))
+
+  # fmt: skip
+  tribble(
+    ~ "reaction", ~ "data",
+    "shared", st2_dc_shared,
+    "temp", st2_temp,
+    "sol", st2_sol,
+    "pain", st2_pain,
+    "isr", st2_isr
+  )
+}
+
 read_stage1_randomisation_list <- function() {
   st1rands <- read_csv(
     file.path(
@@ -1782,6 +2062,7 @@ dat_food <- combine_food_household()
 dat_fha <- combine_family_history_atopy()
 dat_bc <- combine_blood_collection()
 dat_igg <- combine_igg()
+dat_diary <- combine_diary()
 dat_trt <- combine_treatment_lists()
 
 optimum_data <- list(
@@ -1802,7 +2083,9 @@ optimum_data <- list(
   "food_and_household_questionnaire" = dat_food,
   "family_history_of_atopy" = dat_fha,
   "blood_collection" = dat_bc,
-  "igg" = dat_igg
+  "igg" = dat_igg,
+  "diary" = dat_diary
 )
+
 qsave(enframe(optimum_data, name = "form", value = "data"), com_file)
 writeLines("Successfully combined databases.", stdout())
