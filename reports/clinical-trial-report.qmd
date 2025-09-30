@@ -14,6 +14,7 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(forcats)
   library(lubridate)
+  library(labelled)
 
   # Figures
   library(ggplot2)
@@ -888,7 +889,9 @@ dat_spt |>
   cat()
 ```
 
-### Analyses
+\clearpage
+
+### Skin prick test model
 
 ```{r}
 #| label: spt-analysis
@@ -1064,14 +1067,19 @@ dat_po_ofc <- dat_fa |>
   ) |>
   ungroup() |>
   summarise(
+    outfrafood = paste(unique(tolower(outfrafood)), collapse = ", "),
     any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
     matched_foods = paste(
       unique(match_food[!is.na(match_food) & outageval_months2 <= 18]),
       collapse = ", "
     ),
-    .by = record_id
+    .by = c(record_id, trt)
   ) |>
-  rename(po_ofc = any_food_match, po_ofc_match = matched_foods)
+  rename(
+    po_ofc = any_food_match,
+    po_ofc_foods = outfrafood,
+    po_ofc_match = matched_foods
+  )
 ```
 
 ### Anaphylaxis
@@ -1105,14 +1113,19 @@ dat_po_ana <- dat_fa |>
   ) |>
   ungroup() |>
   summarise(
+    outfrafood = paste(unique(tolower(outfrafood)), collapse = ", "),
     any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
     matched_foods = paste(
       unique(match_food[!is.na(match_food) & outageval_months2 <= 18]),
       collapse = ", "
     ),
-    .by = record_id
+    .by = c(record_id, trt)
   ) |>
-  rename(po_ana = any_food_match, po_ana_match = matched_foods)
+  rename(
+    po_ana = any_food_match,
+    po_ana_foods = outfrafood,
+    po_ana_match = matched_foods
+  )
 ```
 
 ### Highly probable IgE mediated food allergy
@@ -1157,18 +1170,19 @@ dat_po_ige <- dat_fa |>
   ) |>
   ungroup() |>
   summarise(
+    outfrafood = paste(unique(tolower(outfrafood)), collapse = ", "),
     any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
     matched_foods = paste(
       unique(match_food[!is.na(match_food) & outageval_months2 <= 18]),
       collapse = ", "
     ),
-    .by = record_id
+    .by = c(record_id, trt)
   ) |>
-  rename(po_ige = any_food_match, po_ige_match = matched_foods)
-
-# dat_po_ige |>
-#   left_join(summ_fc, join_by(record_id)) |>
-#   print(n = Inf)
+  rename(
+    po_ige = any_food_match,
+    po_ige_foods = outfrafood,
+    po_ige_match = matched_foods
+  )
 ```
 
 ### Primary outcome
@@ -1176,9 +1190,9 @@ dat_po_ige <- dat_fa |>
 ```{r}
 #| label: primary-outcome-data
 dat_po <- dat_base |>
-  left_join(dat_po_ofc, join_by(record_id)) |>
-  left_join(dat_po_ana, join_by(record_id)) |>
-  left_join(dat_po_ige, join_by(record_id)) |>
+  left_join(select(dat_po_ofc, -trt), join_by(record_id)) |>
+  left_join(select(dat_po_ana, -trt), join_by(record_id)) |>
+  left_join(select(dat_po_ige, -trt), join_by(record_id)) |>
   mutate(
     po_ofc = replace_na(po_ofc, 0),
     po_ana = replace_na(po_ana, 0),
@@ -1281,7 +1295,9 @@ dat_po |>
   cat()
 ```
 
-### Analyses
+\clearpage
+
+### Primary outcome model
 
 ```{r}
 #| label: primary-outcome-analysis
@@ -1530,7 +1546,9 @@ tbl_stack(
   cat()
 ```
 
-### Analyses
+\clearpage
+
+### Eczema model
 
 ```{r}
 #| label: eczema-analysis
@@ -1694,47 +1712,240 @@ dat_ae_sae <- dat_raw |>
 
 dat_saes <- full_join(dat_sae, dat_ae_sae, join_by(record_id, saestdat)) |>
   arrange(str_rank(record_id, numeric = TRUE), saestdat) |>
-  mutate(saemeddra = if_else(is.na(aecode1), saemeddra, aecode1))
+  mutate(saemeddra = if_else(is.na(aecode1), saemeddra, aecode1)) |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
+  relocate(trt, .after = record_id)
 
 dat_saes |>
   left_join(select(dat_base, record_id, visdat1)) |>
   mutate(aeday = interval(visdat1, saestdat) %/% days(1)) |>
   select(-visdat1, -saestdat, -aeenddat, -aecode1) |>
   gt() |>
-  cols_label(saemeddra ~ "MedDRA code", aeday ~ "Days after visit 1") |>
+  cols_label(
+    trt ~ "Treatment",
+    saemeddra ~ "MedDRA code",
+    aeday ~ "Days after visit 1"
+  ) |>
   sub_missing() |>
-  tab_options(table.font.size = px(8), table.width = pct(100))
+  tab_options(table.font.size = px(8), table.width = pct(100)) |>
+  cols_width(c(aerel, aetymead) ~ px(100))
 ```
 
+\clearpage
+
+## Adverse events
+
 ```{r}
-#| label: tbl-listing-ae
-#| tbl-cap: |
-#|   Listing of adverse events.
-#| tbl-pos: "H"
-#| include: false
-dat_ae <- dat_base |>
+dat_ae <- dat_raw |>
+  select_form("adverse_events") |>
+  left_join(select(dat_base, record_id, rand_site), join_by(record_id))
+dat_base_ae <- dat_base |>
+  select(
+    record_id,
+    rand_site,
+    rand_stage,
+    randdattim,
+    trt,
+    birthdat,
+    visdat1
+  ) |>
   left_join(
-    dat_raw |>
-      select_form("adverse_events"),
+    select_form(dat_raw, "vaccine_administration_v3") |>
+      select(record_id, vac7admdat),
     join_by(record_id)
+  ) |>
+  left_join(dat_ae, join_by(record_id, rand_site)) |>
+  mutate(
+    ae_age = interval(birthdat, aestdat) %/% days(1),
+    aeday_v1 = interval(visdat1, aestdat) %/% days(1),
+    aeday_v3 = interval(vac7admdat, aestdat) %/% days(1)
   )
 ```
 
+There were `r nrow(dat_ae)` adverse events documented during the trial.
+Due to the more detailed safety monitoring at PCH, most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`) with only `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (listed in @tbl-listing-ae-non-pch). 
+
+```{r}
+#| label: tbl-listing-ae-non-pch
+#| tbl-cap: |
+#|   Adverse event listing of infants randomised at a site other than PCH.
+#| tbl-pos: "H"
+dat_base_ae |>
+  filter(rand_site != "PCH", !is.na(aecode1)) |>
+  select(record_id, rand_site, trt, aecode1, aesev, aerel, aetymead) |>
+  gt() |>
+  cols_label(
+    rand_site ~ "Site",
+    trt ~ "Treatment"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(100)) |>
+  cols_width(aecode1 ~ px(100), aetymead ~ px(100), aerel ~ px(100)) |>
+  cols_align(align = "left")
+```
+
+There was a higher number of adverse events in the wP group compared to the aP group, but for both groups the majority of events were documented as unrelated to the blinded study vaccine (@tbl-summary-ae-pch).
+A listing of the related AEs is given in @tbl-listing-ae-related-pch.
+
+```{r}
+#| label: tbl-summary-ae-pch
+#| tbl-cap: |
+#|   Number and proportion of infants with any adverse events and the number of adverse events per infant, at PCH.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_base_ae |>
+  filter(rand_site == "PCH") |>
+  summarise(
+    `Any AE` = any(!is.na(aecode1)),
+    `Any SAE` = any(aetype == "SAE", na.rm = TRUE),
+    `Any related AE` = any(aerel == "Related", na.rm = TRUE),
+    `Any severe AE` = any(aesev == "Severe", na.rm = TRUE),
+    `Number of AEs` = sum(!is.na(aecode1)),
+    `Number of related AEs` = sum(aerel == "Related", na.rm = TRUE),
+    .by = c(record_id, trt)
+  ) |>
+  tbl_summary(
+    by = "trt",
+    include = `Any AE`:`Number of related AEs`,
+    digits = ~0
+  ) |>
+  add_overall(last = TRUE) |>
+  modify_column_alignment(columns = starts_with("stat"), align = "right") |>
+  remove_footnote_header() |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(100),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-listing-ae-related-pch
+#| tbl-cap: |
+#|   Number and proportion of events with any adverse events and the number of adverse events per infant, at PCH.
+#| tbl-pos: "H"
+dat_base_ae |>
+  filter(aerel == "Related") |>
+  select(record_id, trt, aecode1, aetype, aesev, aerel, aetymead) |>
+  gt() |>
+  cols_label(
+    trt ~ "Treatment"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(100)) |>
+  cols_width(aecode1 ~ px(100), aetymead ~ px(100), aerel ~ px(100)) |>
+  cols_align(align = "left") |>
+  sub_missing()
+```
+
+A summary of the number and proportion of infants randomised at PCH with any reported adverse event by the MeDRA preferred term is given in @tbl-any-event-ae. 
+A summary of the total number of events is given in @tbl-events-ae.
+
+```{r}
+#| label: tbl-any-event-ae
+#| tbl-cap: |
+#|   Proportion of infants with any event by MeDRA preferred terms, PCH only.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_base_ae |>
+  filter(rand_site == "PCH") |>
+  tbl_hierarchical(
+    variables = aecode1,
+    by = trt,
+    id = record_id,
+    overall_row = TRUE,
+    denominator = filter(dat_base, rand_site == "PCH")
+  ) |>
+  add_overall(last = TRUE) |>
+  modify_column_alignment(columns = starts_with("stat"), "right") |>
+  remove_footnote_header() |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(100),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-events-ae
+#| tbl-cap: |
+#|   Number of events by MeDRA preferred terms, PCH only.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_base_ae |>
+  filter(rand_site == "PCH") |>
+  tbl_hierarchical_count(
+    variables = aecode1,
+    by = trt,
+    overall_row = TRUE,
+    denominator = filter(dat_base, rand_site == "PCH")
+  ) |>
+  add_overall(last = TRUE) |>
+  modify_column_alignment(columns = starts_with("stat"), "right") |>
+  remove_footnote_header() |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(100),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+\clearpage
+
+## Diary Cards
+
+
+  
 \clearpage
 
 # Appendix {.appendix}
 
 ## Primary outcome listings
-
+  
 ```{r}
 #| label: tbl-listing-ofc-matched-foods
 #| tbl-cap: Listing of infants with oral food challenge outcome and SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ofc |>
-  select(record_id, po_ofc_match) |>
+  select(record_id, trt, po_ofc_foods, po_ofc_match) |>
   gt() |>
-  cols_label(po_ofc_match ~ "SPT positive foods") |>
-  tab_options(table.font.size = px(9), table.width = pct(40))
+  cols_label(
+    trt ~ "Group",
+    po_ofc_foods ~ "OFC positive foods",
+    po_ofc_match ~ "Foods with positive SPT"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(75))
 ```
 
 ```{r}
@@ -1742,10 +1953,14 @@ dat_po_ofc |>
 #| tbl-cap: Listing of infants with anaphylaxis outcome and SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ana |>
-  select(record_id, po_ana_match) |>
+  select(record_id, trt, po_ana_foods, po_ana_match) |>
   gt() |>
-  cols_label(po_ana_match ~ "SPT positive foods") |>
-  tab_options(table.font.size = px(9), table.width = pct(40))
+  cols_label(
+    trt ~ "Group",
+    po_ana_foods ~ "Anaphylaxis foods",
+    po_ana_match ~ "Foods with positive SPT"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(75))
 ```
 
 ```{r}
@@ -1753,10 +1968,14 @@ dat_po_ana |>
 #| tbl-cap: Listing of infants with IgE-mediated food allergy outcome and SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ige |>
-  select(record_id, po_ige_match) |>
+  select(record_id, trt, po_ige_foods, po_ige_match) |>
   gt() |>
-  cols_label(po_ige_match ~ "SPT positive foods") |>
-  tab_options(table.font.size = px(9), table.width = pct(40))
+  cols_label(
+    trt ~ "Group",
+    po_ige_foods ~ "IgE mediated foods",
+    po_ige_match ~ "Foods with positive SPT"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(75))
 ```
 
 \clearpage
