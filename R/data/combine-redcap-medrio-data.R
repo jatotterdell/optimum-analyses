@@ -541,6 +541,65 @@ combine_vax_admin_v1 <- function() {
   vaxv1
 }
 
+combine_vax_admin_v3 <- function() {
+  # In stage 2, 18-month vax was visit 3
+  st2_vaxv3 <- extract_tibble(st2_data, "vaccine_administration_v3") |>
+    select(
+      -redcap_event,
+      -form_status_complete,
+      -redcap_data_access_group,
+      -vac7admtim,
+      -vac7obtim
+    ) |>
+    mutate(
+      vac7admdat = as_date(vac7admdat)
+    )
+  # In stage 1, 18-month vax was visit 7
+  st1_visv3 <- read_delim(
+    file.path(st1_path, "V2-5.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    filter(visit == "Visit 7") |>
+    select(medrioid, visdat) |>
+    mutate(visdat = as_date(visdat, format = "%d-%b-%Y"))
+  st1_vaxv3 <- read_delim(
+    file.path(st1_path, "VAX V7.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -c(
+        ends_with("_coded"),
+        subjectid,
+        subjectstatus,
+        site,
+        visit,
+        form,
+        formentrydate,
+        subjectvisitformid
+      )
+    )
+  st1_vaxv3 <- left_join(
+    st1_visv3,
+    st1_vaxv3,
+    join_by(medrioid)
+  ) |>
+    rename(
+      vac7admdat = visdat,
+      vac7iploc = vac7ipvloc,
+      record_id = medrioid,
+      vac7hibexp = vac7hepexp
+    ) |>
+    mutate(
+      record_id = as.character(record_id),
+      vac7adyn = vac7adyn == "Yes",
+      vac7obyn = vac7obyn == "Yes",
+      vac7obae = vac7obae == "Yes"
+    )
+  bind_rows(st1_vaxv3, st2_vaxv3)
+}
+
 combine_participant_assessment <- function() {
   # For PCH participants, expect assessment at visit 2, 3, and 4
   # For all others, only at visit 2 and 3.
@@ -2052,6 +2111,7 @@ dat_demo <- combine_demographics()
 dat_bh <- combine_birth_history()
 dat_mh <- combine_medical_history()
 dat_vax_v1 <- combine_vax_admin_v1()
+dat_vax_v3 <- combine_vax_admin_v3()
 dat_spt <- combine_skin_prick_test()
 dat_oth_imm <- combine_other_immuno_data()
 dat_fc <- combine_food_challenge()
@@ -2072,6 +2132,7 @@ optimum_data <- list(
   "birth_history" = dat_bh,
   "medical_history" = dat_mh,
   "vaccine_administration_v1" = dat_vax_v1,
+  "vaccine_administration_v3" = dat_vax_v3,
   "skin_prick_test" = dat_spt,
   "other_immunological" = dat_oth_imm,
   "food_challenge" = dat_fc,
