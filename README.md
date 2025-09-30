@@ -14,6 +14,26 @@ The two databases have some differences between them in the available forms, fie
 The necessary forms from the two databases are combined into dataframes, one for each form, via `R/data/combine-redcap-medrio-data.R`.
 This is then stored as `PRJ-OPTIMUM/data/derived/optimum-data.qs"`.
 
+In particular, the schedule of assessment was different between stage 1 and 2.
+
+**In stage 1**:
+
+- visit 1 (6-weeks)
+- visit 2 (4-months)
+- visit 3 (6-months)
+- visit 4 (6-months + 72 hrs) [optional visit]
+- visit 5 (7-months)
+- visit 6 (12-months)
+- visit 7 (18-months)
+- visit 8 (19-months)
+
+**In stage 2**:
+
+- visit 1 (6-weeks)
+- visit 2 (12-months)
+- visit 3 (18-months)
+- visit 4 (19-months) [first 150 at PCH only]
+
 Further data processing functions (e.g. deriving outcomes) are defined in `R/data/process-combined-data.R`.
 
 Forms to be mapped between Medrio and REDCap (and their current status) are:
@@ -35,7 +55,7 @@ Forms to be mapped between Medrio and REDCap (and their current status) are:
 - [x] food_challenge
 - [ ] physical_examination
 - [ ] vaccine_administration_v2
-- [ ] vaccine_administration_v3
+- [x] vaccine_administration_v3
 - [x] outcome_report
 - [x] primary_outcome_status
 - [x] nonstudy_vaccination_log
@@ -54,7 +74,6 @@ The relevant elements are (see [https://doi.org/10.1136/bmjopen-2020-042838](htt
 
 - [x] sample characteristics
   - [x] at baseline
-  - [ ] during follow-up
 - [x] primary outcome of IgE mediated food allergy by 18 months of age
 - secondary outcomes:
   - [x] new onset eczema by 6 or 12 months of age with positive skin prick test
@@ -62,6 +81,11 @@ The relevant elements are (see [https://doi.org/10.1136/bmjopen-2020-042838](htt
     - [x] 1mm greater than negative control
     - [x] 3mm greater than or equal to negative control
 - [x] SAE listing
-- [ ] AE summaries
+- [x] AE summaries
 - [ ] diary card data
 - [x] IgG data (in a standalone report)
+
+## Notebooks
+
+Files in notebooks were working documents for interactive checking of outcome derivations and can be ignored.
+These were not kept up to date with current data processing so may not run without error and are not used for trial reporting.
