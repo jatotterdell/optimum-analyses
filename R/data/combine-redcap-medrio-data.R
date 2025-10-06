@@ -691,40 +691,69 @@ combine_food_household <- function() {
         .default = NA_character_
       )
     )
-  st2_food_v1 <- st2_food |>
-    filter(redcap_event == "visit_1") |>
-    select(-redcap_event, -redcap_data_access_group) |>
-    mutate(fedat = as_date(fedat)) |>
+
+  st2_food <- st2_food |>
     select(
       record_id,
+      visit_age,
+      fe_phone,
       fecurr,
       febfever,
       febfform,
       fethickyn,
       fesolyn,
       fefadiag,
+      fefadiagspec,
+      fefadiadat,
       fesupp,
       ferash,
       fecat,
       fedog,
-      fedcyn
-    )
-  st2_ecz <- st2_food |>
-    select(
-      record_id,
-      redcap_event,
-      redcap_survey_timestamp,
-      visit_age,
-      fe_phone,
-      fedat,
-      fecurr,
-      fefadiag,
-      fefadiagspec,
-      fefadiadat,
+      fedcyn,
       feecz,
       feeczdat
     ) |>
-    select(-redcap_event)
+    mutate(
+      across(
+        c(febfever, febfform, fethickyn, fesupp, ferash, fedcyn),
+        ~ case_match(.x, FALSE ~ "No", TRUE ~ "Yes")
+      )
+    )
+
+  # st2_food_v1 <- st2_food |>
+  #   filter(redcap_event == "visit_1") |>
+  #   select(-redcap_event, -redcap_data_access_group) |>
+  #   mutate(fedat = as_date(fedat)) |>
+  #   select(
+  #     record_id,
+  #     fecurr,
+  #     febfever,
+  #     febfform,
+  #     fethickyn,
+  #     fesolyn,
+  #     fefadiag,
+  #     fesupp,
+  #     ferash,
+  #     fecat,
+  #     fedog,
+  #     fedcyn
+  #   )
+  # st2_ecz <- st2_food |>
+  #   select(
+  #     record_id,
+  #     redcap_event,
+  #     redcap_survey_timestamp,
+  #     visit_age,
+  #     fe_phone,
+  #     fedat,
+  #     fecurr,
+  #     fefadiag,
+  #     fefadiagspec,
+  #     fefadiadat,
+  #     feecz,
+  #     feeczdat
+  #   ) |>
+  #   select(-redcap_event)
 
   # For Medrio, the food questionnaires are split between specific visits
   # The variable names differ, but for the most part the same information
@@ -753,7 +782,8 @@ combine_food_household <- function() {
       show_col_types = FALSE,
       col_select = -ends_with("_CODED")
     ) |>
-      rename_with(tolower)
+      rename_with(tolower) |>
+      select(-fefdagun)
   )
   # For the date fields
   # Phone contact dates
@@ -788,57 +818,43 @@ combine_food_household <- function() {
   st1_visits <- bind_rows(st1_visits_v1, st1_visits_v2) |>
     bind_rows(st1_phone)
 
-  # Eczema diagnoses at visit 1
-  st1_ecz_v1 <- st1_food_v1 |>
-    filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
-    select(medrioid, visit, fecurr, fefadiag, feecx) |>
+  st1_food_v2 <- st1_food_v2 |>
+    rename_with(~ gsub("fe2", "fe", .x))
+  st1_food_v3 <- st1_food_v3 |>
+    rename_with(~ gsub("fe6", "fe", .x))
+
+  st1_food <- bind_rows(
+    st1_food_v1,
+    st1_food_v2,
+    st1_food_v3
+  ) |>
+    filter(is.na(vargroup1row & is.na(vargroup2row) & is.na(vargroup3row))) |>
+    select(
+      medrioid,
+      subjectid,
+      visit,
+      fecurr,
+      febfever,
+      febfform,
+      fethickyn,
+      fesolyn,
+      fefadiag,
+      fefadiagspec,
+      fefadiagstag,
+      fesupp,
+      ferash,
+      fecat,
+      fedog,
+      fedcyn,
+      feecx,
+      feeczag,
+      feexstun
+    ) |>
     left_join(st1_visits, join_by(medrioid, visit)) |>
-    rename(feecz = feecx)
-  # Eczema diagnoses at visits 2 - 5
-  st1_ecz_v2 <- st1_food_v2 |>
-    filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
-    select(
-      medrioid,
-      visit,
-      fe2curr,
-      fe2fadiag,
-      fe2fadiagspec,
-      fe2fadiagstag,
-      fe2ecx,
-      fe2eczag,
-      fe2exstun
-    ) |>
     rename(
-      fecurr = fe2curr,
-      fefadiag = fe2fadiag,
-      fefadiagspec = fe2fadiagspec,
-      fefadiagstag = fe2fadiagstag,
-      feecz = fe2ecx,
-      feeczag = fe2eczag,
-      feeczstun = fe2exstun
+      feecz = feecx,
+      feeczstun = feexstun
     ) |>
-    left_join(st1_visits, join_by(medrioid, visit))
-  # Eczema diagnoses at phone contact and visits 6 - 8
-  st1_ecz_v3 <- st1_food_v3 |>
-    filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
-    select(
-      medrioid,
-      visit,
-      fe6fadiag,
-      fe6fadiagspec,
-      fe6fadiagstag,
-      fe6ecx,
-      fe6eczag
-    ) |>
-    rename(
-      fefadiag = fe6fadiag,
-      fefadiagspec = fe6fadiagspec,
-      fefadiagstag = fe6fadiagstag,
-      feecz = fe6ecx,
-      feeczag = fe6eczag
-    ) |>
-    left_join(st1_visits, join_by(medrioid, visit))
-  st1_ecz <- bind_rows(st1_ecz_v1, st1_ecz_v2, st1_ecz_v3) |>
     arrange(medrioid) |>
     mutate(
       record_id = as.character(medrioid),
@@ -859,9 +875,88 @@ combine_food_household <- function() {
     ) |>
     select(-visit, -medrioid)
 
-  ecz <- bind_rows(st2_ecz, st1_ecz)
-  var_label(ecz) <- var_label(st2_ecz)
-  ecz
+  # Eczema diagnoses at visit 1
+  # st1_ecz_v1 <- st1_food_v1 |>
+  #   filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
+  #   select(medrioid, visit, fecurr, fefadiag, feecx) |>
+  #   left_join(st1_visits, join_by(medrioid, visit)) |>
+  #   rename(feecz = feecx)
+  # # Eczema diagnoses at visits 2 - 5
+  # st1_ecz_v2 <- st1_food_v2 |>
+  #   filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
+  #   select(
+  #     medrioid,
+  #     visit,
+  #     fe2curr,
+  #     fe2fadiag,
+  #     fe2fadiagspec,
+  #     fe2fadiagstag,
+  #     fe2ecx,
+  #     fe2eczag,
+  #     fe2exstun
+  #   ) |>
+  #   rename(
+  #     fecurr = fe2curr,
+  #     fefadiag = fe2fadiag,
+  #     fefadiagspec = fe2fadiagspec,
+  #     fefadiagstag = fe2fadiagstag,
+  #     feecz = fe2ecx,
+  #     feeczag = fe2eczag,
+  #     feeczstun = fe2exstun
+  #   ) |>
+  #   left_join(st1_visits, join_by(medrioid, visit))
+  # # Eczema diagnoses at phone contact and visits 6 - 8
+  # st1_ecz_v3 <- st1_food_v3 |>
+  #   filter(is.na(vargroup1row) & is.na(vargroup2row) & is.na(vargroup3row)) |>
+  #   select(
+  #     medrioid,
+  #     visit,
+  #     fe6fadiag,
+  #     fe6fadiagspec,
+  #     fe6fadiagstag,
+  #     fe6ecx,
+  #     fe6eczag
+  #   ) |>
+  #   rename(
+  #     fefadiag = fe6fadiag,
+  #     fefadiagspec = fe6fadiagspec,
+  #     fefadiagstag = fe6fadiagstag,
+  #     feecz = fe6ecx,
+  #     feeczag = fe6eczag
+  #   ) |>
+  #   left_join(st1_visits, join_by(medrioid, visit))
+  # st1_ecz <- bind_rows(st1_ecz_v1, st1_ecz_v2, st1_ecz_v3) |>
+  #   arrange(medrioid) |>
+  #   mutate(
+  #     record_id = as.character(medrioid),
+  #     fe_phone = grepl("phone", visit),
+  #     visit_age = case_when(
+  #       visit == "Visit 1" ~ "6-week",
+  #       visit == "Visit 2" ~ "4-month",
+  #       visit == "Visit 3" ~ "6-month",
+  #       visit == "Visit 4" ~ "6-month + 72 hrs",
+  #       visit == "Visit 5" ~ "7-month",
+  #       visit == "9 month phone contact" ~ "9-month",
+  #       visit == "Visit 6" ~ "12-month",
+  #       visit == "15 month phone contact" ~ "15-month",
+  #       visit == "Visit 7" ~ "18-month",
+  #       visit == "Visit 8" ~ "19-month",
+  #       .default = NA_character_
+  #     )
+  #   ) |>
+  #   select(-visit, -medrioid)
+
+  # ecz <- bind_rows(st2_ecz, st1_ecz)
+  # var_label(ecz) <- var_label(st2_ecz)
+  # ecz
+
+  st_food <- bind_rows(st2_food, st1_food) |>
+    mutate(
+      fecat = if_else(fecat == "N/A", "No", fecat),
+      fedog = if_else(fedog == "N/A", "No", fedog)
+    )
+  var_label(st_food) <- var_label(st2_food)
+  st_food
 }
 
 combine_outcome_report <- function() {
