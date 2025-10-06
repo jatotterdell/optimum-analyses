@@ -90,16 +90,59 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
   }
   dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire") |>
     filter(visit_age == "6-week") |>
-    select(record_id, fecurr)
+    select(record_id, fecurr) |>
+    mutate(
+      bfed = factor(
+        case_match(
+          fecurr,
+          "Exclusively Breastfed" ~ "exclusively",
+          c(
+            "Both breastfed and formula-fed",
+            "Both breastfed and started on solids"
+          ) ~
+            "partially",
+          "Exclusively formula-fed" ~ "not"
+        ),
+        levels = c("exclusively", "partially", "not")
+      )
+    )
   dat_bh <- select_form(dat_raw, "birth_history") |>
+    select(-starts_with("sibage"), -matches("(prevac|prevdat)[4-5]")) |>
     mutate(
       fborn = if_else(
         is.na(sibnum) | (sibnum %in% c("Not Applicable", "Unknown")),
         "Yes",
         "No"
+      ),
+      # Here impute one missing case as "not cesarean section"
+      ces = factor(
+        grepl("caes", delt),
+        levels = c(TRUE, FALSE),
+        labels = c("cesarean", "not cesarean")
+      ),
+      mgrav_fac = cut(
+        mgrav,
+        breaks = c(0, 1, 2, 3, 4, 5, Inf),
+        labels = c("1", "2", "3", "4", "5", "6+")
+      ),
+      mpar_fac = cut(
+        mpar,
+        breaks = c(0, 1, 2, 3, Inf),
+        labels = c("1", "2", "3", "4+")
+      ),
+      aps1_fac = cut(
+        aps1,
+        breaks = c(0, 7, 8, 9, 10),
+        labels = c("1-7", "8", "9", "10")
+      ),
+      aps5_fac = cut(
+        aps5,
+        breaks = c(0, 7, 8, 9, 10),
+        labels = c("1-7", "8", "9", "10")
       )
-    ) |>
-    select(record_id, fborn)
+    )
+  dat_fha <- select_form(dat_raw, "family_history_of_atopy") |>
+    select(record_id, fha)
   dat_st <- get_study_termination(dat_raw)
   rnd |>
     mutate(randdat = date(randdattim)) |>
@@ -121,15 +164,12 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
     ) |>
     left_join(dat_fhq, join_by(record_id)) |>
     left_join(dat_bh, join_by(record_id)) |>
+    left_join(dat_fha, join_by(record_id)) |>
     mutate(
+      v1_age_days = interval(birthdat, visdat1) %/% days(1),
       v1_age_wk = interval(birthdat, visdat1) %/% weeks(1),
       rand_age_wk = interval(birthdat, randdat) %/% weeks(1),
       disc_age_mth = interval(birthdat, discdat_imp) %/% months(1)
-    ) |>
-    left_join(
-      select_form(dat_raw, "birth_history") |>
-        select(-starts_with("sibage"), -matches("(prevac|prevdat)[4-5]")),
-      join_by(record_id)
     )
 }
 
@@ -150,7 +190,7 @@ get_skin_prick_long <- function(dat_raw) {
   )
   dat_spt <- select_form(dat_raw, "skin_prick_test") |>
     filter(!is.na(priyn)) |> # Exclude 2 "records" with no data
-    filter(!(spt_occasion == "unscheduled" & !priyn)) |># Exclude 1 "record" with no data
+    filter(!(spt_occasion == "unscheduled" & !priyn)) |> # Exclude 1 "record" with no data
     filter(priyn)
 
   dat_spt_other <- select_form(dat_raw, "other_immunological") |>
