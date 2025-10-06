@@ -53,7 +53,8 @@ combine_randomisation <- function() {
 
 combine_study_termination <- function() {
   st2_st <- extract_tibble(st2_data, "study_termination") |>
-    select(-redcap_event, -form_status_complete, -redcap_data_access_group)
+    select(-redcap_event, -form_status_complete, -redcap_data_access_group) |>
+    mutate(discdat = as_date(discdat, format = "%Y-%m-%d"))
   st1_st <- read_delim(
     file.path(st1_path, "ST.txt"),
     show_col_types = FALSE,
@@ -439,9 +440,12 @@ combine_family_history_atopy <- function() {
         any(is.na(c(fhaast, fhaecz, fhaar, fhafa))) ~ NA_real_,
         TRUE ~ 0
       ),
-      fha = case_when(
-        any(c(fhaast, fhaecz, fhaar, fhafa) == 1, na.rm = TRUE) ~ 1,
-        TRUE ~ 0
+      fha = factor(
+        case_when(
+          any(c(fhaast, fhaecz, fhaar, fhafa) == 1, na.rm = TRUE) ~ "Yes",
+          TRUE ~ "No"
+        ),
+        levels = c("Yes", "No")
       )
     ) |>
     ungroup()
@@ -871,6 +875,7 @@ combine_outcome_report <- function() {
     ) |>
     filter(!(record_id_num > 1 & is.na(outalltp))) |>
     mutate(
+      outfrraspec = as.numeric(outfrraspec),
       outdiagdat = as_date(outdiagdat),
       outageval = as.numeric(outageval),
       outageval_months = case_when(
@@ -1445,7 +1450,12 @@ combine_sae <- function() {
   st2_sae <- extract_tibble(st2_data, "sae_reporting_log") |>
     select(-redcap_event, -redcap_data_access_group, -form_status_complete) |>
     rename(sae_num = redcap_form_instance) |>
-    filter((is.na(saeyn) & sae_num > 1) | saeyn)
+    filter((is.na(saeyn) & sae_num > 1) | saeyn) |>
+    mutate(
+      saedat = as_date(saedat, format = "%Y-%m-%d"),
+      saestdat = as_date(saestdat, format = "%Y-%m-%d"),
+      saerpdat = as_date(saerpdat, format = "%Y-%m-%d"),
+    )
   st2_sae
 }
 
