@@ -697,6 +697,7 @@ combine_food_household <- function() {
       record_id,
       visit_age,
       fe_phone,
+      fedat,
       fecurr,
       febfever,
       febfform,
