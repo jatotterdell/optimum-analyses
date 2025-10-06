@@ -147,7 +147,7 @@ dat_grid <- dat_base |>
     visit_age
   ) |>
   mutate(discage = interval(birthdat, discdat) %/% months(1)) |>
-  select(-fecurr)
+  select(-fecurr, -fedog, -fecat, -fedcyn)
 
 dat_grid_fhq <- dat_grid |>
   left_join(dat_fhq, join_by(record_id, visit_age)) |>
@@ -275,17 +275,17 @@ d.  A SPT **≥3mm** greater than the negative control to at least one allergen 
 
 For both food allergy and eczema, sensitisation on (positive) SPT was defined to be a result more than 1mm greater than negative control by 18 months of age.
 
-For eczema, the age requirement (by 6 or 12 months of age) was determined by the "age at which allergy first occurred" (`outageval`). To be considered "new-onset" eczema, this age at which allergy first occurred needed to be after the infants enrolment date. Infants with clinician-diagnosed eczema first occurring prior to enrolment should be excluded as it's not possible for them to have "new-onset eczema".
+For eczema, the age requirement (by 6 or 12 months of age) was determined by the "age at which allergy first occurred" (`outageval`). To be considered "new-onset" eczema, this age at which allergy first occurred needed to be after the infants enrolment date. Infants with clinician-diagnosed eczema first occurring prior to enrolment were to be excluded as it's not possible for them to have "new-onset eczema".
 
 ## Analyses
 
 ### Primary outcome
 
-The primary analysis was to assume independent Binomial models for occurence of food allergy under each treatment group with uniform priors on the outcome probabilities. A secondary analysis was to assume a logistic regression model for occurence of food allergy adjusting for site, sex, ...
+The primary analysis was to assume independent Binomial models for occurence of food allergy under each treatment group with uniform priors on the outcome probabilities. A secondary analysis was to assume a logistic regression model for occurence of food allergy adjusting for baseline factors: site, sex, breastfeeding status, birth order, parental income, mode of delivery, and family history of atopic disease.
 
 ### Secondary clinical outcomes
 
-Analyses of secondary outcomes are analagous to those for the primary outcome.
+Analyses of secondary outcomes are analagous to those for the primary outcome, both the primary and secondary models.
 
 \clearpage
 
@@ -335,6 +335,8 @@ dat_base |>
       parinc,
       fborn,
       fecurr,
+      fecat,
+      fedog,
       # Birth history
       mgrav_fac,
       mpar_fac,
@@ -351,7 +353,9 @@ dat_base |>
       inmpertvp,
       vacad,
       prevpert,
-      minfvp
+      minfvp,
+      # Family history
+      fha
     ),
     label = list(
       v1_age_days ~ "Age at enrolment (days)",
@@ -360,7 +364,10 @@ dat_base |>
       mpar_fac ~ "Maternal parity",
       aps1_fac ~ "Apgar score (1 minute)",
       aps5_fac ~ "Apgar score (5 minutes)",
-      prevpert ~ "Other maternal pertussis vaccination (last 5 years)"
+      prevpert ~ "Other maternal pertussis vaccination (last 5 years)",
+      fha ~ "Family history of atopy",
+      fecat ~ "Cat ownership",
+      fedog ~ "Dog ownership"
     ),
     by = trt,
     missing_text = "(Missing)"
@@ -1880,18 +1887,30 @@ dat_base_ae |>
 ```{r}
 #| label: tbl-listing-ae-related-pch
 #| tbl-cap: |
-#|   Number and proportion of events with any adverse events and the number of adverse events per infant, at PCH.
+#|   Listing of adverse events designated as "Related".
 #| tbl-pos: "H"
 dat_base_ae |>
   filter(aerel == "Related") |>
-  select(record_id, trt, aecode1, aetype, aesev, aerel, aetymead) |>
+  select(record_id, trt, aecode1, aeday_v1, aetype, aesev, aerel, aetymead) |>
   gt() |>
   cols_label(
-    trt ~ "Treatment"
+    trt ~ "Treatment",
+    aeday_v1 ~ "Days after visit 1"
   ) |>
   tab_options(table.font.size = px(9), table.width = pct(100)) |>
-  cols_width(aecode1 ~ px(100), aetymead ~ px(100), aerel ~ px(100)) |>
+  cols_width(
+    record_id ~ px(80),
+    trt ~ px(80),
+    aecode1 ~ px(100),
+    aetymead ~ px(100),
+    aerel ~ px(80),
+    aetype ~ px(80),
+    aesev ~ px(80),
+    aerel ~ px(80),
+    aeday_v1 ~ px(60)
+  ) |>
   cols_align(align = "left") |>
+  cols_align(aeday_v1, align = "right") |>
   sub_missing()
 ```
 
@@ -1989,7 +2008,7 @@ dat_po_ofc |>
   select(record_id, trt, po_ofc_foods, po_ofc_match) |>
   gt() |>
   cols_label(
-    trt ~ "Group",
+    trt ~ "Treatment",
     po_ofc_foods ~ "OFC positive foods",
     po_ofc_match ~ "Foods with positive SPT"
   ) |>
@@ -2004,7 +2023,7 @@ dat_po_ana |>
   select(record_id, trt, po_ana_foods, po_ana_match) |>
   gt() |>
   cols_label(
-    trt ~ "Group",
+    trt ~ "Treatment",
     po_ana_foods ~ "Anaphylaxis foods",
     po_ana_match ~ "Foods with positive SPT"
   ) |>
@@ -2019,7 +2038,7 @@ dat_po_ige |>
   select(record_id, trt, po_ige_foods, po_ige_match) |>
   gt() |>
   cols_label(
-    trt ~ "Group",
+    trt ~ "Treatment",
     po_ige_foods ~ "IgE mediated foods",
     po_ige_match ~ "Foods with positive SPT"
   ) |>
@@ -2036,15 +2055,16 @@ dat_po_ige |>
 #| tbl-pos: "H"
 dat_ecz_spt |>
   filter(!out_ecz_preexisting, ecz, any_pos_spt) |>
-  select(record_id, outageval_months2) |>
+  select(record_id, trt, outageval_months2) |>
   gt() |>
   fmt_number(decimals = 0) |>
   cols_label(
+    trt ~ "Treatment",
     outageval_months2 ~ "Age at first reaction (months)"
   ) |>
   tab_options(
     table.font.size = px(9),
-    table.width = pct(40),
+    table.width = pct(60),
     latex.use_longtable = TRUE
   )
 ```
