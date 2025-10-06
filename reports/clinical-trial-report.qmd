@@ -210,7 +210,11 @@ dat_spt_analysis <- dat_spt |>
       record_id,
       rand_site,
       gender,
-      fborn
+      bfed,
+      fborn,
+      parinc_imp,
+      ces,
+      fha
     ),
     join_by(record_id)
   )
@@ -238,7 +242,7 @@ dat_ecz_analysis <- dat_ecz_spt |>
   select(record_id, trt, ecz_6m, ecz_12m, ecz_18m) |>
   left_join(
     dat_base |>
-      select(record_id, rand_site, gender, fborn),
+      select(record_id, rand_site, gender, bfed, fborn, parinc_imp, ces, fha),
     join_by(record_id)
   )
 ```
@@ -324,7 +328,40 @@ The baseline characteristics of participants are reported in @tbl-baseline-chara
 #| output: "asis"
 dat_base |>
   tbl_summary(
-    include = c(gender, parinc, delt, wgt, len, inhc),
+    include = c(
+      # Demographics and infant history
+      gender,
+      v1_age_days,
+      parinc,
+      fborn,
+      fecurr,
+      # Birth history
+      mgrav_fac,
+      mpar_fac,
+      delt,
+      ipab,
+      neoab,
+      gestadelw,
+      wgt,
+      len,
+      inhc,
+      aps1_fac,
+      aps5_fac,
+      # Maternal immunisation
+      inmpertvp,
+      vacad,
+      prevpert,
+      minfvp
+    ),
+    label = list(
+      v1_age_days ~ "Age at enrolment (days)",
+      fborn ~ "First born",
+      mgrav_fac ~ "Maternal gravidity",
+      mpar_fac ~ "Maternal parity",
+      aps1_fac ~ "Apgar score (1 minute)",
+      aps5_fac ~ "Apgar score (5 minutes)",
+      prevpert ~ "Other maternal pertussis vaccination (last 5 years)"
+    ),
     by = trt,
     missing_text = "(Missing)"
   ) |>
@@ -338,6 +375,12 @@ dat_base |>
       )
   ) |>
   as_gt() |>
+  cols_width(label ~ pct(30)) |>
+  tab_options(
+    table.width = pct(100),
+    table.font.size = px(9),
+    latex.use_longtable = TRUE
+  ) |>
   as_latex() |>
   latex_unescape() |>
   fix_footnote() |>
@@ -941,7 +984,8 @@ fit_outcome <- dat_spt_analysis |>
       data,
       \(x) {
         brm(
-          outcome ~ trt + rand_site + gender + fborn,
+          outcome ~
+            trt + rand_site + gender + bfed + fborn + parinc_imp + ces + fha,
           data = x,
           family = bernoulli(),
           prior = prior,
@@ -1210,10 +1254,13 @@ dat_po <- dat_base |>
     rand_site,
     trt,
     gender,
-    parinc,
+    parinc_imp,
     delt,
     fecurr,
     fborn,
+    bfed,
+    ces,
+    fha,
     starts_with("po")
   )
 ```
@@ -1327,7 +1374,7 @@ prior <- c(
   prior(student_t(4, 0, 1.75), class = "b")
 )
 fit <- brm(
-  po ~ trt + rand_site + gender + fborn,
+  po ~ trt + rand_site + gender + bfed + fborn + parinc_imp + ces + fha,
   data = dat_po,
   family = bernoulli(),
   prior = prior,
@@ -1600,7 +1647,8 @@ fit_outcome <- dat_ecz_analysis |>
       data,
       \(x) {
         brm(
-          outcome ~ trt + rand_site + gender + fborn,
+          outcome ~
+            trt + rand_site + gender + bfed + fborn + parinc_imp + ces + fha,
           data = x,
           family = bernoulli(),
           prior = prior,
