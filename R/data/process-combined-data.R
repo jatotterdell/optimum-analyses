@@ -114,7 +114,7 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
         "Yes",
         "No"
       ),
-      # Here impute one missing case as "not cesarean section"
+      # Here impute one missing case as "not cesarean section" (the most common value)
       ces = factor(
         grepl("caes", delt),
         levels = c(TRUE, FALSE),
@@ -159,7 +159,11 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
     left_join(dat_st, join_by(record_id)) |>
     left_join(
       select_form(dat_raw, "demographics") |>
-        select(-ptinit, -calcagem, -starts_with("eto")),
+        select(-ptinit, -calcagem, -starts_with("eto")) |>
+        mutate(
+          # Impute 1 missing case as most common level
+          parinc_imp = if_else(is.na(parinc), ">$180,000", parinc),
+        ),
       join_by(record_id)
     ) |>
     left_join(dat_fhq, join_by(record_id)) |>
