@@ -92,6 +92,8 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
     filter(visit_age == "6-week") |>
     select(record_id, fecurr, fecat, fedog, fedcyn) |>
     mutate(
+      fecat = factor(fecat, levels = c("No", "Inside", "Outside", "Both")),
+      fedog = factor(fedog, levels = c("No", "Inside", "Outside", "Both")),
       bfed = factor(
         case_match(
           fecurr,
