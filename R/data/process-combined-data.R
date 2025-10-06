@@ -90,7 +90,7 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
   }
   dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire") |>
     filter(visit_age == "6-week") |>
-    select(record_id, fecurr) |>
+    select(record_id, fecurr, fecat, fedog, fedcyn) |>
     mutate(
       bfed = factor(
         case_match(
