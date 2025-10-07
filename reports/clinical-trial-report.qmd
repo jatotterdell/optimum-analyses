@@ -383,6 +383,13 @@ dat_base |>
   ) |>
   as_gt() |>
   cols_width(label ~ pct(30)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = label,
+      rows = row_type == "label"
+    )
+  ) |>
   tab_options(
     table.width = pct(100),
     table.font.size = px(9),
