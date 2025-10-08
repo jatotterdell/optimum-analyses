@@ -254,6 +254,35 @@ dat_ecz_analysis <- dat_ecz_spt |>
 
 # Introduction
 
+## Purpose
+
+This report summarises the data and results of the analyses for main outcomes of the OPTIMUM
+trial. 
+The report includes results for:
+
+- baseline demographics
+- food allergy
+- eczema
+- safety data
+
+It does not include the immunogenicity outcomes which have been reported elsewhere.
+
+For full details of the trial processes, objectives, and outcomes refer to the protocol
+and statistical analysis plan.
+
+## Interventions
+
+Participants were randomised 1:1 to receive either:
+
+- Combined Diphtheria (D)-Tetanus (T)-acellular Pertussis (aP), Hepatitis B (HepB),
+Inactivated Poliovirus (IPV) and Haemophilus influenzae type b (Hib) vaccine (DTaPHepB-
+IPV-Hib) administered at approximately 2 months, together with the standard
+schedule of vaccines (referred to as 3-aP + aP or aP for short), OR
+- Combined Diphtheria (D)-Tetanus (T)-whole cell Pertussis (wP), Hepatitis B (HepB)
+and Haemophilus influenzae type b (Hib) vaccine (DTwP-HepB- Hib) in place of
+DTaP-HepB-IPV-Hib at approximately 2 months, together with the standard schedule
+of vaccines (referred to as 1-wP/2-aP + aP or wP for short).
+
 ## Trial outcomes
 
 ### Primary outcome (1)
@@ -296,6 +325,10 @@ Analyses of secondary outcomes are analagous to those for the primary outcome, b
 
 ## Enrolment
 
+The first participant was randomised on `r as_date(min(dat_base$randdattim))` and the final participant was randomised
+on `r as_date(max(dat_base$randdattim))`. 
+A summary of enrolment over calendar time is presented in @fig-enrolment-overall
+
 ```{r}
 #| label: fig-enrolment-overall
 #| fig-cap: Cumulative enrolment.
@@ -322,7 +355,8 @@ ggplot(
 
 ## Characteristics
 
-The baseline characteristics of participants are reported in @tbl-baseline-characteristics.
+There were `r nrow(dat_base)` participants overall. 
+The baseline characteristics of participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics.
 
 ```{r}
 #| label: tbl-baseline-characteristics
