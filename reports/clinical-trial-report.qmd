@@ -15,12 +15,15 @@ suppressPackageStartupMessages({
   library(forcats)
   library(lubridate)
   library(labelled)
+  library(arrow)
 
   # Figures
   library(ggplot2)
   library(ggdist)
   library(showtext)
   library(patchwork)
+  library(legendry)
+  library(ggh4x)
 
   # Tables
   library(gt)
@@ -1999,7 +2002,577 @@ dat_base_ae |>
 
 ## Diary Cards
 
+Combined stage 1 and stage 2 diary card responses are reported in the following sections.
 
+```{r}
+#| label: diary-data
+st1_pth <- file.path(
+  Sys.getenv("RDS_PATH"),
+  "data",
+  "derived",
+  "tidy",
+  "stage1"
+)
+
+plot_react <- function(
+  dat,
+  trt = treatment,
+  var = intensity,
+  slab = "Intensity",
+  ref = 0,
+  ymax = 1
+) {
+  pdat <- dat |>
+    group_by({{ trt }}, vaxage, day) |>
+    count({{ var }}) |>
+    mutate(
+      p = n / if_else(is.na({{ var }}), sum(n), sum(n[!is.na({{ var }})]))
+    ) |>
+    ungroup() |>
+    complete({{ trt }}, vaxage, day, {{ var }}, fill = list(n = 0, p = 0))
+  plab <- dat |>
+    summarise(
+      n = sum({{ var }} != ref, na.rm = TRUE),
+      p = mean({{ var }} != ref, na.rm = TRUE),
+      lab = sprintf(
+        "%i/%i",
+        sum({{ var }} != ref, na.rm = TRUE),
+        sum(!is.na({{ var }}))
+      ),
+      .by = c({{ trt }}, vaxage, day)
+    )
+  p <- ggplot(
+    pdat |> filter({{ var }} != ref),
+    aes(interaction(day, to_factor({{ trt }}), sep = "!"), p)
+  ) +
+    facet_wrap(~ fct_na_value_to_level(to_factor(vaxage)), ncol = 2) +
+    geom_col(aes(fill = to_factor({{ var }})), width = 0.8) +
+    geom_text(
+      data = plab,
+      aes(label = lab),
+      vjust = -1,
+      size = 1.5,
+      family = "TeX Gyre Pagella"
+    ) +
+    scale_fill_viridis_d(slab) +
+    scale_x_discrete(
+      guide = legendry::guide_axis_nested(key = key_range_auto(sep = "!")),
+      name = "Day following vaccination"
+    ) +
+    scale_y_continuous("Proportion", limit = c(0, ymax), expand = c(0, 0)) +
+    labs(y = "Proportion") +
+    theme(legend.position = "bottom", panel.grid.major.x = element_blank())
+  return(p)
+}
+
+plot_sys_reaction <- function(diary_sol, x, ymax = 1) {
+  p <- diary_sol |>
+    mutate(intensity = ordered(as.numeric(intensity) - 1)) |>
+    filter(term == x) |>
+    plot_react(trt, intensity, x, "0", ymax = ymax) +
+    geom_vline(xintercept = 7.5, linetype = 1, colour = "grey80") +
+    labs(
+      caption = paste0(
+        "Grade 1: easily tolerated\n",
+        "Grade 2: interferes with normal everyday activities\n",
+        "Grade 3: prevents normal everyday activities or requires significant medical intervention\n"
+      )
+    ) +
+    theme(
+      plot.caption = element_text(hjust = 0, size = rel(0.5), lineheight = 1)
+    )
+  return(p)
+}
+
+plot_isr <- function(dat, trt = treatment, var = size_cat, ref = 0, ylim = 1, var_lab = "Size (mm)") {
+  make_plot_data <- function(dat, trt = trt, var = var, ref = ref) {
+    pdat <- dat |>
+      group_by({{ trt }}, vaxage, vaccine, day) |>
+      count({{ var }}) |>
+      mutate(p = n / if_else(is.na({{ var }}), sum(n), sum(n[!is.na({{ var }})]))) |>
+      ungroup() |>
+      complete({{ trt }}, nesting(vaxage, vaccine), day, {{ var }}, fill = list(n = 0, p = 0)) |>
+      to_factor()
+    plab <- dat |>
+      summarise(
+        n = sum({{ var }} != ref, na.rm = TRUE),
+        p = mean({{ var }} != ref, na.rm = TRUE),
+        lab = sprintf("%i/%i", sum({{ var }} != ref, na.rm = TRUE), sum(!is.na({{ var }}))),
+        .by = c({{ trt }}, vaxage, vaccine, day)
+      )
+    return(list(pdat, plab))
+  }
+  out <- make_plot_data(dat, {{ trt }}, {{ var }}, ref)
+  pdat <- out[[1]]
+  plab <- out[[2]]
+
+  base_plot <- function(pdat, plab) {
+    ggplot(pdat |> filter({{ var }} != ref), aes(interaction(day, {{ trt }}, sep = "!"), p)) +
+    facet_wrap2(
+      vaxage ~ vaccine,
+      strip = strip_nested(
+        background_x = elem_list_rect(
+          fill = c("grey90", "grey80"),
+          colour = c("white", "grey20")
+        ),
+        by_layer_x = TRUE
+      ),
+      ncol = 4
+    ) +
+    geom_col(aes(fill = {{ var }})) +
+    geom_vline(xintercept = 7.5, colour = "grey80") +
+    scale_fill_viridis_d(var_lab) +
+    scale_x_discrete(
+      guide = legendry::guide_axis_nested(key_range_auto(sep = "!")),
+      name = "Day following vaccination"
+    ) +
+    scale_y_continuous("Proportion", limit = c(0, ylim), expand = c(0, 0)) +
+    theme(panel.grid.major.x = element_blank(), legend.position = "top")
+  }
+  g <- base_plot(pdat, plab)
+  return(g)
+}
+
+st1_diary <- read_parquet(file.path(st1_pth, "diary-temperature.parquet"))
+st2_diary <- select_form(dat_raw, "diary")
+```
+
+### Returned
+
+```{r}
+tab_dat <- st1_diary |>
+  to_factor() |>
+  select(subjectid, vaxage, diaretyn) |>
+  filter(!is.na(vaxage)) |>
+  distinct() |>
+  mutate(stage = "Stage 1") |>
+  mutate(subjectid = gsub("^01", "01-", subjectid)) |>
+  left_join(select(dat_base, subjid, trt), join_by(subjectid == subjid)) |>
+  rename(record_id = subjectid) |>
+  bind_rows(
+    st2_diary |>
+      filter(reaction == "shared") |>
+      pull(data) |>
+      pluck(1) |>
+      select(record_id, vaxage, diaretyn) |>
+      distinct() |>
+      mutate(
+        diaretyn = if_else(!diaretyn | is.na(diaretyn), "No", "Yes"),
+        stage = "Stage 2"
+      ) |>
+      left_join(select(dat_base, record_id, trt), join_by(record_id))
+  ) |>
+  mutate(
+    vaxage = factor(
+      vaxage,
+      levels = c("6-week", "4-month", "6-month", "18-month")
+    )
+  )
+```
+
+```{r}
+#| label: tbl-diary-returned-stage1
+#| tbl-cap: |
+#|   Returned diary cards from stage 1.
+#| tbl-pos: "H"
+#| results: "asis"
+tab_dat |>
+  filter(stage == "Stage 1") |>
+  tbl_strata2(
+    strata = vaxage,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        include = diaretyn,
+        by = trt,
+        label = list(diaretyn = .y)
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header(contains("stat_")),
+    .combine_with = "tbl_stack",
+    .combine_args = list(group_header = NULL)
+  ) |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(75),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-diary-returned-stage2
+#| tbl-cap: |
+#|   Returned diary cards from stage 2.
+#| tbl-pos: "H"
+#| results: "asis"
+tab_dat |>
+  filter(stage == "Stage 2") |>
+  tbl_strata2(
+    strata = vaxage,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        include = diaretyn,
+        by = trt,
+        label = list(diaretyn = .y)
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header(contains("stat_")),
+    .combine_with = "tbl_stack",
+    .combine_args = list(group_header = NULL)
+  ) |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(75),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+\clearpage
+
+### Solicited systemic reactions
+
+```{r}
+#| label: diary-sol-data
+st1_sol <- read_parquet(file.path(
+  st1_pth,
+  "diary-solicited-reactions.parquet"
+)) |>
+  to_factor() |>
+  filter(!is.na(vaxage)) |>
+  mutate(subjid = gsub("^01", "01-", subjectid)) |>
+  left_join(select(dat_base, subjid, trt), join_by(subjid)) |>
+  rename(record_id = subjid) |>
+  select(record_id, trt, vaxage, term, day, intensity) |>
+  mutate(term = str_to_sentence(term), stage = 1)
+
+st2_sol <- filter(st2_diary, reaction == "sol") |>
+  pull(data) |>
+  pluck(1) |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
+  select(record_id, trt, vaxage, term, day, intensity) |>
+  mutate(day = as.integer(day), stage = 2)
+
+diary_sol <- bind_rows(st1_sol, st2_sol) |>
+  mutate(
+    vaxage = factor(
+      vaxage,
+      levels = c("6-week", "4-month", "6-month", "18-month")
+    )
+  )
+```
+
+#### Irritability
+
+```{r}
+#| label: fig-irritability-daily
+#| fig-cap: Irritability day 0 to 6 by vaccination age and assigned treatment.
+#| fig-height: 4
+#| fig-width: 6
+plot_sys_reaction(diary_sol, "Irritability")
+```
+
+\clearpage
+
+#### Vomiting
+
+@fig-vomiting-daily presents the distribution of daily grades for vomiting following each vaccination occassion by assigned treatment.
+
+```{r}
+#| label: fig-vomiting-daily
+#| fig-cap: Vomiting day 0 to 6 by vaccination age and assigned treatment.
+#| fig-height: 4
+#| fig-width: 6
+plot_sys_reaction(diary_sol, "Vomiting")
+```
+
+\clearpage
+
+#### Diarrhoea
+
+@fig-diarrhoea-daily presents the distribution of daily grades for diarrhoea following each vaccination occassion by assigned treatment.
+
+```{r}
+#| label: fig-diarrhoea-daily
+#| fig-cap: Diarrhoea day 0 to 6 by vaccination age and assigned treatment.
+#| fig-height: 4
+#| fig-width: 6
+plot_sys_reaction(diary_sol, "Diarrhoea")
+```
+
+\clearpage
+
+#### Decreased Feeding
+
+@fig-decreasedfeeding-daily presents the distribution of daily intensity grades for decreased feeding following each vaccination occassion by assigned treatment.
+
+```{r}
+#| label: fig-decreasedfeeding-daily
+#| fig-cap: Decreased feeding day 0 to 6 by vaccination age and assigned treatment.
+#| fig-height: 4
+#| fig-width: 6
+plot_sys_reaction(diary_sol, "Decreased feeding")
+```
+
+\clearpage
+
+#### Drowsiness
+
+@fig-drowsiness-daily presents the distribution of daily intensity grades for drowsiness following each vaccination occassion by assigned treatment.
+
+```{r}
+#| label: fig-drowsiness-daily
+#| fig-cap: Drowsiness day 0 to 6 by vaccination age and assigned treatment.
+#| fig-height: 4
+#| fig-width: 6
+plot_sys_reaction(diary_sol, "Drowsiness")
+```
+
+\clearpage
+
+#### Restlessness
+
+@fig-restlessness-daily presents the distribution of daily intensity grades for restlessness following each vaccination occassion by assigned treatment.
+
+```{r}
+#| label: fig-restlessness-daily
+#| fig-cap: Restlessness day 0 to 6 by vaccination age and assigned treatment.
+#| fig-height: 4
+#| fig-width: 6
+plot_sys_reaction(diary_sol, "Restlessness")
+```
+
+\clearpage
+
+#### Fever
+
+```{r}
+#| label: diary-temp-data
+st1_temp <- read_parquet(file.path(
+  st1_pth,
+  "diary-temperature.parquet"
+)) |>
+  to_factor() |>
+  filter(!is.na(vaxage)) |>
+  rename(temp_fac = temp_cat) |>
+  mutate(subjid = gsub("^01", "01-", subjectid)) |>
+  left_join(select(dat_base, subjid, trt), join_by(subjid)) |>
+  rename(record_id = subjid) |>
+  select(record_id, trt, vaxage, day, temp_fac)
+
+st2_temp <- filter(st2_diary, reaction == "temp") |>
+  pull(data) |>
+  pluck(1) |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
+  select(record_id, trt, vaxage, day, temp_fac) |>
+  mutate(day = as.integer(day))
+
+diary_temp <- bind_rows(st1_temp, st2_temp) |>
+  mutate(
+    vaxage = factor(
+      vaxage,
+      levels = c("6-week", "4-month", "6-month", "18-month")
+    )
+  )
+```
+
+```{r}
+#| label: fig-fever
+#| fig-cap: Fever by vaccination age and assigned treatment, stage 1 and 2 combined.
+plot_fever <- function() {
+  p <- diary_temp |>
+    plot_react(trt, temp_fac, "Temperature", "None (<38)") +
+    ylim(0, 0.1)
+  return(p)
+}
+plot_fever()
+```
+
+\clearpage
+
+### Solicited Injection Site Reactions
+
+```{r}
+st1_isr <- read_parquet(file.path(st1_pth, "diary-site-reactions.parquet")) |>
+  to_factor() |>
+  mutate(
+    vaccine = fct_recode(
+      vaccine,
+      "aP/wP" = "aP or wP",
+      "MMR" = "MMRV",
+      "DTPa-hepB-IPV-Hib" = "DTaP-Hib-HepB-IPV",
+      "PCV-13" = "13vPCV"
+    )
+  ) |>
+  mutate(subjid = gsub("^01", "01-", subjectid)) |>
+  left_join(select(dat_base, subjid, trt), join_by(subjid)) |>
+  rename(record_id = subjid, size_fac = size_cat) |>
+  select(record_id, trt, term, vaxage, vaccine, day, size, size_fac) |>
+  mutate(stage = 1)
+
+st2_isr <- st2_diary |>
+  filter(reaction == "isr") |>
+  pull(data) |>
+  pluck(1) |>
+  left_join(
+    st2_diary |>
+      filter(reaction == "shared") |>
+      pull(data) |>
+      pluck(1),
+    join_by(record_id, visit, vaxage, vaxloc_id)
+  ) |>
+  mutate(
+    day = as.integer(day),
+    vaccine = fct_recode(vaccine, "PCV-13" = "PCv13")
+  ) |>
+  select(record_id, vaxage, term, vaccine, day, size, size_fac) |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
+  mutate(stage = 2) |>
+  filter(!is.na(vaccine))
+
+
+diary_isr <- bind_rows(st1_isr, st2_isr) |>
+  mutate(
+    vaxage = factor(
+      vaxage,
+      levels = c("6-week", "4-month", "6-month", "18-month")
+    )
+  )
+```
+
+```{r}
+#| label: fig-redness-daily
+#| fig-cap: |
+#|    Injection site erythema by vaccination age, vaccine, and assigned treatment.
+#|    Stage 1: 6-week, 4-month, 6-month, 18-month.
+#|    Stage 2: 6-week, 18-month.
+#| fig-width: 7
+#| fig-height: 4
+plot_isr(
+  diary_isr |> filter(term == "Erythema"),
+  trt = trt,
+  var = size_fac,
+  ref = "None",
+  var_lab = "Redness size (mm)"
+)
+```
+
+```{r}
+#| label: fig-swelling-daily
+#| fig-cap: |
+#|   Injection site swelling by vaccination age, vaccine, and assigned treatment.
+#|   Stage 1: 6-week, 4-month, 6-month, 18-month.
+#|   Stage 2: 6-week, 18-month.
+#| fig-width: 7
+#| fig-height: 4
+plot_isr(
+  diary_isr |> filter(term == "Swelling"),
+  trt = trt,
+  var = size_fac,
+  ref = "None",
+  var_lab = "Swelling size (mm)"
+)
+```
+
+```{r}
+#| label: fig-induration-daily
+#| fig-cap:  |
+#|   Injection site induration by vaccination age, vaccine, and assigned treatment.
+#|   Stage 1: 6-week, 4-month, 6-month, 18-month.
+#|   Stage 2: 6-week, 18-month.
+#| fig-width: 7
+#| fig-height: 4
+plot_isr(
+  diary_isr |> filter(term == "Induration"),
+  trt = trt,
+  var = size_fac,
+  ref = "None",
+  var_lab = "Induration size (mm)"
+)
+```
+
+```{r}
+#| label: diary-pain-data
+st1_pain <- read_parquet(file.path(st1_pth, "diary-pain.parquet")) |>
+  to_factor() |>
+  mutate(
+    vaccine = fct_recode(
+      vaccine,
+      "aP/wP" = "aP or wP",
+      "MMR" = "MMRV",
+      "DTPa-hepB-IPV-Hib" = "DTaP-Hib-HepB-IPV",
+      "PCV-13" = "13vPCV"
+    )
+  ) |>
+  mutate(subjid = gsub("^01", "01-", subjectid)) |>
+  left_join(select(dat_base, subjid, trt), join_by(subjid)) |>
+  rename(record_id = subjid) |>
+  select(record_id, trt, vaxage, vaccine, day, pain) |>
+  mutate(stage = 1)
+st2_pain <- st2_diary |>
+  filter(reaction == "pain") |>
+  pull(data) |>
+  pluck(1) |>
+  left_join(
+    st2_diary |>
+      filter(reaction == "shared") |>
+      pull(data) |>
+      pluck(1),
+    join_by(record_id, visit, vaxage, vaxloc_id)
+  ) |>
+  mutate(
+    day = as.integer(day),
+    vaccine = fct_recode(vaccine, "PCV-13" = "PCv13")
+  ) |>
+  select(record_id, vaxage, vaccine, day, pain) |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
+  mutate(stage = 2) |>
+  filter(!is.na(vaccine))
+
+# Fill in missing records
+# ids <- st2_diary |>
+#   filter(reaction == "pain") |>
+#   pull(data) |>
+#   pluck(1) |> pull(record_id) |> unique()
+# st2_pain <- st2_pain |>
+#   complete(record_id = ids, nesting(vaxage, vaccine), day)
+
+diary_pain <- bind_rows(st1_pain, st2_pain) |>
+  mutate(
+    vaxage = factor(
+      vaxage,
+      levels = c("6-week", "4-month", "6-month", "18-month")
+    )
+  )
+```
+
+```{r}
+#| label: fig-pain-daily
+#| fig-cap: Injection site pain by vaccination age, vaccine, and assigned treatment.
+#| fig-width: 7
+#| fig-height: 4
+plot_isr(diary_pain, trt, pain, ref = "None", var_lab = "Pain intensity")
+```
   
 \clearpage
 

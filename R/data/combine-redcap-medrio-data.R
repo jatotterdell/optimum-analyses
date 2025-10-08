@@ -1913,7 +1913,7 @@ combine_diary <- function() {
 
   # Stage 2 vaccination locations check
   # Only first 150 at PCH, but due to delays, 153 had diary card
-  vax1 <- extract_tibble(st2_data, "vaccine_administration_v1") |>
+  st2_vax1 <- extract_tibble(st2_data, "vaccine_administration_v1") |>
     filter(
       substr(record_id, 1, 4) == "4629",
       as.numeric(gsub("4629-", "", record_id)) <= 153
@@ -1928,7 +1928,7 @@ combine_diary <- function() {
       vacadreas
     ) |>
     mutate(visit = 1)
-  vax3 <- extract_tibble(st2_data, "vaccine_administration_v3") |>
+  st2_vax3 <- extract_tibble(st2_data, "vaccine_administration_v3") |>
     filter(
       substr(record_id, 1, 4) == "4629",
       as.numeric(gsub("4629-", "", record_id)) <= 153
@@ -2011,7 +2011,8 @@ combine_diary <- function() {
       )
     ) |>
     left_join(
-      select(vax3, record_id, visit, vaxloc, vaccine),
+      select(st2_vax3, record_id, visit, vaxloc, vaccine) |>
+        filter(!is.na(vaxloc)),
       join_by(record_id, visit, vaxloc)
     ) |>
     mutate(
