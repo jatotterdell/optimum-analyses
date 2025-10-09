@@ -137,50 +137,54 @@ dat_ref_vax_total |>
   filter(polio_total < 3) |>
   print(n = Inf)
 
+dat_ref_vax_total |>
+  filter(grepl("8644", record_id)) |>
+  print(n = Inf)
 
-# check_id <- "5785-47"
-# dat_ref_vax3 |>
-#   filter(record_id == check_id) |>
-#   select(
-#     record_id,
-#     streas,
-#     stetrreas,
-#     ippvspec,
-#     discage_mth,
-#     trt,
-#     birthdat,
-#     visdat1,
-#     visdat,
-#     vac7iploc
-#   )
-# dat_ref_nstv |>
-#   filter(record_id == check_id) |>
-#   select(
-#     record_id,
-#     discage_mth,
-#     trt,
-#     birthdat,
-#     visdat1,
-#     ipnstvacdat,
-#     ipvac,
-#     vacothspec,
-#     nstv_age
-#   ) |>
-#   arrange(nstv_age)
 
-# dat_ref_nstv |>
-#   filter(record_id == check_id) |>
-#   filter_polio() |>
-#   select(
-#     record_id,
-#     discage_mth,
-#     trt,
-#     birthdat,
-#     visdat1,
-#     ipnstvacdat,
-#     ipvac,
-#     vacothspec,
-#     nstv_age
-#   ) |>
-#   arrange(nstv_age)
+check_id <- "8644-56"
+dat_ref_vax3 |>
+  filter(record_id == check_id) |>
+  select(
+    record_id,
+    streas,
+    stetrreas,
+    ippvspec,
+    discage_mth,
+    trt,
+    birthdat,
+    visdat1,
+    visdat,
+    vac7iploc
+  )
+dat_ref_nstv |>
+  filter(record_id == check_id) |>
+  select(
+    record_id,
+    discage_mth,
+    trt,
+    birthdat,
+    visdat1,
+    ipnstvacdat,
+    ipvac,
+    vacothspec,
+    nstv_age
+  ) |>
+  arrange(nstv_age)
+
+dat_ref_nstv |>
+  filter(record_id == check_id) |>
+  filter_polio() |>
+  select(
+    record_id,
+    discage_mth,
+    trt,
+    birthdat,
+    visdat1,
+    ipnstvacdat,
+    ipvac,
+    vacothspec,
+    nstv_age
+  ) |>
+  arrange(nstv_age)
 ```
