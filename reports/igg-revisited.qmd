@@ -7,6 +7,7 @@ subtitle: Analysis Report
 #| label: packages-and-setup
 suppressPackageStartupMessages({
   # Data
+  library(here)
   library(qs)
   library(dplyr)
   library(tidyr)
@@ -37,8 +38,9 @@ suppressPackageStartupMessages({
 
 readRenviron(".env")
 
-source("R/util.R")
-source("reports/functions.R")
+source(here("R", "util.R"))
+source(here("R", "data", "process-combined-data.R"))
+source(here("reports", "functions.R"))
 
 options(
   brms.backend = "cmdstanr",
@@ -81,36 +83,11 @@ multit <- cmdstan_model(file.path("stan", "multit.stan"))
 
 ```{r}
 #| label: data
-dat_rand_list <- read_randomisation_lists()
-dat_all <- qread(file.path(
-  Sys.getenv("RDS_PATH"),
-  config::get("combined_data_file")
-))
+com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
+dat_raw <- qread(com_file)
+dat_base <- get_baseline_data(dat_raw, TRUE)
 
-dat_base <- left_join(
-  select_form(dat_all, "randomisation"),
-  dat_rand_list,
-  join_by(rand)
-) |>
-  left_join(
-    select_form(dat_all, "demographics"),
-    join_by(record_id)
-  ) |>
-  left_join(
-    select_form(dat_all, "birth_history"),
-    join_by(record_id)
-  ) |>
-  left_join(
-    select_form(dat_all, "food_and_household_questionnaire") |>
-      filter(visit_age == "6-week") |>
-      select(record_id, fecurr),
-    join_by(record_id)
-  ) |>
-  left_join(
-    select_form(dat_all, "family_history_of_atopy") |>
-      select(record_id, fha),
-    join_by(record_id)
-  ) |>
+dat_base <- dat_base |>
   mutate(
     dage = interval(birthdat, visdat1) %/% days(1),
     mpar = factor(if_else(mpar > 4, 4, mpar), labels = c("1", "2", "3", "4+")),
@@ -153,11 +130,11 @@ dat_base <- left_join(
     fha = factor(fha, labels = c("No", "Yes"))
   )
 
-dat_bc <- select_form(dat_all, "blood_collection") |>
+dat_bc <- select_form(dat_raw, "blood_collection") |>
   left_join(select(dat_base, record_id, subjid), join_by(record_id)) |>
   select(-record_id, -starts_with("lbsite___"))
 
-dat_igg <- select_form(dat_all, "igg") |>
+dat_igg <- select_form(dat_raw, "igg") |>
   left_join(dat_bc, join_by(subjid, visage)) |>
   left_join(dat_base, join_by(subjid)) |>
   mutate(stage = if_else(substr(subjid, 1, 2) == "01", "1", "2")) |>
@@ -227,7 +204,7 @@ dat_base |>
   ) |>
   add_n() |>
   add_overall(last = TRUE) |>
-  modify_header(stat_by = md("**{level}**<br>N = {N}")) |>
+  # modify_header(stat_by = md("**{level}**<br>N = {N}")) |>
   as_gt() |>
   tab_style(
     style = cell_text(weight = "bold"),
@@ -273,7 +250,7 @@ dat_base |>
   ) |>
   add_n() |>
   add_overall(last = TRUE) |>
-  modify_header(stat_by = md("**{level}**<br>N = {N}")) |>
+  # modify_header(stat_by = md("**{level}**<br>N = {N}")) |>
   as_gt() |>
   tab_style(
     style = cell_text(weight = "bold"),
@@ -316,7 +293,7 @@ dat_base |>
     by = trt
   ) |>
   add_overall(last = TRUE) |>
-  modify_header(stat_by = md("**{level}**<br>N = {N}")) |>
+  # modify_header(stat_by = md("**{level}**<br>N = {N}")) |>
   as_gt() |>
   tab_style(
     style = cell_text(weight = "bold"),
@@ -354,18 +331,23 @@ miss_pattern_trt_tab(filter(dat_igg, antigen == "PnPs 1")) |>
 ```{r}
 #| label: tbl-igg-summary-dtap
 #| tbl-cap: Descriptive statistics for DTaP IgG concentrations.
+#| results: "asis"
 igg_gmc_summary_tab(
   filter(dat_igg, type != "PnPs")
 ) |>
   tab_options(
     latex.use_longtable = TRUE,
     table.font.size = px(8)
-  )
+  ) |>
+  as_latex() |>
+  gsub(pattern = "\\\\textendash", replacement = "\\\\textendash ") |>
+  cat()
 ```
 
 ```{r}
 #| label: tbl-igg-summary-pnps
 #| tbl-cap: Descriptive statistics for PnP IgG concentrations.
+#| results: "asis"
 igg_gmc_summary_tab(
   filter(dat_igg, type == "PnPs"),
   rn = "visage"
@@ -373,7 +355,10 @@ igg_gmc_summary_tab(
   tab_options(
     latex.use_longtable = TRUE,
     table.font.size = px(8)
-  )
+  ) |>
+  as_latex() |>
+  gsub(pattern = "\\\\textendash", replacement = "\\\\textendash ") |>
+  cat()
 ```
 
 ```{r}
@@ -462,6 +447,7 @@ The analyses use all available responses.
 
 ```{r}
 #| label: fit-igg-all
+#| cache: true
 frm <- ~ trt + sex + caes + bfed + fborn + fha
 mdat <- dat_igg |>
   select(
@@ -702,6 +688,7 @@ As a reference, the analyses were re-run restricting to only stage 1 participant
 
 ```{r}
 #| label: fit-igg-stage-1
+#| cache: true
 frm <- ~ trt + sex + caes + bfed + fborn + fha
 mdat <- dat_igg |>
   select(
@@ -820,6 +807,7 @@ p
 
 ```{r}
 #| label: fit-igg-stage-2
+#| cache: true
 frm <- ~ trt + sex + caes + bfed + fborn + fha
 mdat <- dat_igg |>
   select(
