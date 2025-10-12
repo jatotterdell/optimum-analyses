@@ -972,7 +972,9 @@ combine_outcome_report <- function() {
     filter(!(record_id_num > 1 & is.na(outalltp))) |>
     mutate(
       outfrraspec = as.numeric(outfrraspec),
+      outfrarxntm = as.numeric(outfrarxntm),
       outdiagdat = as_date(outdiagdat),
+      outawardat = as_date(outawardat),
       outageval = as.numeric(outageval),
       outageval_months = case_when(
         outageunit == "Months" ~ outageval,
