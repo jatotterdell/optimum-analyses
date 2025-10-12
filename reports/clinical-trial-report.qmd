@@ -1068,7 +1068,7 @@ fit_outcome <- dat_spt_analysis |>
 #| fig-cap: |
 #|    Posterior density for difference in probability of positive skin prick test by size,
 #|    unadjusted primary model.
-#| fig-height: 5
+#| fig-height: 4
 #| fig-width: 5
 diff_outcome |>
   group_by(size) |>
@@ -1090,6 +1090,75 @@ diff_outcome |>
     x = "Difference in food allergy probability, wP - aP",
     y = "Density"
   )
+```
+
+```{r}
+#| label: tbl-posterior-spt
+#| tbl-cap: |
+#|   Posterior summaries for probability and difference in probability of positive skin prick test by size,
+#|    unadjusted primary model.
+#| tbl-pos: "H"
+diff_agg <- diff_outcome |>
+  group_by(size) |>
+  nest_rvars() |>
+  mutate(across(
+    aP:delta, 
+    list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
+    .names = "{.fn}_{.col}")) |>
+  ungroup() |>
+  select(-aP, -wP, -delta, -pr_aP, -pr_wP)
+dat_outcome |>
+  select(size, trt, n, y, p) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p)
+  ) |>
+  left_join(diff_agg, join_by(size)) |>
+  gt(rowname_col = "size") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_aP, lo_aP, hi_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_wP, lo_wP, hi_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_aP, med_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
 ```
 
 ```{r}
@@ -1474,6 +1543,73 @@ po_diff |>
 ```
 
 ```{r}
+#| label: tbl-posterior-primary
+#| tbl-cap: |
+#|   Posterior summaries for probability and difference in probability of food allergy by size,
+#|    unadjusted primary model.
+#| tbl-pos: "H"
+diff_agg <- po_diff |>
+  nest_rvars() |>
+  mutate(across(
+    aP:delta, 
+    list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
+    .names = "{.fn}_{.col}")) |>
+  select(-aP, -wP, -delta, -pr_aP, -pr_wP)
+po_sum |>
+  select(trt, n, y, p) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p)
+  ) |>
+  bind_cols(diff_agg) |>
+  gt() |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_aP, lo_aP, hi_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_wP, lo_wP, hi_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_aP, med_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
+```{r}
 #| label: fig-posterior-difference-adjusted
 #| fig-cap: Posterior difference in probability of food allergy for wP compared to aP, adjusted model.
 #| fig-height: 2
@@ -1754,6 +1890,77 @@ diff_outcome |>
     y = "Density"
   )
 ```
+
+
+```{r}
+#| label: tbl-posterior-eczema
+#| tbl-cap: |
+#|   Posterior summaries for probability and difference in probability of eczema by age of onset,
+#|    unadjusted primary model.
+#| tbl-pos: "H"
+diff_agg <- diff_outcome |>
+  group_by(age) |>
+  nest_rvars() |>
+  mutate(across(
+    aP:delta, 
+    list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
+    .names = "{.fn}_{.col}")) |>
+  ungroup() |>
+  select(-aP, -wP, -delta, -pr_aP, -pr_wP)
+dat_outcome |>
+  select(age, trt, n, y, p) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p)
+  ) |>
+  left_join(diff_agg, join_by(age)) |>
+  gt(rowname_col = "age") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_aP, lo_aP, hi_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_wP, lo_wP, hi_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_aP, med_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
 
 ```{r}
 #| label: fig-posterior-difference-eczema-adjusted
