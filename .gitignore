@@ -9,6 +9,7 @@
 
 # Environment
 .env
+
 .github
 /.quarto/
 _outputs
@@ -18,3 +19,5 @@ _site
 _freeze
 /data/
 **/*.quarto_ipynb
+*_cache
+*_files
