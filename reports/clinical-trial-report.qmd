@@ -1202,13 +1202,13 @@ The following sections provide a summary of the number of infants who met each c
 
 ### Oral food challenge
 
-There were `r nrow(filter(dat_fa, outalltp == "Oral food challenge"))` outcome records for food allergy diagnoses resulting from oral food challenge amongst `r length(unique(filter(dat_fa, outalltp == "Oral food challenge")$record_id))` infants. All reactions reportedly first occurred by 18 months of age and all diagnoses occurred by 18 months of age. All records had a matching positive skin prick test to the reported allergen and so all 22 infants met the primary outcome according to the definition (1.i).
+There were `r nrow(filter(dat_fa, outalltp == "Oral food challenge"))` outcome records for food allergy diagnoses resulting from oral food challenge amongst `r length(unique(filter(dat_fa, outalltp == "Oral food challenge")$record_id))` infants. One reaction (record ID `8644-34`) reportedly first occurred after 18 months of age and all others were by 18 months of age. All records had a matching positive skin prick test to the reported allergen and so all 22 infants met the primary outcome according to the definition (1.i).
 
 ```{r}
 #| label: check-positive-spt-ofc
 #| include: false
 dat_po_ofc <- dat_fa |>
-  filter(outalltp == "Oral food challenge") |>
+  filter(outalltp == "Oral food challenge", outageval_months2 <= 18) |>
   select(
     record_id,
     trt,
@@ -1248,13 +1248,13 @@ dat_po_ofc <- dat_fa |>
 
 ### Anaphylaxis
 
-There were `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` outcome records for food allergy diagnoses resulting from anaphylaxis amongst `r length(unique(filter(dat_fa, outalltp == "Anaphylaxis")$record_id))` infants. Two of these infants (`record_id: 68, 5785-283`) were diagnosed after 18 months of age with first reported reaction occuring after 18 months of age. One infant (`record_id = 8644-34`) had no skin prick test for the reported allergen. So of the infants with analphylaxis reported, 3 did not meet the criteria for the primary outcome according to the definition (1.ii).
+There were `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` outcome records for food allergy diagnoses resulting from anaphylaxis amongst `r length(unique(filter(dat_fa, outalltp == "Anaphylaxis")$record_id))` infants. Two of these infants (`record_id: 68, 5785-283`) were diagnosed after 18 months of age with first reported reaction occuring after 18 months of age. One infant (`record_id = 8644-34`) had no skin prick test for the reported allergens. So of the infants with analphylaxis reported, 3 did not meet the criteria for the primary outcome according to the definition (1.ii).
 
 ```{r}
 #| label: check-positive-spt-ana
 #| include: false
 dat_po_ana <- dat_fa |>
-  filter(outalltp == "Anaphylaxis") |>
+  filter(outalltp == "Anaphylaxis", outageval_months2 <= 18) |>
   select(
     record_id,
     trt,
@@ -1309,8 +1309,8 @@ summ_fc <- dat_fc |>
     .by = record_id
   )
 
-dat_po_ige <- dat_fa |>
-  filter(outalltp == "Highly probably IgE mediated food allergy") |>
+dat_po_ige_1 <- dat_fa |>
+  filter(outalltp == "Highly probably IgE mediated food allergy", outageval_months2 <= 18) |>
   select(
     record_id,
     trt,
@@ -1329,17 +1329,18 @@ dat_po_ige <- dat_fa |>
   rowwise() |>
   mutate(
     splt_foods = gsub("( |, )", "|", spt_pos_1mm),
-    outfrafood_sub = gsub("Dairy", "milk", outfrafood),
-    match_food = str_match(tolower(outfrafood_sub), splt_foods)[1]
+    outfrafood_sub = gsub("Whole Egg", "egg", gsub("cows ", "", gsub("Dairy", "milk", outfrafood))),
+    match_food = gsub("NA", "", paste(unique(str_match_all(tolower(outfrafood_sub), splt_foods)[[1]]), collapse = ", "))
   ) |>
-  ungroup() |>
+  ungroup()
+dat_po_ige <- dat_po_ige_1 |>
   summarise(
     outfrafood = paste(unique(tolower(outfrafood)), collapse = ", "),
     any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
-    matched_foods = paste(
+    matched_foods = gsub("^, ", "", gsub("(, )+", ", ", paste(
       unique(match_food[!is.na(match_food) & outageval_months2 <= 18]),
       collapse = ", "
-    ),
+    ))),
     .by = c(record_id, trt)
   ) |>
   rename(
@@ -1427,7 +1428,7 @@ dat_po |>
 ```{r}
 #| label: tbl-primary-outcome-overall
 #| tbl-cap: |
-#|   Number and percentage of infants who met the primary outcome by primayr reason and treatment group.
+#|   Number and percentage of infants who met the primary outcome by primary reason and treatment group.
 #| tbl-pos: "H"
 #| results: "asis"
 dat_po |>
@@ -2823,7 +2824,8 @@ plot_isr(diary_pain, trt, pain, ref = "None", var_lab = "Pain intensity")
   
 ```{r}
 #| label: tbl-listing-ofc-matched-foods
-#| tbl-cap: Listing of infants with oral food challenge outcome and SPT positive allergens.
+#| tbl-cap: |
+#|    Listing of infants with oral food challenge outcome by 18 months of age and corresponding SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ofc |>
   select(record_id, trt, po_ofc_foods, po_ofc_match) |>
@@ -2838,7 +2840,7 @@ dat_po_ofc |>
 
 ```{r}
 #| label: tbl-listing-ana-matched-foods
-#| tbl-cap: Listing of infants with anaphylaxis outcome and SPT positive allergens.
+#| tbl-cap: Listing of infants with anaphylaxis outcome by 18 months of age and corresponding SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ana |>
   select(record_id, trt, po_ana_foods, po_ana_match) |>
@@ -2853,7 +2855,9 @@ dat_po_ana |>
 
 ```{r}
 #| label: tbl-listing-ige-matched-foods
-#| tbl-cap: Listing of infants with IgE-mediated food allergy outcome and SPT positive allergens.
+#| tbl-cap: | 
+#|    Listing of infants with IgE-mediated food allergy outcome by 18 months of age and corresponding
+#|    SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ige |>
   select(record_id, trt, po_ige_foods, po_ige_match) |>
