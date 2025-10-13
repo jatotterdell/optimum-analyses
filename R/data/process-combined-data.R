@@ -265,9 +265,9 @@ get_skin_prick_long <- function(dat_raw) {
 
   # Transform standard panel to long format
   dat_spt_2 <- dat_spt |>
-    select(record_id, spt_occasion, spt_num, prires1:prireact8) |>
+    select(record_id, spt_occasion, spt_num, prires1:prires8) |>
     pivot_longer(
-      prires1:prireact8,
+      prires1:prires8,
       names_pattern = "pri(res|react)([1-9])",
       names_to = c(".value", "spt_tested")
     ) |>
