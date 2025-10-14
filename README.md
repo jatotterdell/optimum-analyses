@@ -85,6 +85,10 @@ The relevant elements are (see [https://doi.org/10.1136/bmjopen-2020-042838](htt
 - [ ] diary card data
 - [x] IgG data (in a standalone report)
 
+The primary report is `reports/clinical-trial-report.qmd`.
+
+The report which updates the previous IgG analyses to include the stage 2 data is `reports/igg-revisited.qmd`.
+
 ## Notebooks
 
 Files in notebooks were working documents for interactive checking of outcome derivations and can be ignored.
