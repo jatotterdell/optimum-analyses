@@ -62,8 +62,8 @@ Forms to be mapped between Medrio and REDCap (and their current status) are:
 - [x] sae_reporting_log
 - [x] adverse_events
 - [ ] concomitant_medications
-- [ ] diary_card_data_page_1
-- [ ] diary_card_data_page_2
+- [x] diary_card_data_page_1
+- [x] diary_card_data_page_2
 - [x] other_immunological_data
 
 ## Reporting
