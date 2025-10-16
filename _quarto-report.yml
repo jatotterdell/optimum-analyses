@@ -32,7 +32,7 @@ format:
         \usepackage[font=small,labelfont={bf,small},listformat=simple]{caption}
         \usepackage{makecell}
         \usepackage{moresize}
-        \setkomafont{section}{\fontsize{12}{12}\selectfont}
+        \setkomafont{section}{\fontsize{14}{14}\selectfont}
 
 execute: 
   freeze: false
