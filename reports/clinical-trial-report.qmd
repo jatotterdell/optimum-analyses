@@ -283,6 +283,12 @@ and Haemophilus influenzae type b (Hib) vaccine (DTwP-HepB- Hib) in place of
 DTaP-HepB-IPV-Hib at approximately 2 months, together with the standard schedule
 of vaccines (referred to as 1-wP/2-aP + aP or wP for short).
 
+## Trial Design
+
+Originally, a sample size of 3,000 participants was planned. Under the adaptive design, as outlined in the protocol and statistical analysis plan, we estimated the trial had 85% power to detect a reduction in food allergy from 10% to 7% with type I error of 5%. If $\delta$ denotes the difference in probability of food allergy under each intervention, then trial success required that $\delta$ was very likely to be less than zero, specifically that $\Pr(\delta < 0) > 0.95$.
+
+The maximum sample size was subsequently revised down to 2,000 participants due to feasability constraints.
+
 ## Trial outcomes
 
 ### Primary outcome (1)
@@ -303,17 +309,30 @@ b.  A history of parent-reported clinician-diagnosed new onset eczema by **12 mo
 c.  A SPT **\>1mm** greater than the negative control to at least one allergen by approximately 12 months of age
 d.  A SPT **≥3mm** greater than the negative control to at least one allergen by approximately 12 months of age
 
-### Details
+### Further Details
 
-For both food allergy and eczema, sensitisation on (positive) SPT was defined to be a result more than 1mm greater than negative control by 18 months of age.
+The protocol defined a panel of allergens to be tested. In addition to these, further allergens could also be tested at parental request or at discretion of the site PI. When the outcomes say "at least one allergen" [i.e. for eczema for positive SPT] we mean any allergen, including any additional allergens tested beyond the panel defined in the protocol.
+
+For both food allergy and eczema, sensitisation on (positive) SPT was defined to be a result more than 1mm greater than negative control by 18 months of age. For food allergy, the positive SPT needed to match the specific food allergen. 
 
 For eczema, the age requirement (by 6 or 12 months of age) was determined by the "age at which allergy first occurred" (`outageval`). To be considered "new-onset" eczema, this age at which allergy first occurred needed to be after the infants enrolment date. Infants with clinician-diagnosed eczema first occurring prior to enrolment were to be excluded as it's not possible for them to have "new-onset eczema".
+
 
 ## Analyses
 
 ### Primary outcome
 
-The primary analysis was to assume independent Binomial models for occurence of food allergy under each treatment group with uniform priors on the outcome probabilities. A secondary analysis was to assume a logistic regression model for occurence of food allergy adjusting for baseline factors: site, sex, breastfeeding status, birth order, parental income, mode of delivery, and family history of atopic disease.
+The primary analysis was to assume independent Binomial models for occurence of food allergy under each treatment group with uniform priors on the outcome probabilities. 
+
+::: {.callout-note}
+
+## Primary model
+
+Let $\theta_{\text{wP}}$ and $\theta_{\text{aP}}$ denote the probability of the outcome amongst infants who follow the respective strategy and $\delta = \theta_{\text{wP}} - \theta_{\text{aP}}$ the difference in probablity. If $n_{\text{wP}}$ and $n_{\text{aP}}$ infants were assigned to each respective strategy, with $y_{\text{wP}}$ and $y_{\text{aP}}$ events observed, than from our assumed model we estimate that $\theta_j \sim \text{Beta}(1 + y_j, 1 + n_j - y_j)$ represents our uncertainty and $\delta$ the difference between these.
+
+:::
+
+A secondary analysis was to assume a logistic regression model for occurence of food allergy adjusting for baseline factors: site, sex, breastfeeding status, birth order, parental income, mode of delivery, and family history of atopic disease.
 
 ### Secondary clinical outcomes
 
@@ -937,6 +956,8 @@ dat_spt |>
 
 @tbl-spt-positive reports on the number and percentage of infants who had a SPT result of \>1mm and ≥3mm relative to negative control for at least one tested allergen (outcomes 2c and 2d). Any infants with no SPT records by 18 months of age are reported as missing.
 
+@tbl-spt-positive-tested provides a breakdown of the specific allergens which satisfied the sensitisation criteria.
+
 ```{r}
 #| label: tbl-spt-positive
 #| tbl-cap: |
@@ -983,9 +1004,161 @@ dat_spt |>
   cat()
 ```
 
+```{r}
+#| include: false
+std_allergens <- c(
+  "D.pteronyssinus", "cat dander", "perennial ryegrass", "whole egg", "cashew", "cow's milk", "peanut", "seasme")
+dat_spt |>
+  select(record_id, trt, spt_occasion, spt_age, spt_tested, spt_result, spt_reaction, spt_0mm, spt_1mm, spt_3mm) |>
+  filter(spt_tested %in% std_allergens) |>
+  filter(spt_occasion == "scheduled") |>
+  summarise(
+    N = n(),
+    n = sum(!is.na(spt_1mm)),
+    y = sum(spt_1mm, na.rm = TRUE),
+    p = y / n,
+    m = sum(is.na(spt_1mm)),
+    .by = c(trt, spt_tested)
+  ) |>
+  pivot_wider(names_from = trt, values_from = c(N, n, y, p, m), names_vary = "slowest") |>
+  gt(rowname_col = "spt_tested") |>
+  tab_spanner(ends_with("aP"), label = "aP") |>
+  tab_spanner(ends_with("wP"), label = "wP") |>
+  cols_label(
+    starts_with("n_", ignore.case = FALSE) ~ "Tests",
+    starts_with("y_") ~ ">1mm",
+    starts_with("m_") ~ "Missing"
+  )
+```
+
+```{r}
+#| label: tbl-spt-positive-tested
+#| tbl-cap: |
+#|   Number and percentage of infants with a positive SPT (scheduled only) 
+#|   by 18 months of age by tested allergen (for those included in the standard panel).
+#|   Each cell gives positive/tested (%) [missing result%].
+#| tbl-pos: "H"
+#| results: "asis"
+std_allergens <- c(
+  "D.pteronyssinus", "cat dander", "perennial ryegrass", "whole egg", "cashew", "cow's milk", "peanut")
+dat_spt |>
+  filter(spt_tested %in% std_allergens) |>
+  filter(spt_occasion == "scheduled") |>
+  select(record_id, trt, spt_age, spt_tested, spt_0mm, spt_1mm, spt_3mm) |>
+  droplevels() |>
+  complete(nesting(select(dat_base, record_id, trt)), spt_tested) |>
+  mutate(
+    across(spt_0mm:spt_3mm, ~ .x * (spt_age <= 18))
+  ) |>
+  pivot_longer(spt_0mm:spt_3mm, names_pattern = "spt_([0-3]+mm)", names_to = "size", values_to = "diameter") |>
+  pivot_wider(names_from = spt_tested, values_from = diameter) |>
+  mutate(
+    size = factor(
+      size, 
+    levels = c("0mm", "1mm", "3mm"), 
+    labels = c("Wheal size >0mm", "Wheal size >1mm vs. neg control", "Wheal size ≥3mm vs neg. control")
+    )
+  ) |>
+  tbl_strata(
+    strata = size,
+    .tbl_fun = ~ .x |> 
+      tbl_summary(
+        include = `D.pteronyssinus`:peanut,
+        by = trt,
+        statistic = all_dichotomous() ~ "{n}/{N_nonmiss} ({p}%) [{p_miss}%]",
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Allergen**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_column_alignment(starts_with("stat"), align = "right"),
+    .combine_with = "tbl_stack"
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(10), table.width = pct(100)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-spt-positive-tested-other
+#| tbl-cap: |
+#|   Number and percentage of infants with a positive SPT (scheduled only) 
+#|   by 18 months of age by tested allergen for additional allergens which were tested.
+#|   Each cell gives positive/tested (%). Totals restricted to only those infants with at least one
+#|   additional allergen tested
+#| tbl-pos: "H"
+#| results: "asis"
+std_allergens <- c(
+  "D.pteronyssinus", "cat dander", "perennial ryegrass", "whole egg", "cashew", "cow's milk", "peanut")
+dat_spt |>
+  unique() |>
+  filter(!(spt_tested %in% std_allergens), !is.na(spt_tested), spt_reaction != "Not Done") |>
+  filter(spt_occasion == "scheduled") |>
+  select(record_id, trt, spt_age, spt_tested, spt_0mm, spt_1mm, spt_3mm) |>
+  droplevels() |>
+  # complete(nesting(select(dat_base, record_id, trt)), spt_tested) |>
+  mutate(
+    across(spt_0mm:spt_3mm, ~ .x * (spt_age <= 18))
+  ) |>
+  pivot_longer(spt_0mm:spt_3mm, names_pattern = "spt_([0-3]+mm)", names_to = "size", values_to = "diameter") |>
+  mutate(diameter = as.logical(diameter), spt_tested = fct_infreq(spt_tested)) |>
+  arrange(spt_tested) |>
+  pivot_wider(names_from = spt_tested, values_from = diameter) |>
+  mutate(
+    size = factor(
+      size, 
+    levels = c("0mm", "1mm", "3mm"), 
+    labels = c("Wheal size >0mm", "Wheal size >1mm vs. neg control", "Wheal size ≥3mm vs neg. control")
+    )
+  ) |>
+  tbl_strata(
+    strata = size,
+    .tbl_fun = ~ .x |> 
+      tbl_summary(
+        include = `sesame`:`d. farinae`,
+        by = trt,
+        type = list(everything() ~ "dichotomous"),
+        value = list(everything() ~ TRUE),
+        statistic = all_dichotomous() ~ "{n}/{N_nonmiss} ({p}%)",
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Allergen**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_column_alignment(starts_with("stat"), align = "right"),
+    .combine_with = "tbl_stack"
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(10), table.width = pct(100), latex.use_longtable = TRUE) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+
 \clearpage
 
 ### Skin prick test model
+
+@tbl-posterior-spt summarises the estimated model parameters for the probability of skin prick test sensitsation under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-density-spt and @fig-posterior-difference-spt-adjusted).
+
+The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were comparable. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in skin prick test sensitisation at 1mm [2.c] between wP and wP were (-0.04, 0.06) and at 3mm [2.d] were (-0.04, 0.05). The probability of a reduction in skin prick test sensitisation under wP compared to aP was 0.32 and 0.41 respectively.
 
 ```{r}
 #| label: spt-analysis
@@ -1056,6 +1229,8 @@ fit_outcome <- dat_spt_analysis |>
         add_epred_rvars(y, value = ".epred_wP") |>
         mutate(wgt = wgt) |>
         summarise(
+          aP = rvar_mean(.epred_aP),
+          wP = rvar_mean(.epred_wP),
           .rd_empirical = rvar_mean(.epred_wP - .epred_aP),
           .rd_bootstrap = rvar_sum((.epred_wP - .epred_aP) * wgt)
         )
@@ -1064,49 +1239,37 @@ fit_outcome <- dat_spt_analysis |>
 ```
 
 ```{r}
-#| label: fig-posterior-density-spt
-#| fig-cap: |
-#|    Posterior density for difference in probability of positive skin prick test by size,
-#|    unadjusted primary model.
-#| fig-height: 4
-#| fig-width: 5
-diff_outcome |>
-  group_by(size) |>
-  nest_rvars() |>
-  ggplot(aes(xdist = delta)) +
-  facet_wrap(~size, ncol = 1) +
-  stat_histinterval(
-    aes(fill = after_stat(level)),
-    breaks = 100,
-    .width = c(0.5, 0.8, 0.95),
-    slab_linewidth = 0.5,
-    slab_colour = "black"
-  ) +
-  geom_vline(xintercept = 0, linetype = 2) +
-  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
-  labs(
-    fill = "Interval",
-    x = "Difference in food allergy probability, wP - aP",
-    y = "Density"
-  )
-```
-
-```{r}
 #| label: tbl-posterior-spt
 #| tbl-cap: |
 #|   Posterior summaries for probability and difference in probability of positive skin prick test by size,
-#|    unadjusted primary model.
+#|    unadjusted primary model. Point indicates median.
 #| tbl-pos: "H"
 diff_agg <- diff_outcome |>
   group_by(size) |>
   nest_rvars() |>
-  mutate(across(
+  ungroup() |>
+  mutate(
+    model = "Unadjusted",
+    across(
+      aP:delta, 
+      list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
+      .names = "{.fn}_{.col}"
+    )
+  ) |>
+  select(-aP, -wP, -delta) |>
+  bind_rows(
+    fit_outcome |> 
+      unnest(rd) |>
+      rename(delta = .rd_empirical) |>
+      select(size, aP, wP, delta) |>
+      mutate(model = "Adjusted") |>
+        mutate(across(
     aP:delta, 
     list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
     .names = "{.fn}_{.col}")) |>
-  ungroup() |>
-  select(-aP, -wP, -delta, -pr_aP, -pr_wP)
+  select(-aP, -wP, -delta)
+  ) |>
+  select(-pr_aP, -pr_wP)
 dat_outcome |>
   select(size, trt, n, y, p) |>
   pivot_wider(
@@ -1114,9 +1277,16 @@ dat_outcome |>
     values_from = c(n, y, p)
   ) |>
   left_join(diff_agg, join_by(size)) |>
-  gt(rowname_col = "size") |>
+  mutate(
+    size = factor(
+      size, 
+      levels = c("0mm", "1mm", "3mm"), 
+      labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]"))
+  ) |>
+  gt(groupname_col = "model", rowname_col = "size") |>
   fmt_percent(starts_with("p_"), decimals = 0) |>
   fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_align(align = "left", columns = 1) |>
   cols_merge(
     c(y_aP, n_aP, p_aP),
     pattern = "{1}/{2} ({3})"
@@ -1162,10 +1332,39 @@ dat_outcome |>
 ```
 
 ```{r}
+#| label: fig-posterior-density-spt
+#| fig-cap: |
+#|    Posterior density for difference in probability of positive skin prick test by size,
+#|    unadjusted primary model.
+#| fig-height: 3
+#| fig-width: 5
+diff_outcome |>
+  group_by(size) |>
+  nest_rvars() |>
+  ggplot(aes(xdist = delta)) +
+  facet_wrap(~size, ncol = 1) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    fill = "Interval",
+    x = "Difference in skin prick test sensitisation probability, wP - aP",
+    y = "Density"
+  )
+```
+
+```{r}
 #| label: fig-posterior-difference-spt-adjusted
 #| fig-cap: |
-#|   Posterior difference in probability of food allergy for wP compared to aP, adjusted model.
-#| fig-height: 5
+#|   Posterior difference in probability of skin prick test sensitisation for wP compared to aP, adjusted model.
+#| fig-height: 3
 #| fig-width: 5
 fit_outcome |>
   unnest(rd) |>
@@ -1183,7 +1382,7 @@ fit_outcome |>
   scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
   labs(
     fill = "Interval",
-    x = "Difference in food allergy probability, wP - aP",
+    x = "Difference in skin prick test sensitisation probability, wP - aP",
     y = "Density"
   )
 ```
@@ -1513,33 +1712,10 @@ dat_rd_po <- dat_po |>
   add_epred_rvars(fit, value = ".epred_wP") |>
   mutate(wgt = wgt) |>
   summarise(
+    aP = rvar_mean(.epred_aP),
+    wP = rvar_mean(.epred_wP),
     .rd_empirical = rvar_mean(.epred_wP - .epred_aP),
     .rd_bootstrap = rvar_sum((.epred_wP - .epred_aP) * wgt)
-  )
-```
-
-```{r}
-#| label: fig-posterior-density
-#| fig-cap: Posterior density for difference in probability of primary outcome, unadjusted primary model.
-#| fig-height: 2
-#| fig-width: 5
-po_diff |>
-  nest_rvars() |>
-  ggplot(aes(xdist = delta)) +
-  stat_histinterval(
-    aes(fill = after_stat(level)),
-    breaks = 100,
-    .width = c(0.5, 0.8, 0.95),
-    slab_linewidth = 0.5,
-    slab_colour = "black"
-  ) +
-  geom_vline(xintercept = 0, linetype = 2) +
-  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
-  labs(
-    fill = "Interval",
-    x = "Difference in food allergy probability, wP - aP",
-    y = "Density"
   )
 ```
 
@@ -1549,13 +1725,32 @@ po_diff |>
 #|   Posterior summaries for probability and difference in probability of food allergy by size,
 #|    unadjusted primary model.
 #| tbl-pos: "H"
+
 diff_agg <- po_diff |>
   nest_rvars() |>
-  mutate(across(
+  ungroup() |>
+  mutate(
+    model = "Unadjusted",
+    across(
+      aP:delta, 
+      list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
+      .names = "{.fn}_{.col}"
+    )
+  ) |>
+  select(-aP, -wP, -delta) |>
+  bind_rows(
+    dat_rd_po |> 
+      rename(delta = .rd_empirical) |>
+      select(aP, wP, delta) |>
+      mutate(model = "Adjusted") |>
+        mutate(across(
     aP:delta, 
     list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
     .names = "{.fn}_{.col}")) |>
-  select(-aP, -wP, -delta, -pr_aP, -pr_wP)
+  select(-aP, -wP, -delta)
+  ) |>
+  select(-pr_aP, -pr_wP)
+
 po_sum |>
   select(trt, n, y, p) |>
   pivot_wider(
@@ -1563,7 +1758,7 @@ po_sum |>
     values_from = c(n, y, p)
   ) |>
   bind_cols(diff_agg) |>
-  gt() |>
+  gt(rowname_col = "model") |>
   fmt_percent(starts_with("p_"), decimals = 0) |>
   fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
   cols_merge(
@@ -1609,6 +1804,32 @@ po_sum |>
   ) |>
   tab_options(table.font.size = px(9))
 ```
+
+```{r}
+#| label: fig-posterior-density
+#| fig-cap: Posterior density for difference in probability of primary outcome, unadjusted primary model.
+#| fig-height: 2
+#| fig-width: 5
+po_diff |>
+  nest_rvars() |>
+  ggplot(aes(xdist = delta)) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    fill = "Interval",
+    x = "Difference in food allergy probability, wP - aP",
+    y = "Density"
+  )
+```
+
 
 ```{r}
 #| label: fig-posterior-difference-adjusted
@@ -1856,42 +2077,14 @@ fit_outcome <- dat_ecz_analysis |>
         add_epred_rvars(y, value = ".epred_wP") |>
         mutate(wgt = wgt) |>
         summarise(
+          aP = rvar_mean(.epred_aP),
+          wP = rvar_mean(.epred_wP),
           .rd_empirical = rvar_mean(.epred_wP - .epred_aP),
           .rd_bootstrap = rvar_sum((.epred_wP - .epred_aP) * wgt)
         )
     })
   )
 ```
-
-```{r}
-#| label: fig-posterior-density-eczema
-#| fig-cap: |
-#|    Posterior density for difference in probability of eczema diagnosis by age at reaction,
-#|    unadjusted primary model.
-#| fig-height: 4
-#| fig-width: 5
-diff_outcome |>
-  group_by(age) |>
-  nest_rvars() |>
-  ggplot(aes(xdist = delta)) +
-  facet_wrap(~age, ncol = 1) +
-  stat_histinterval(
-    aes(fill = after_stat(level)),
-    breaks = 100,
-    .width = c(0.5, 0.8, 0.95),
-    slab_linewidth = 0.5,
-    slab_colour = "black"
-  ) +
-  geom_vline(xintercept = 0, linetype = 2) +
-  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
-  labs(
-    fill = "Interval",
-    x = "Difference in food allergy probability, wP - aP",
-    y = "Density"
-  )
-```
-
 
 ```{r}
 #| label: tbl-posterior-eczema
@@ -1902,12 +2095,30 @@ diff_outcome |>
 diff_agg <- diff_outcome |>
   group_by(age) |>
   nest_rvars() |>
-  mutate(across(
+  ungroup() |>
+  mutate(
+    model = "Unadjusted",
+    across(
+      aP:delta, 
+      list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
+      .names = "{.fn}_{.col}"
+    )
+  ) |>
+  select(-aP, -wP, -delta) |>
+  bind_rows(
+    fit_outcome |> 
+      unnest(rd) |>
+      rename(delta = .rd_empirical) |>
+      select(age, aP, wP, delta) |>
+      mutate(model = "Adjusted") |>
+        mutate(across(
     aP:delta, 
     list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
     .names = "{.fn}_{.col}")) |>
-  ungroup() |>
-  select(-aP, -wP, -delta, -pr_aP, -pr_wP)
+  select(-aP, -wP, -delta)
+  ) |>
+  select(-pr_aP, -pr_wP)
+
 dat_outcome |>
   select(age, trt, n, y, p) |>
   pivot_wider(
@@ -1915,7 +2126,7 @@ dat_outcome |>
     values_from = c(n, y, p)
   ) |>
   left_join(diff_agg, join_by(age)) |>
-  gt(rowname_col = "age") |>
+  gt(groupname_col = "model", rowname_col = "age") |>
   fmt_percent(starts_with("p_"), decimals = 0) |>
   fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
   cols_merge(
@@ -1962,12 +2173,41 @@ dat_outcome |>
   tab_options(table.font.size = px(9))
 ```
 
+```{r}
+#| label: fig-posterior-density-eczema
+#| fig-cap: |
+#|    Posterior density for difference in probability of eczema diagnosis by age at reaction,
+#|    unadjusted primary model.
+#| fig-height: 3
+#| fig-width: 5
+diff_outcome |>
+  group_by(age) |>
+  nest_rvars() |>
+  ggplot(aes(xdist = delta)) +
+  facet_wrap(~age, ncol = 1) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    fill = "Interval",
+    x = "Difference in eczema probability, wP - aP",
+    y = "Density"
+  )
+```
+
 
 ```{r}
 #| label: fig-posterior-difference-eczema-adjusted
 #| fig-cap: |
 #|   Posterior difference in probability of eczema diagnosis for wP compared to aP, adjusted model.
-#| fig-height: 4
+#| fig-height: 3
 #| fig-width: 5
 fit_outcome |>
   unnest(rd) |>
@@ -1985,7 +2225,7 @@ fit_outcome |>
   scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
   labs(
     fill = "Interval",
-    x = "Difference in food allergy probability, wP - aP",
+    x = "Difference in eczema probability, wP - aP",
     y = "Density"
   )
 ```
