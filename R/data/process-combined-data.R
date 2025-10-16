@@ -286,7 +286,16 @@ get_skin_prick_long <- function(dat_raw) {
     ) |>
     filter(!is.na(allspec)) |>
     rename(spt_tested = allspec, spt_reaction = react, spt_result = res) |>
-    mutate(spt_tested = tolower(spt_tested))
+    mutate(spt_tested = tolower(spt_tested)) |>
+    mutate(
+      # Fix some issues/typos
+      spt_tested = case_match(
+        spt_tested,
+        "0.0" ~ NA_character_,
+        "egg ehite" ~ "egg white",
+        .default = spt_tested
+      )
+    )
 
   # Merge all SPT fields and some baseline fields
   out <- dat_rand |>
