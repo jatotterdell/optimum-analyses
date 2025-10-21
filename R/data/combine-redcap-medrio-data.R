@@ -1873,6 +1873,100 @@ combine_igg <- function() {
   igg_trans
 }
 
+# There is only IgE data for stage 1,
+# but for completeness sake, include it here
+combine_ige <- function() {
+  ige <- read_delim(
+    file.path(st1_path, "Lab results IGE 2.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      !ends_with("_coded"),
+      -site,
+      -subjectstatus,
+      -visit,
+      -form,
+      -formentrydate,
+      -subjectvisitformid
+    ) |>
+    rename(
+      lbresigewholev8 = lbresigwholev8,
+      lbresigetotalv8 = lbresigtotalv8
+    )
+  ige_long <- ige |>
+    select(-ends_with("com"), -lbresigesamptpv8) |>
+    pivot_longer(
+      starts_with("lbresige"),
+      names_pattern = "lbresige(tet|eggw|whole|total|pean|cash|milk|dust|cat|rye)(v3|v5|v8)",
+      names_to = c("allergen", "visit")
+    ) |>
+    mutate(
+      visit = as.numeric(gsub("v", "", visit)),
+      visit_age = factor(
+        visit,
+        levels = c(3, 5, 8),
+        labels = c("6-month", "7-month", "19-month")
+      ),
+      allergen = factor(
+        allergen,
+        levels = c(
+          "total",
+          "tet",
+          "eggw",
+          "whole",
+          "cash",
+          "cat",
+          "dust",
+          "milk",
+          "pean",
+          "rye"
+        ),
+        labels = c(
+          "Total IgE",
+          "Tetanus-toxoid",
+          "Egg white",
+          "Whole egg",
+          "Cashew",
+          "Cat",
+          "Dust",
+          "Cow's milk",
+          "Peanut",
+          "Rye"
+        )
+      )
+    )
+  ige_com <- ige |>
+    select(subjectid, lbresigev3com, lbresigev5com, lbresigev8com) |>
+    pivot_longer(
+      lbresigev3com:lbresigev8com,
+      names_pattern = "lbresige(v3|v5|v8)com",
+      names_to = "visit",
+      values_to = "comment"
+    ) |>
+    mutate(
+      visit = as.numeric(gsub("v", "", visit)),
+      visit_age = factor(
+        visit,
+        levels = c(3, 5, 8),
+        labels = c("6-month", "7-month", "19-month")
+      )
+    )
+  ige_long |>
+    left_join(
+      ige_com,
+      join_by(subjectid, visit, visit_age)
+    ) |>
+    mutate(
+      subjectid = gsub("^01", "01-", subjectid)
+    ) |>
+    relocate(visit_age, .after = visit) |>
+    rename(
+      record_id = medrioid,
+      subjid = subjectid
+    )
+}
+
 combine_diary <- function() {
   # Stage 1 vaccination locations check, 6-week and 18-month only
   st1_vax1 <- read_delim(
@@ -2231,6 +2325,7 @@ dat_food <- combine_food_household()
 dat_fha <- combine_family_history_atopy()
 dat_bc <- combine_blood_collection()
 dat_igg <- combine_igg()
+dat_ige <- combine_ige()
 dat_diary <- combine_diary()
 dat_trt <- combine_treatment_lists()
 
@@ -2254,6 +2349,7 @@ optimum_data <- list(
   "family_history_of_atopy" = dat_fha,
   "blood_collection" = dat_bc,
   "igg" = dat_igg,
+  "ige" = dat_ige,
   "diary" = dat_diary
 )
 
