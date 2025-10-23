@@ -164,7 +164,12 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
         select(-ptinit, -calcagem, -starts_with("eto")) |>
         mutate(
           # Impute 1 missing case as most common level
-          parinc_imp = if_else(is.na(parinc), ">$180,000", parinc),
+          parinc_imp = factor(if_else(is.na(parinc), ">$180,000", parinc), levels = levels(parinc)),
+          # Combine uncommon levels
+          parinc_imp = fct_collapse(
+            parinc_imp,
+            "≤$87,000" = c("< $18,000", "$18,000 to $37,000", "$37,001 to $87,000")
+          )
         ),
       join_by(record_id)
     ) |>
