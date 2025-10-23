@@ -1899,7 +1899,8 @@ combine_ige <- function() {
     pivot_longer(
       starts_with("lbresige"),
       names_pattern = "lbresige(tet|eggw|whole|total|pean|cash|milk|dust|cat|rye)(v3|v5|v8)",
-      names_to = c("allergen", "visit")
+      names_to = c("allergen", "visit"),
+      values_to = "ige"
     ) |>
     mutate(
       visit = as.numeric(gsub("v", "", visit)),
@@ -1964,7 +1965,8 @@ combine_ige <- function() {
     rename(
       record_id = medrioid,
       subjid = subjectid
-    )
+    ) |>
+    mutate(record_id = as.character(record_id))
 }
 
 combine_diary <- function() {
