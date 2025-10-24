@@ -86,6 +86,11 @@ dat_spt <- get_skin_prick_long(dat_raw)
 dat_ecz <- get_eczema_data(dat_raw)
 dat_fa <- get_food_allergy(dat_raw)
 dat_fc <- get_ofc_long(dat_raw)
+
+# For 4629-92 we do not consider their walnut allergy as valid
+# therefore, this outcome is excluded here
+dat_fa <- dat_fa |>
+  filter(!(outfrafood == "walnut" & record_id == "4629-92"))
 ```
 
 ```{r}
