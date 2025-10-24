@@ -976,6 +976,8 @@ dat_spt |>
 
 @tbl-spt-positive-tested provides a breakdown of the specific allergens from the standard panel which satisfied the sensitisation criteria. @tbl-spt-positive-tested-other reports on any other tested allergens beyond the standard panel.
 
+Whole egg had a higher proportion of missingness than other allergens from the standard panel. This was usually because either egg white or egg yolk specifically was assessed and reported in the additional allergens instead of whole egg.
+
 ```{r}
 #| label: tbl-spt-positive
 #| tbl-cap: |
