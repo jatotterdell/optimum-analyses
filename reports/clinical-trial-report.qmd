@@ -24,6 +24,7 @@ suppressPackageStartupMessages({
   library(patchwork)
   library(legendry)
   library(ggh4x)
+  library(scales)
 
   # Tables
   library(gt)
@@ -35,9 +36,10 @@ suppressPackageStartupMessages({
   library(brms)
   library(tidybayes)
   library(distributional)
+  library(brmsmargins)
 })
 
-options(brms.backend = "cmdstanr", mc.cores = 4)
+options(brms.backend = "cmdstanr", mc.cores = 8)
 
 readRenviron(here(".env"))
 source(here("R", "util.R"))
@@ -60,6 +62,15 @@ theme_set(
 )
 
 theme_gtsummary_compact(font_size = 10)
+
+integer_breaks <- function(n = 5, ...) {
+  fxn <- function(x) {
+    breaks <- floor(pretty(x, n, ...))
+    names(breaks) <- attr(breaks, "labels")
+    breaks
+  }
+  return(fxn)
+}
 ```
 
 ```{r}
@@ -261,11 +272,10 @@ trial.
 The report includes results for:
 
 - baseline demographics
+- skin prick tests
 - food allergy
 - eczema
-- safety data
-
-It does not include the immunogenicity outcomes which have been reported elsewhere.
+- safety reporting
 
 For full details of the trial processes, objectives, and outcomes refer to the protocol
 and statistical analysis plan.
@@ -283,11 +293,11 @@ and Haemophilus influenzae type b (Hib) vaccine (DTwP-HepB- Hib) in place of
 DTaP-HepB-IPV-Hib at approximately 2 months, together with the standard schedule
 of vaccines (referred to as 1-wP/2-aP + aP or wP for short).
 
-## Trial Design
+## Trial design
 
 Originally, a sample size of 3,000 participants was planned. Under the adaptive design, as outlined in the protocol and statistical analysis plan, we estimated the trial had 85% power to detect a reduction in food allergy from 10% to 7% with type I error of 5%. If $\delta$ denotes the difference in probability of food allergy under each intervention, then trial success required that $\delta$ was very likely to be less than zero, specifically that $\Pr(\delta < 0) > 0.95$.
 
-The maximum sample size was subsequently revised down to 2,000 participants due to feasability constraints.
+The maximum sample size was subsequently revised down to 2,000 participants due to feasability constraints. The trial was stopped early due to logistical issues with 972 participants randomised.
 
 ## Trial outcomes
 
@@ -344,9 +354,7 @@ Analyses of secondary outcomes are analagous to those for the primary outcome, b
 
 ## Enrolment
 
-The first participant was randomised on `r as_date(min(dat_base$randdattim))` and the final participant was randomised
-on `r as_date(max(dat_base$randdattim))`. 
-A summary of enrolment over calendar time is presented in @fig-enrolment-overall
+There were `r nrow(dat_base)` participants randomised, `r nrow(dat_base)/2` per treatment group. The first participant was randomised on `r as_date(min(dat_base$randdattim))` and the final participant was randomised on `r as_date(max(dat_base$randdattim))`. A summary of enrolment over calendar time is presented in @fig-enrolment-overall
 
 ```{r}
 #| label: fig-enrolment-overall
@@ -374,8 +382,7 @@ ggplot(
 
 ## Characteristics
 
-There were `r nrow(dat_base)` participants overall. 
-The baseline characteristics of participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics.
+The baseline characteristics of participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics. Characteristics were similar between the groups.
 
 ```{r}
 #| label: tbl-baseline-characteristics
@@ -386,6 +393,8 @@ dat_base |>
   tbl_summary(
     include = c(
       # Demographics and infant history
+      rand_stage,
+      rand_site,
       gender,
       v1_age_days,
       parinc,
@@ -414,6 +423,8 @@ dat_base |>
       fha
     ),
     label = list(
+      rand_stage ~ "Protocol stage",
+      rand_site ~ "Participating site",
       v1_age_days ~ "Age at enrolment (days)",
       fborn ~ "First born",
       mgrav_fac ~ "Maternal gravidity",
@@ -461,7 +472,7 @@ dat_base |>
 
 ## Study completion
 
-The study completion status as reported in the database is summarised in @tbl-discharge-outcome. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who protocolised for the additional blood collections, a number of which withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of these blood collections.
+The study completion status as reported in the database is summarised in @tbl-discharge-outcome and by site in @tbl-discharge-outcome-site. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who were scheduled for the additional blood collections, a number of which withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of these blood collections.
 
 ```{r}
 #| label: tbl-discharge-outcome
@@ -840,7 +851,7 @@ no_spt_record <- dat_spt |>
   filter(!priyn)
 ```
 
-There were `r nrow(no_spt_record)` participants with no documented SPTs (@tbl-spt-listing-no-records). In many cases this was due to early withdrawal from the study, with the remaining due to non-consent from the parent.
+There were `r nrow(no_spt_record)` participants with no documented SPTs (@tbl-spt-listing-no-records). In many cases this was due to early withdrawal from the study, with the remaining due to non-consent from the parent. All other participants had a record for at least the scheduled SPT, and in a few cases additional unscheduled SPT (@tbl-spt-number).
 
 ```{r}
 #| label: tbl-spt-listing-no-records
@@ -858,8 +869,6 @@ no_spt_record |>
     table.width = pct(100)
   )
 ```
-
-All other participants had a record for at least the scheduled SPT, and in a few cases additional unscheduled SPT (@tbl-spt-number).
 
 ```{r}
 #| label: tbl-spt-number
@@ -899,17 +908,21 @@ tbl_summary(
   cat()
 ```
 
-For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT in months was derived from `birthdat` (date of birth) and `pridat` (date of skin prick test) or in some cases `univdat` (date of unscheduled visit). Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age (@fig-spt-age). There were 5 infants who did have an SPT, but none by 18-months of age (@tbl-spt-listing-after-18months).
+For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT in months was derived from `birthdat` (date of birth) and `pridat` (date of skin prick test) or in some cases `univdat` (date of unscheduled visit) when `pridat` was missing. 
+
+Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age (@fig-spt-age). There were 5 infants who did have an SPT, but none by 18-months of age (@tbl-spt-listing-after-18months). Participants who were enrolled under earlier stage 1 protocol versions had their SPT scheduled for 18 months of age rather than 12 months of age. Delays meant some of these SPT's did not occur until 19 or 20 months of age. For the outcomes, "approximately 12 months of age" was taken to mean "by 18 months of age" which then currently excludes some of these later SPTs.
 
 ```{r}
 #| label: fig-spt-age
 #| fig-cap: |
-#|   Age at skin prick test by type (scheduled or unscheduled).
-#| fig-height: 2.5
+#|   Age at skin prick test by protocol stage and occasion type (scheduled or unscheduled).
+#|   Y-axis scale varies by panel.
+#| fig-height: 4
 dat_spt |>
   filter(row_number() == 1, .by = c(record_id, trt, spt_occasion, spt_num)) |>
   filter(!is.na(spt_age)) |>
   mutate(
+    rand_stage = paste0("Stage ", rand_stage),
     spt_occasion = str_to_sentence(if_else(
       spt_occasion == "other",
       "unscheduled",
@@ -917,12 +930,12 @@ dat_spt |>
     ))
   ) |>
   ggplot(aes(spt_age)) +
-  facet_wrap(~spt_occasion, scales = "free_y") +
+  ggh4x::facet_grid2(spt_occasion ~ rand_stage, scales = "free_y", independent = "y") +
   geom_bar() +
   scale_x_continuous("Age (months)", breaks = seq(0, 30, 2)) +
   scale_y_continuous(
     "Number of skin prick tests",
-    breaks = scales::pretty_breaks(10)
+    breaks = integer_breaks(10)
   )
 ```
 
@@ -956,7 +969,7 @@ dat_spt |>
 
 @tbl-spt-positive reports on the number and percentage of infants who had a SPT result of \>1mm and ≥3mm relative to negative control for at least one tested allergen (outcomes 2c and 2d). Any infants with no SPT records by 18 months of age are reported as missing.
 
-@tbl-spt-positive-tested provides a breakdown of the specific allergens which satisfied the sensitisation criteria.
+@tbl-spt-positive-tested provides a breakdown of the specific allergens from the standard panel which satisfied the sensitisation criteria. @tbl-spt-positive-tested-other reports on any other tested allergens beyond the standard panel.
 
 ```{r}
 #| label: tbl-spt-positive
@@ -1007,9 +1020,28 @@ dat_spt |>
 ```{r}
 #| include: false
 std_allergens <- c(
-  "D.pteronyssinus", "cat dander", "perennial ryegrass", "whole egg", "cashew", "cow's milk", "peanut", "seasme")
+  "D.pteronyssinus",
+  "cat dander",
+  "perennial ryegrass",
+  "whole egg",
+  "cashew",
+  "cow's milk",
+  "peanut",
+  "seasme"
+)
 dat_spt |>
-  select(record_id, trt, spt_occasion, spt_age, spt_tested, spt_result, spt_reaction, spt_0mm, spt_1mm, spt_3mm) |>
+  select(
+    record_id,
+    trt,
+    spt_occasion,
+    spt_age,
+    spt_tested,
+    spt_result,
+    spt_reaction,
+    spt_0mm,
+    spt_1mm,
+    spt_3mm
+  ) |>
   filter(spt_tested %in% std_allergens) |>
   filter(spt_occasion == "scheduled") |>
   summarise(
@@ -1020,7 +1052,11 @@ dat_spt |>
     m = sum(is.na(spt_1mm)),
     .by = c(trt, spt_tested)
   ) |>
-  pivot_wider(names_from = trt, values_from = c(N, n, y, p, m), names_vary = "slowest") |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(N, n, y, p, m),
+    names_vary = "slowest"
+  ) |>
   gt(rowname_col = "spt_tested") |>
   tab_spanner(ends_with("aP"), label = "aP") |>
   tab_spanner(ends_with("wP"), label = "wP") |>
@@ -1034,13 +1070,20 @@ dat_spt |>
 ```{r}
 #| label: tbl-spt-positive-tested
 #| tbl-cap: |
-#|   Number and percentage of infants with a positive SPT (scheduled only) 
+#|   Number and percentage of infants with a positive SPT (scheduled only)
 #|   by 18 months of age by tested allergen (for those included in the standard panel).
 #|   Each cell gives positive/tested (%) [missing result%].
 #| tbl-pos: "H"
 #| results: "asis"
 std_allergens <- c(
-  "D.pteronyssinus", "cat dander", "perennial ryegrass", "whole egg", "cashew", "cow's milk", "peanut")
+  "D.pteronyssinus",
+  "cat dander",
+  "perennial ryegrass",
+  "whole egg",
+  "cashew",
+  "cow's milk",
+  "peanut"
+)
 dat_spt |>
   filter(spt_tested %in% std_allergens) |>
   filter(spt_occasion == "scheduled") |>
@@ -1050,18 +1093,27 @@ dat_spt |>
   mutate(
     across(spt_0mm:spt_3mm, ~ .x * (spt_age <= 18))
   ) |>
-  pivot_longer(spt_0mm:spt_3mm, names_pattern = "spt_([0-3]+mm)", names_to = "size", values_to = "diameter") |>
+  pivot_longer(
+    spt_0mm:spt_3mm,
+    names_pattern = "spt_([0-3]+mm)",
+    names_to = "size",
+    values_to = "diameter"
+  ) |>
   pivot_wider(names_from = spt_tested, values_from = diameter) |>
   mutate(
     size = factor(
-      size, 
-    levels = c("0mm", "1mm", "3mm"), 
-    labels = c("Wheal size >0mm", "Wheal size >1mm vs. neg control", "Wheal size ≥3mm vs neg. control")
+      size,
+      levels = c("0mm", "1mm", "3mm"),
+      labels = c(
+        "Wheal size >0mm",
+        "Wheal size >1mm vs. neg control",
+        "Wheal size ≥3mm vs neg. control"
+      )
     )
   ) |>
   tbl_strata(
     strata = size,
-    .tbl_fun = ~ .x |> 
+    .tbl_fun = ~ .x |>
       tbl_summary(
         include = `D.pteronyssinus`:peanut,
         by = trt,
@@ -1091,17 +1143,28 @@ dat_spt |>
 ```{r}
 #| label: tbl-spt-positive-tested-other
 #| tbl-cap: |
-#|   Number and percentage of infants with a positive SPT (scheduled only) 
+#|   Number and percentage of infants with a positive SPT (scheduled only)
 #|   by 18 months of age by tested allergen for additional allergens which were tested.
 #|   Each cell gives positive/tested (%). Totals restricted to only those infants with at least one
 #|   additional allergen tested
 #| tbl-pos: "H"
 #| results: "asis"
 std_allergens <- c(
-  "D.pteronyssinus", "cat dander", "perennial ryegrass", "whole egg", "cashew", "cow's milk", "peanut")
+  "D.pteronyssinus",
+  "cat dander",
+  "perennial ryegrass",
+  "whole egg",
+  "cashew",
+  "cow's milk",
+  "peanut"
+)
 dat_spt |>
   unique() |>
-  filter(!(spt_tested %in% std_allergens), !is.na(spt_tested), spt_reaction != "Not Done") |>
+  filter(
+    !(spt_tested %in% std_allergens),
+    !is.na(spt_tested),
+    spt_reaction != "Not Done"
+  ) |>
   filter(spt_occasion == "scheduled") |>
   select(record_id, trt, spt_age, spt_tested, spt_0mm, spt_1mm, spt_3mm) |>
   droplevels() |>
@@ -1109,20 +1172,32 @@ dat_spt |>
   mutate(
     across(spt_0mm:spt_3mm, ~ .x * (spt_age <= 18))
   ) |>
-  pivot_longer(spt_0mm:spt_3mm, names_pattern = "spt_([0-3]+mm)", names_to = "size", values_to = "diameter") |>
-  mutate(diameter = as.logical(diameter), spt_tested = fct_infreq(spt_tested)) |>
+  pivot_longer(
+    spt_0mm:spt_3mm,
+    names_pattern = "spt_([0-3]+mm)",
+    names_to = "size",
+    values_to = "diameter"
+  ) |>
+  mutate(
+    diameter = as.logical(diameter),
+    spt_tested = fct_infreq(spt_tested)
+  ) |>
   arrange(spt_tested) |>
   pivot_wider(names_from = spt_tested, values_from = diameter) |>
   mutate(
     size = factor(
-      size, 
-    levels = c("0mm", "1mm", "3mm"), 
-    labels = c("Wheal size >0mm", "Wheal size >1mm vs. neg control", "Wheal size ≥3mm vs neg. control")
+      size,
+      levels = c("0mm", "1mm", "3mm"),
+      labels = c(
+        "Wheal size >0mm",
+        "Wheal size >1mm vs. neg control",
+        "Wheal size ≥3mm vs neg. control"
+      )
     )
   ) |>
   tbl_strata(
     strata = size,
-    .tbl_fun = ~ .x |> 
+    .tbl_fun = ~ .x |>
       tbl_summary(
         include = `sesame`:`d. farinae`,
         by = trt,
@@ -1145,7 +1220,11 @@ dat_spt |>
     .combine_with = "tbl_stack"
   ) |>
   as_gt() |>
-  tab_options(table.font.size = px(10), table.width = pct(100), latex.use_longtable = TRUE) |>
+  tab_options(
+    table.font.size = px(10),
+    table.width = pct(70),
+    latex.use_longtable = TRUE
+  ) |>
   as_latex() |>
   latex_unescape() |>
   cat()
@@ -1158,7 +1237,7 @@ dat_spt |>
 
 @tbl-posterior-spt summarises the estimated model parameters for the probability of skin prick test sensitsation under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-density-spt and @fig-posterior-difference-spt-adjusted).
 
-The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were comparable. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in skin prick test sensitisation at 1mm [2.c] between wP and wP were (-0.04, 0.06) and at 3mm [2.d] were (-0.04, 0.05). The probability of a reduction in skin prick test sensitisation under wP compared to aP was 0.32 and 0.41 respectively.
+The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were comparable. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in skin prick test sensitisation at 1mm [2.c] between wP and aP were (-0.04, 0.06) and at 3mm [2.d] were (-0.04, 0.05). The probability of a reduction in skin prick test sensitisation under wP compared to aP was 0.33 and 0.41 respectively.
 
 ```{r}
 #| label: spt-analysis
@@ -1216,7 +1295,8 @@ fit_outcome <- dat_spt_analysis |>
           warmup = 500,
           iter = 5500,
           refresh = 0,
-          silent = 2
+          silent = 2,
+          seed = 54123
         )
       }
     ),
@@ -1251,23 +1331,34 @@ diff_agg <- diff_outcome |>
   mutate(
     model = "Unadjusted",
     across(
-      aP:delta, 
-      list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
+      aP:delta,
+      list(
+        med = median,
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975),
+        pr = ~ Pr(.x < 0)
+      ),
       .names = "{.fn}_{.col}"
     )
   ) |>
   select(-aP, -wP, -delta) |>
   bind_rows(
-    fit_outcome |> 
+    fit_outcome |>
       unnest(rd) |>
       rename(delta = .rd_empirical) |>
       select(size, aP, wP, delta) |>
       mutate(model = "Adjusted") |>
-        mutate(across(
-    aP:delta, 
-    list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
-    .names = "{.fn}_{.col}")) |>
-  select(-aP, -wP, -delta)
+      mutate(across(
+        aP:delta,
+        list(
+          med = median,
+          lo = ~ quantile2(.x, 0.025),
+          hi = ~ quantile2(.x, 0.975),
+          pr = ~ Pr(.x < 0)
+        ),
+        .names = "{.fn}_{.col}"
+      )) |>
+      select(-aP, -wP, -delta)
   ) |>
   select(-pr_aP, -pr_wP)
 dat_outcome |>
@@ -1279,9 +1370,10 @@ dat_outcome |>
   left_join(diff_agg, join_by(size)) |>
   mutate(
     size = factor(
-      size, 
-      levels = c("0mm", "1mm", "3mm"), 
-      labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]"))
+      size,
+      levels = c("0mm", "1mm", "3mm"),
+      labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]")
+    )
   ) |>
   gt(groupname_col = "model", rowname_col = "size") |>
   fmt_percent(starts_with("p_"), decimals = 0) |>
@@ -1509,7 +1601,10 @@ summ_fc <- dat_fc |>
   )
 
 dat_po_ige_1 <- dat_fa |>
-  filter(outalltp == "Highly probably IgE mediated food allergy", outageval_months2 <= 18) |>
+  filter(
+    outalltp == "Highly probably IgE mediated food allergy",
+    outageval_months2 <= 18
+  ) |>
   select(
     record_id,
     trt,
@@ -1528,18 +1623,37 @@ dat_po_ige_1 <- dat_fa |>
   rowwise() |>
   mutate(
     splt_foods = gsub("( |, )", "|", spt_pos_1mm),
-    outfrafood_sub = gsub("Whole Egg", "egg", gsub("cows ", "", gsub("Dairy", "milk", outfrafood))),
-    match_food = gsub("NA", "", paste(unique(str_match_all(tolower(outfrafood_sub), splt_foods)[[1]]), collapse = ", "))
+    outfrafood_sub = gsub(
+      "Whole Egg",
+      "egg",
+      gsub("cows ", "", gsub("Dairy", "milk", outfrafood))
+    ),
+    match_food = gsub(
+      "NA",
+      "",
+      paste(
+        unique(str_match_all(tolower(outfrafood_sub), splt_foods)[[1]]),
+        collapse = ", "
+      )
+    )
   ) |>
   ungroup()
 dat_po_ige <- dat_po_ige_1 |>
   summarise(
     outfrafood = paste(unique(tolower(outfrafood)), collapse = ", "),
     any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
-    matched_foods = gsub("^, ", "", gsub("(, )+", ", ", paste(
-      unique(match_food[!is.na(match_food) & outageval_months2 <= 18]),
-      collapse = ", "
-    ))),
+    matched_foods = gsub(
+      "^, ",
+      "",
+      gsub(
+        "(, )+",
+        ", ",
+        paste(
+          unique(match_food[!is.na(match_food) & outageval_months2 <= 18]),
+          collapse = ", "
+        )
+      )
+    ),
     .by = c(record_id, trt)
   ) |>
   rename(
@@ -1666,6 +1780,10 @@ dat_po |>
 
 ### Primary outcome model
 
+@tbl-posterior-primary summarises the estimated model parameters for the probability of food allergy under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-density and @fig-posterior-difference-adjusted).
+
+The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were comparable. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in food allergy between wP and aP were (-0.02, 0.04). The probability of a reduction in food allergy under wP compared to aP was 0.35.
+
 ```{r}
 #| label: primary-outcome-analysis
 po_sum <- dat_po |>
@@ -1701,7 +1819,8 @@ fit <- brm(
   warmup = 500,
   iter = 5500,
   refresh = 0,
-  silent = 2
+  silent = 2,
+  seed = 54123
 )
 
 wgt <- c(rdo(rdirichlet(1, rep(1, 972)), ndraws = ndraws(fit)))
@@ -1722,7 +1841,7 @@ dat_rd_po <- dat_po |>
 ```{r}
 #| label: tbl-posterior-primary
 #| tbl-cap: |
-#|   Posterior summaries for probability and difference in probability of food allergy by size,
+#|   Posterior summaries for probability and difference in probability of food allergy,
 #|    unadjusted primary model.
 #| tbl-pos: "H"
 
@@ -1732,22 +1851,33 @@ diff_agg <- po_diff |>
   mutate(
     model = "Unadjusted",
     across(
-      aP:delta, 
-      list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
+      aP:delta,
+      list(
+        med = median,
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975),
+        pr = ~ Pr(.x < 0)
+      ),
       .names = "{.fn}_{.col}"
     )
   ) |>
   select(-aP, -wP, -delta) |>
   bind_rows(
-    dat_rd_po |> 
+    dat_rd_po |>
       rename(delta = .rd_empirical) |>
       select(aP, wP, delta) |>
       mutate(model = "Adjusted") |>
-        mutate(across(
-    aP:delta, 
-    list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
-    .names = "{.fn}_{.col}")) |>
-  select(-aP, -wP, -delta)
+      mutate(across(
+        aP:delta,
+        list(
+          med = median,
+          lo = ~ quantile2(.x, 0.025),
+          hi = ~ quantile2(.x, 0.975),
+          pr = ~ Pr(.x < 0)
+        ),
+        .names = "{.fn}_{.col}"
+      )) |>
+      select(-aP, -wP, -delta)
   ) |>
   select(-pr_aP, -pr_wP)
 
@@ -2006,6 +2136,10 @@ tbl_stack(
 
 ### Eczema model
 
+@tbl-posterior-eczema summarises the estimated model parameters for the probability of eczema by age under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-density-eczema and @fig-posterior-difference-eczema-adjusted).
+
+The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were comparable. Given the data, under the assumed primary model the most credible values (based on 95% equal-tailed credible interval) for the difference in eczema at 6 months [2.a] between wP and aP were (-0.04, 0.02) and at 12 months [2.b] (-0.04, 0.03). The probability of a reduction in eczema under wP compared to aP was 0.77 and 0.66 respectively.
+
 ```{r}
 #| label: eczema-analysis
 dat_outcome <- dat_ecz_analysis |>
@@ -2015,7 +2149,7 @@ dat_outcome <- dat_ecz_analysis |>
     names_to = "age",
     values_to = "outcome"
   ) |>
-  mutate(age = factor(age, levels = c("6m", "12m", "18m"))) |>
+  mutate(age = factor(age, levels = c("6m", "12m", "18m"), labels = c("6m [2.a]", "12m [2.b]", "18m"))) |>
   filter(!is.na(outcome)) |>
   summarise(
     n = n(),
@@ -2049,7 +2183,7 @@ fit_outcome <- dat_ecz_analysis |>
     names_to = "age",
     values_to = "outcome"
   ) |>
-  mutate(age = factor(age, levels = c("6m", "12m", "18m"))) |>
+  mutate(age = factor(age, levels = c("6m", "12m", "18m"), labels = c("6m [2.a]", "12m [2.b]", "18m"))) |>
   nest(-age) |>
   mutate(
     fit = map(
@@ -2064,7 +2198,8 @@ fit_outcome <- dat_ecz_analysis |>
           warmup = 500,
           iter = 5500,
           refresh = 0,
-          silent = 2
+          silent = 2,
+          seed = 54123
         )
       }
     ),
@@ -2099,23 +2234,34 @@ diff_agg <- diff_outcome |>
   mutate(
     model = "Unadjusted",
     across(
-      aP:delta, 
-      list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
+      aP:delta,
+      list(
+        med = median,
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975),
+        pr = ~ Pr(.x < 0)
+      ),
       .names = "{.fn}_{.col}"
     )
   ) |>
   select(-aP, -wP, -delta) |>
   bind_rows(
-    fit_outcome |> 
+    fit_outcome |>
       unnest(rd) |>
       rename(delta = .rd_empirical) |>
       select(age, aP, wP, delta) |>
       mutate(model = "Adjusted") |>
-        mutate(across(
-    aP:delta, 
-    list(med = median, lo = ~ quantile2(.x, 0.025), hi = ~ quantile2(.x, 0.975), pr = ~ Pr(.x < 0)), 
-    .names = "{.fn}_{.col}")) |>
-  select(-aP, -wP, -delta)
+      mutate(across(
+        aP:delta,
+        list(
+          med = median,
+          lo = ~ quantile2(.x, 0.025),
+          hi = ~ quantile2(.x, 0.975),
+          pr = ~ Pr(.x < 0)
+        ),
+        .names = "{.fn}_{.col}"
+      )) |>
+      select(-aP, -wP, -delta)
   ) |>
   select(-pr_aP, -pr_wP)
 
@@ -2310,7 +2456,40 @@ dat_base_ae <- dat_base |>
 ```
 
 There were `r nrow(dat_ae)` adverse events documented during the trial.
-Due to the more detailed safety monitoring at PCH, most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`) with only `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (listed in @tbl-listing-ae-non-pch). 
+Most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`) with only `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (@tbl-events-by-stage-and-site and listing in @tbl-listing-ae-non-pch).
+
+There was a higher number of adverse events in the wP group compared to the aP group, but for both groups the majority of events were documented as unrelated to the blinded study vaccine (@tbl-summary-ae-pch). A listing of the related AEs is given in @tbl-listing-ae-related-pch.
+
+A summary of the number and proportion of infants randomised at PCH with any reported adverse event by the MeDRA preferred term is given in @tbl-any-event-ae.  A summary of the total number of events is given in @tbl-events-ae.
+
+```{r}
+#| label: tbl-events-by-stage-and-site
+#| tbl-cap: |
+#|   Number of adverse events by study stage and site.
+#| tbl-pos: "H"
+dat_base_ae |>
+  summarise(
+    participants = length(unique(record_id)),
+    aes = sum(!is.na(aecode1)),
+    .by = c(trt, rand_site, rand_stage)
+  ) |>
+  pivot_wider(names_from = trt, values_from = c(participants, aes)) |>
+  mutate(rand_stage = paste0("Stage ", rand_stage)) |>
+  gt(groupname_col = "rand_stage", rowname_col = "rand_site") |>
+  cols_merge(
+    c(aes_aP, participants_aP),
+    pattern = "{1}/{2}"
+  ) |>
+  cols_merge(
+    c(aes_wP, participants_wP),
+    pattern = "{1}/{2}"
+  ) |>
+  cols_label(
+    aes_aP ~ "aP (events/participants)",
+    aes_wP ~ "wP (events/participants)"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(50))
+```
 
 ```{r}
 #| label: tbl-listing-ae-non-pch
@@ -2330,9 +2509,6 @@ dat_base_ae |>
   cols_align(align = "left")
 ```
 
-There was a higher number of adverse events in the wP group compared to the aP group, but for both groups the majority of events were documented as unrelated to the blinded study vaccine (@tbl-summary-ae-pch).
-A listing of the related AEs is given in @tbl-listing-ae-related-pch.
-
 ```{r}
 #| label: tbl-summary-ae-pch
 #| tbl-cap: |
@@ -2342,17 +2518,48 @@ A listing of the related AEs is given in @tbl-listing-ae-related-pch.
 dat_base_ae |>
   filter(rand_site == "PCH") |>
   summarise(
-    `Any AE` = any(!is.na(aecode1)),
-    `Any SAE` = any(aetype == "SAE", na.rm = TRUE),
-    `Any related AE` = any(aerel == "Related", na.rm = TRUE),
-    `Any severe AE` = any(aesev == "Severe", na.rm = TRUE),
-    `Number of AEs` = sum(!is.na(aecode1)),
-    `Number of related AEs` = sum(aerel == "Related", na.rm = TRUE),
+    `
+Any
+AE
+` = any(!is.na(aecode1)),
+    `
+Any
+SAE
+` = any(aetype == "SAE", na.rm = TRUE),
+    `
+Any
+related
+AE
+` = any(aerel == "Related", na.rm = TRUE),
+    `
+Any
+severe
+AE
+` = any(aesev == "Severe", na.rm = TRUE),
+    `
+Number
+of
+AEs
+` = sum(!is.na(aecode1)),
+    `
+Number
+of
+related
+AEs
+` = sum(aerel == "Related", na.rm = TRUE),
     .by = c(record_id, trt)
   ) |>
   tbl_summary(
     by = "trt",
-    include = `Any AE`:`Number of related AEs`,
+    include = `
+Any
+AE
+`:`
+Number
+of
+related
+AEs
+`,
     digits = ~0
   ) |>
   add_overall(last = TRUE) |>
@@ -2405,9 +2612,6 @@ dat_base_ae |>
   cols_align(aeday_v1, align = "right") |>
   sub_missing()
 ```
-
-A summary of the number and proportion of infants randomised at PCH with any reported adverse event by the MeDRA preferred term is given in @tbl-any-event-ae. 
-A summary of the total number of events is given in @tbl-events-ae.
 
 ```{r}
 #| label: tbl-any-event-ae
@@ -2566,20 +2770,39 @@ plot_sys_reaction <- function(diary_sol, x, ymax = 1) {
   return(p)
 }
 
-plot_isr <- function(dat, trt = treatment, var = size_cat, ref = 0, ylim = 1, var_lab = "Size (mm)") {
+plot_isr <- function(
+  dat,
+  trt = treatment,
+  var = size_cat,
+  ref = 0,
+  ylim = 1,
+  var_lab = "Size (mm)"
+) {
   make_plot_data <- function(dat, trt = trt, var = var, ref = ref) {
     pdat <- dat |>
       group_by({{ trt }}, vaxage, vaccine, day) |>
       count({{ var }}) |>
-      mutate(p = n / if_else(is.na({{ var }}), sum(n), sum(n[!is.na({{ var }})]))) |>
+      mutate(
+        p = n / if_else(is.na({{ var }}), sum(n), sum(n[!is.na({{ var }})]))
+      ) |>
       ungroup() |>
-      complete({{ trt }}, nesting(vaxage, vaccine), day, {{ var }}, fill = list(n = 0, p = 0)) |>
+      complete(
+        {{ trt }},
+        nesting(vaxage, vaccine),
+        day,
+        {{ var }},
+        fill = list(n = 0, p = 0)
+      ) |>
       to_factor()
     plab <- dat |>
       summarise(
         n = sum({{ var }} != ref, na.rm = TRUE),
         p = mean({{ var }} != ref, na.rm = TRUE),
-        lab = sprintf("%i/%i", sum({{ var }} != ref, na.rm = TRUE), sum(!is.na({{ var }}))),
+        lab = sprintf(
+          "%i/%i",
+          sum({{ var }} != ref, na.rm = TRUE),
+          sum(!is.na({{ var }}))
+        ),
         .by = c({{ trt }}, vaxage, vaccine, day)
       )
     return(list(pdat, plab))
@@ -2589,27 +2812,30 @@ plot_isr <- function(dat, trt = treatment, var = size_cat, ref = 0, ylim = 1, va
   plab <- out[[2]]
 
   base_plot <- function(pdat, plab) {
-    ggplot(pdat |> filter({{ var }} != ref), aes(interaction(day, {{ trt }}, sep = "!"), p)) +
-    facet_wrap2(
-      vaxage ~ vaccine,
-      strip = strip_nested(
-        background_x = elem_list_rect(
-          fill = c("grey90", "grey80"),
-          colour = c("white", "grey20")
+    ggplot(
+      pdat |> filter({{ var }} != ref),
+      aes(interaction(day, {{ trt }}, sep = "!"), p)
+    ) +
+      facet_wrap2(
+        vaxage ~ vaccine,
+        strip = strip_nested(
+          background_x = elem_list_rect(
+            fill = c("grey90", "grey80"),
+            colour = c("white", "grey20")
+          ),
+          by_layer_x = TRUE
         ),
-        by_layer_x = TRUE
-      ),
-      ncol = 4
-    ) +
-    geom_col(aes(fill = {{ var }})) +
-    geom_vline(xintercept = 7.5, colour = "grey80") +
-    scale_fill_viridis_d(var_lab) +
-    scale_x_discrete(
-      guide = legendry::guide_axis_nested(key_range_auto(sep = "!")),
-      name = "Day following vaccination"
-    ) +
-    scale_y_continuous("Proportion", limit = c(0, ylim), expand = c(0, 0)) +
-    theme(panel.grid.major.x = element_blank(), legend.position = "top")
+        ncol = 4
+      ) +
+      geom_col(aes(fill = {{ var }})) +
+      geom_vline(xintercept = 7.5, colour = "grey80") +
+      scale_fill_viridis_d(var_lab) +
+      scale_x_discrete(
+        guide = legendry::guide_axis_nested(key_range_auto(sep = "!")),
+        name = "Day following vaccination"
+      ) +
+      scale_y_continuous("Proportion", limit = c(0, ylim), expand = c(0, 0)) +
+      theme(panel.grid.major.x = element_blank(), legend.position = "top")
   }
   g <- base_plot(pdat, plab)
   return(g)
@@ -2895,6 +3121,7 @@ plot_fever()
 ### Solicited Injection Site Reactions
 
 ```{r}
+#| label: data-isr
 st1_isr <- read_parquet(file.path(st1_pth, "diary-site-reactions.parquet")) |>
   to_factor() |>
   mutate(
@@ -3095,7 +3322,7 @@ dat_po_ana |>
 
 ```{r}
 #| label: tbl-listing-ige-matched-foods
-#| tbl-cap: | 
+#| tbl-cap: |
 #|    Listing of infants with IgE-mediated food allergy outcome by 18 months of age and corresponding
 #|    SPT positive allergens.
 #| tbl-pos: "H"
@@ -3132,4 +3359,580 @@ dat_ecz_spt |>
     table.width = pct(60),
     latex.use_longtable = TRUE
   )
+```
+
+\clearpage
+
+## IgE responses
+
+```{r}
+dat_ige <- select_form(dat_raw, "ige")
+dat_ige <- dat_base |>
+  right_join(dat_ige, join_by(record_id, subjid)) |>
+  select(
+    record_id,
+    subjid,
+    trt,
+    gender,
+    bfed,
+    fborn,
+    parinc_imp,
+    ces,
+    fha,
+    visit_age,
+    allergen,
+    ige,
+    comment
+  )
+
+multinorm <- cmdstan_model(here("stan", "multinorrm-cens.stan"))
+
+make_stan_data <- function(
+  dd,
+  form = ~trt,
+  var = log_ige,
+  L = log10(c(0.005, 0.005, 0.0005))
+) {
+  tmp <- dd |>
+    filter(row_number() == 1, .by = subjid)
+  X <- model.matrix(form, data = tmp)
+  X <- cbind(
+    X[, 1:2, drop = FALSE],
+    scale(X[, -(1:2), drop = FALSE], scale = F)
+  )
+  out <- list(
+    N = nrow(tmp),
+    J = 3,
+    X = X,
+    P = ncol(X),
+    Y = dd |>
+      select(subjid, visit_age, {{ var }}) |>
+      spread(visit_age, {{ var }}) |>
+      select(-subjid) |>
+      mutate(across(everything(), ~ replace_na(.x, -99))) |>
+      as.matrix(),
+    R = dd |>
+      mutate(
+        R = case_when(
+          is.na({{ var }}) ~ 1,
+          {{ var }} == -Inf ~ 2,
+          !is.na({{ var }}) ~ 0
+        )
+      ) |>
+      select(subjid, visit_age, R) |>
+      spread(visit_age, R) |>
+      select(-subjid) |>
+      as.matrix(),
+    L = L
+  )
+  return(out)
+}
+
+gmr_table_dat <- function(gmr) {
+  tdat <- gmr |>
+    mutate(
+      across(V1, list(
+        mean = ~ mean(.x),
+        sd = ~ sd(.x),
+        med = ~ median(.x),
+        lo = ~ quantile(.x, 0.025)[1, ],
+        hi = ~ quantile(.x, 0.975)[1, ],
+        pr = ~ Pr(.x < 1)
+      ))
+    ) |>
+    select(-V1)
+  return(tdat)
+}
+
+gmr_table <- function(tdat) {
+  gt(tdat, rowname_col = "visit_age", groupname_col = "group") |>
+    fmt_number(everything(), decimals = 2) |>
+    cols_merge(
+      c(V1_mean, V1_sd),
+      pattern = "<<{1} $\\pm$ {2}>>"
+    ) |>
+    cols_merge(
+      c(V1_lo, V1_hi),
+      pattern = "<<({1}, {2})>>"
+    ) |>
+    cols_label(
+      V1_mean = md("Mean &#177; std"),
+      V1_med = "Median",
+      V1_lo = md("95% CrI"),
+      V1_pr = "Pr(< 1)",
+    ) |>
+    tab_stub_indent(
+      rows = everything(),
+      indent = 1
+    ) |>
+    tab_options(table.font.size = px(9))
+}
+
+make_ate <- function(dat, fit) {
+  nd <- filter(dat, visit_age == "6-month")
+  ndat <- expand_grid(
+    visit_age = c("6-month", "7-month", "19-month"),
+    trt = c("aP", "wP")
+  )
+  tmp <- brmsmargins(
+    fit,
+    newdata = nd,
+    at = ndat,
+    effects = "integrateoutRE",
+    CI = 0.95,
+    k = 100L,
+    seed = 123,
+    contrasts = cbind(
+      "6-month_wP - aP" = c(-1, 1, 0, 0, 0, 0),
+      "7-month_wP - aP" = c(0, 0, -1, 1, 0, 0),
+      "19-month_wP - aP" = c(0, 0, 0, 0, -1, 1)
+    )
+  )
+  r <- rvar(cbind(tmp$Posterior, tmp$Contrasts))
+  names(r)[seq_len(nrow(ndat))] <- apply(ndat, 1, paste, collapse = "_")
+  out <- as_tibble(t(r)) |>
+    pivot_longer(
+      everything(),
+      names_to = c("visit_age", "trt"),
+      names_sep = "_",
+      values_to = "posterior"
+    ) |>
+    mutate(measure = "RD")
+  return(out)
+}
+```
+
+The 6 and 7 month IgE responses were previously reported. 
+What follows additionally reports on 19-month IgE responses.
+Descriptive statistics are reported in @tbl-sample-ige-gmc.
+
+```{r}
+#| label: tbl-sample-ige-gmc
+#| code-summary: Sample summaries
+#| tbl-cap: |
+#|    Sample IgE concentration summaries (kU/L) by allergen type, visit age,
+#|    and assigned vaccination schedule.
+#| tbl-pos: "H"
+#| results: "asis"
+tab <- dat_ige |>
+  mutate(
+    ige = if_else(ige == 0, 0.0005, ige)
+  ) |>
+  summarise(
+    obs = sum(!is.na(ige)),
+    gmc = 10^mean(log10(ige), na.rm = TRUE),
+    min = min(ige, na.rm = TRUE),
+    max = max(ige, na.rm = TRUE),
+    det = mean(ige >= 0.01, na.rm = TRUE),
+    con = mean(ige >= 0.1, na.rm = TRUE),
+    .by = c(allergen, visit_age, trt)
+  ) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(obs, gmc, min, max, det, con),
+    names_vary = "slowest"
+  ) |>
+  to_factor() |>
+  arrange(allergen, visit_age)
+
+gt(tab, groupname_col = "allergen", rowname_col = "visit_age") |>
+  fmt_integer(starts_with("obs")) |>
+  fmt_number(starts_with("gmc"), decimals = 2) |>
+  fmt_number(starts_with(c("min", "max")), decimals = 2) |>
+  fmt_percent(starts_with("con"), decimals = 0) |>
+  fmt_percent(starts_with("det"), decimals = 0) |>
+  cols_merge(
+    columns = c(min_aP, max_aP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_merge(
+    columns = c(min_wP, max_wP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_label(
+    obs_aP = "n",
+    obs_wP = "n",
+    gmc_aP = "GMC",
+    gmc_wP = "GMC",
+    min_aP = "Min–Max",
+    min_wP = "Min–Max",
+    det_aP = md("&ge;0.01"),
+    det_wP = md("&ge;0.01"),
+    con_aP = md("&ge;0.1"),
+    con_wP = md("&ge;0.1")
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  tab_spanner(
+    label = "aP",
+    columns = ends_with("_aP")
+  ) |>
+  tab_spanner(
+    label = "wP",
+    columns = ends_with("_wP")
+  ) |>
+  tab_footnote(
+    footnote = "Values of 0.00 kU/L and 0.000 kU/L set to 0.005 and 0.0005 respectively for calculation of sample GMC.",
+    locations = cells_column_labels(columns = starts_with("gmc"))
+  ) |>
+  tab_options(table.font.size = px(9)) |>
+  as_latex() |>
+  # Fix slash bug
+  gsub(pattern = "\\\\textendash", replacement = "\\\\textendash ") |>
+  cat()
+```
+
+```{r}
+#| include: false
+#| eval: false
+dat_po |>
+  right_join(dat_ige, join_by(record_id)) |>
+  filter(grepl("egg|total", tolower(allergen))) |>
+  mutate(
+    egg = factor(
+      grepl("egg", po_ofc_foods) |
+        grepl("egg", po_ana_foods) |
+        grepl("egg", po_ige_foods)
+    )
+  ) |>
+  mutate(ige_imp = if_else(ige == 0, 0.0005, ige)) |>
+  ggplot(aes(egg, ige_imp)) +
+  facet_grid(allergen ~ visit_age) +
+  geom_boxplot(aes(colour = egg)) +
+  scale_y_log10(
+    breaks = scales::trans_breaks("log10", function(x) 10^x),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))
+  ) +
+  labs(colour = "Egg allergy")
+```
+
+### Geometric mean concentration
+
+```{r}
+#| label: model-ige-total
+#| cache: true
+fit_ige_model <- function(ige_ref) {
+  age_labs <- c("6-month", "7-month", "19-month")
+
+  mdat <- dat_ige |>
+    filter(allergen == ige_ref) |>
+    filter(!all(is.na(ige)), .by = subjid) |>
+    mutate(log_ige = log10(ige))
+
+  sdat1 <- make_stan_data(mdat, var = log_ige)
+  sdat2 <- make_stan_data(
+    mdat,
+    var = log_ige,
+    ~ trt + gender + bfed + fborn + parinc_imp + ces + fha
+  )
+  snk <- capture.output(
+    sfit1 <- multinorm$sample(
+      data = sdat1,
+      seed = 71356,
+      refresh = 0,
+      chains = 8,
+      iter_sampling = 1250
+    )
+  )
+  snk <- capture.output(
+    sfit2 <- multinorm$sample(
+      data = sdat2,
+      seed = 71356,
+      refresh = 0,
+      chains = 8,
+      iter_warmup = 500,
+      iter_sampling = 1250
+    )
+  )
+  sdrw1 <- as_draws_rvars(sfit1)
+  sdrw2 <- as_draws_rvars(sfit2)
+
+  rownames(sdrw1$b) <- age_labs
+  rownames(sdrw2$b) <- age_labs
+
+  gmr1 <- 10^sdrw1$b[, 2]
+  gmr2 <- 10^sdrw2$b[, 2]
+  gmfir1 <- 10^(sdrw1$b[-1, 2] - sdrw1$b[-3, 2])
+  gmfir2 <- 10^(sdrw2$b[-1, 2] - sdrw2$b[-3, 2])
+  rownames(gmfir1) <- rownames(gmfir2) <- c("7/6-month (GMFR)", "19/7-month (GMFR)")
+
+  # Fill missing observations with conditional predictions
+  # yfill <- t(as_rvar(sdat1$Y))
+  # yfill[which(t(sdat1$R == 1))] <- sdrw1$y_missing
+  # yfill[which(t(sdat1$R == 2))] <- sdrw1$y_censored
+  # yfill <- t(yfill)
+  return(as_tibble(rbind(gmr2, gmfir2), rownames = "visit_age"))
+}
+
+res_total_ige <- fit_ige_model("Total IgE")
+res_tetanus_ige <- fit_ige_model("Tetanus-toxoid")
+res_eggwhite_ige <- fit_ige_model("Egg white")
+res_wholeegg_ige <- fit_ige_model("Whole egg")
+
+gmr <- bind_rows(
+  mutate(res_total_ige, group = "Total IgE"),
+  mutate(res_tetanus_ige, group = "Tetanus toxoid"),
+  mutate(res_eggwhite_ige, group = "Egg white"),
+  mutate(res_wholeegg_ige, group = "Whole egg")
+)
+gmr_dat <- gmr_table_dat(gmr)
+```
+
+```{r}
+#| label: tbl-gmr-gmfir-ige-total
+#| tbl-cap: Geometric mean ratio (GMR) and geometric mean fold rise ratio (GMFRR) for total IgE.
+#| tbl-pos: "H"
+#| results: "asis"
+gmr_table(gmr_dat) |>
+  as_latex()
+```
+
+### Sensitisation
+
+```{r}
+#| label: model-ige-sens
+#| cache: true
+fit_ige_sens_model <- function(ige_ref, ref_val) {
+  mdat <- dat_ige |>
+    filter(allergen == ige_ref) |>
+    filter(!is.na(ige)) |>
+    mutate(sens = as.numeric(ige >= ref_val))
+
+  glmm_prior <- c(
+    prior(student_t(4, 0, 1.75), class = "b"),
+    prior(student_t(4, 0, 1.75), class = "Intercept"),
+    prior(exponential(1), class = "sd")
+  )
+
+  mfit1 <- brm(
+    sens ~ visit_age * trt + (1 | subjid),
+    data = mdat,
+    family = bernoulli(),
+    backend = "cmdstanr",
+    prior = glmm_prior,
+    seed = 71235,
+    refresh = 0,
+    chains = 8,
+    iter = 1750,
+    warmup = 500
+  )
+
+  mfit2 <- update(
+    mfit1,
+    formula = ~ . +
+      visit_age *
+        (gender +
+          bfed +
+          fborn +
+          ces +
+          fha +
+          parinc_imp),
+    newdata = mdat
+  )
+
+  # Marginal risk difference estimate
+  dat_ige |>
+    mutate(trt = "aP") |>
+    add_epred_rvars(mfit2, value = "aP", allow_new_levels = TRUE) |>
+    mutate(trt = "wP") |>
+    add_epred_rvars(mfit2, value = "wP", allow_new_levels = TRUE) |>
+    mutate(dif = wP - aP) |>
+    summarise(across(c(aP, wP, dif), rvar_mean), .by = visit_age)
+
+  # mdrws1 <- rvar(as_draws_matrix(mfit1))
+  # beta1 <- mdrws1[grepl("(^b_Inter|^b_age|^b_tr)", names(mdrws1))]
+  # omega1 <- mdrws1["sd_subjectid__Intercept"]
+  # beta1_marg <- do.call(c, as_draws_rvars(t(marginalcoef(mfit1, posterior = TRUE)$Posterior)))
+  # names(beta1_marg) <- names(beta1)
+  # cor1 <- exp(c(beta1[3], beta1[3] + beta1[4]))
+  # mor1 <- exp(c(beta1_marg[3], beta1_marg[3] + beta1_marg[4]))
+
+  mdrws2 <- rvar(as_draws_matrix(mfit2))
+  beta2 <- mdrws2[grepl("(^b_Inter|^b_visit_age|^b_tr)", names(mdrws2))]
+  omega2 <- mdrws2["sd_subjid__Intercept"]
+  beta2_marg <- do.call(
+    c,
+    as_draws_rvars(t(marginalcoef(mfit2, posterior = TRUE)$Posterior))
+  )
+  names(beta2_marg) <- variables(mfit2)[1:30]
+  beta2_marg <- beta2_marg[grepl(
+    "(^b_Inter|^b_visit_age|^b_tr)",
+    names(beta2_marg)
+  )]
+  cor2 <- exp(c(beta2[4], beta2[4] + beta2[5], beta2[4] + beta2[6]))
+  mor2 <- exp(c(
+    beta2_marg[4],
+    beta2_marg[4] + beta2_marg[5],
+    beta2_marg[4] + beta2_marg[6]
+  ))
+  p1 <- make_ate(dat_ige, mfit1) |>
+    pivot_wider(names_from = trt, values_from = posterior)
+  p2 <- make_ate(dat_ige, mfit2) |>
+    pivot_wider(names_from = trt, values_from = posterior)
+  tdat2 <- p2 |>
+    select(-measure) |>
+    bind_cols(cor = cor2, mor = mor2) |>
+    mutate(group = ige_ref)
+  return(tdat2)
+}
+
+snk <- capture.output({
+  res_sens_tetanus <- fit_ige_sens_model("Tetanus-toxoid", 0.1)
+  res_sens_eggwhite <- fit_ige_sens_model("Egg white", 0.1)
+  res_sens_wholeegg <- fit_ige_sens_model("Whole egg", 0.1)
+})
+
+res_sens <- bind_rows(res_sens_tetanus, res_sens_eggwhite, res_sens_wholeegg) |>
+  mutate(age = fct_rev(fct_inorder(visit_age)), group = fct_inorder(group)) |>
+  relocate(group, .before = visit_age)
+```
+
+```{r}
+#| label: tbl-sensitisation-summary
+#| tbl-cap: Summary of sensitisation model by response type.
+#| tbl-pos: "H"
+out <- res_sens |>
+  transmute(
+    group,
+    age,
+    across(
+      3:7,
+      list(
+        med = ~ median(.x),
+        lo = ~ quantile(.x, 0.025)[1, ],
+        hi = ~ quantile(.x, 0.975)[1, ]
+      )
+    ),
+    across(5, list(pr = ~ Pr(.x < 0)))
+  ) |>
+  relocate(`wP - aP_pr`, .after = `wP - aP_hi`) |>
+  gt(rowname_col = "age", groupname_col = "group") |>
+  fmt_number(-(1:2), decimals = 2) |>
+  cols_merge(
+    starts_with("wP_"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    starts_with("aP_"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    c("wP - aP_med", "wP - aP_lo", "wP - aP_hi"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    starts_with("cor"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    starts_with("mor"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_label(
+    "aP_med" = "aP",
+    "wP_med" = "wP",
+    "wP - aP_med" = "wP \u2212 aP",
+    "wP - aP_pr" = "Pr(wP \u2212 aP < 0)",
+    "cor_med" = "Conditional",
+    "mor_med" = "Marginal"
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  tab_spanner(
+    columns = c("aP_med", "wP_med", "wP - aP_med"),
+    label = md("Standardised Pr(IgE $\\geq$ 0.1), Median (95% CrI)"),
+  ) |>
+  tab_spanner(
+    columns = c("cor_med", "mor_med"),
+    label = "Odds ratios"
+  ) |>
+  tab_options(table.font.size = px(9))
+out
+```
+
+\clearpage
+
+### Quantitation
+
+```{r}
+#| label: model-ige-quant
+#| cache: true
+snk <- capture.output({
+  res_sens_tetanus <- fit_ige_sens_model("Tetanus-toxoid", 0.01)
+  res_sens_eggwhite <- fit_ige_sens_model("Egg white", 0.01)
+  res_sens_wholeegg <- fit_ige_sens_model("Whole egg", 0.01)
+})
+
+res_sens <- bind_rows(res_sens_tetanus, res_sens_eggwhite, res_sens_wholeegg) |>
+  mutate(age = fct_rev(fct_inorder(visit_age)), group = fct_inorder(group)) |>
+  relocate(group, .before = visit_age)
+```
+
+```{r}
+#| label: tbl-sensitisation-tetanus-summary
+#| tbl-cap: Summary of sensitisation model for tetanus toxoid IgE.
+#| tbl-pos: "H"
+out <- res_sens |>
+  transmute(
+    group,
+    age,
+    across(
+      3:7,
+      list(
+        med = ~ median(.x),
+        lo = ~ quantile(.x, 0.025)[1, ],
+        hi = ~ quantile(.x, 0.975)[1, ]
+      )
+    ),
+    across(5, list(pr = ~ Pr(.x < 0)))
+  ) |>
+  relocate(`wP - aP_pr`, .after = `wP - aP_hi`) |>
+  gt(rowname_col = "age", groupname_col = "group") |>
+  fmt_number(-(1:2), decimals = 2) |>
+  cols_merge(
+    starts_with("wP_"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    starts_with("aP_"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    c("wP - aP_med", "wP - aP_lo", "wP - aP_hi"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    starts_with("cor"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    starts_with("mor"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_label(
+    "aP_med" = "aP",
+    "wP_med" = "wP",
+    "wP - aP_med" = "wP \u2212 aP",
+    "wP - aP_pr" = "Pr(wP \u2212 aP < 0)",
+    "cor_med" = "Conditional",
+    "mor_med" = "Marginal"
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  tab_spanner(
+    columns = c("aP_med", "wP_med", "wP - aP_med"),
+    label = md("Standardised Pr(IgE $\\geq$ 0.1), Median (95% CrI)"),
+  ) |>
+  tab_spanner(
+    columns = c("cor_med", "mor_med"),
+    label = "Odds ratios"
+  ) |>
+  tab_options(table.font.size = px(9))
+out
 ```
