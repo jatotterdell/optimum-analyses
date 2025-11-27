@@ -442,7 +442,8 @@ dat_base |>
       fedog ~ "Dog ownership"
     ),
     by = trt,
-    missing_text = "(Missing)"
+    missing_text = "(Missing)",
+    digits = list(v1_age_days ~ 0, gestadelw ~ 0)
   ) |>
   add_n() |>
   add_overall(last = TRUE) |>
