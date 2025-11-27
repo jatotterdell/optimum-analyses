@@ -334,6 +334,8 @@ d.  A SPT **≥3mm** greater than the negative control to at least one allergen 
 
 The protocol defined a panel of allergens to be tested. In addition to these, further allergens could also be tested at parental request or at discretion of the site PI. When the outcomes say "at least one allergen" [i.e. for eczema for positive SPT] we mean any allergen, including any additional allergens tested beyond the panel defined in the protocol.
 
+For SPT's, the specification of "by approximately 12 months old" was taken to mean "from 12 to 18-months old". Under the original protocol, SPTs were scheduled to occur at 18-months of age, but following an early revision, scheduled SPTs were revised to occur at 12-months of age. Unscheduled SPTs could still occur up to 18 months of age.
+
 For both food allergy and eczema, sensitisation on (positive) SPT was defined to be a result more than 1mm greater than negative control by 18 months of age. For food allergy, the positive SPT needed to match the specific food allergen. 
 
 For eczema, the age requirement (by 6 or 12 months of age) was determined by the "age at which allergy first occurred" (`outageval`). To be considered "new-onset" eczema, this age at which allergy first occurred needed to be after the infants enrolment date. Infants with clinician-diagnosed eczema first occurring prior to enrolment were to be excluded as it's not possible for them to have "new-onset eczema".
