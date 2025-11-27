@@ -1249,9 +1249,9 @@ dat_spt |>
 
 ### Skin prick test model
 
-@tbl-posterior-spt summarises the estimated model parameters for the probability of skin prick test sensitsation under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-density-spt and @fig-posterior-difference-spt-adjusted).
+@tbl-posterior-spt summarises the estimated model parameters for the probability of skin prick test sensitsation under each treatment group (see secondary outcomes in section 1.4.2 numbers 2c and 2d), and their differences (the posterior densities are shown in @fig-posterior-density-spt and @fig-posterior-difference-spt-adjusted).
 
-The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were comparable. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in skin prick test sensitisation at 1mm [2.c] between wP and aP were (-0.04, 0.06) and at 3mm [2.d] were (-0.04, 0.05). The probability of a reduction in skin prick test sensitisation under wP compared to aP was 0.33 and 0.41 respectively.
+The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in skin prick test sensitisation at 1mm [2.c] between wP and aP were (-0.04, 0.06) and at 3mm [2.d] were (-0.04, 0.05). The probability of a reduction in skin prick test sensitisation under wP compared to aP was 0.33 and 0.41 respectively.
 
 ```{r}
 #| label: spt-analysis
@@ -1637,6 +1637,7 @@ dat_po_ige_1 <- dat_fa |>
   rowwise() |>
   mutate(
     splt_foods = gsub("( |, )", "|", spt_pos_1mm),
+    splt_foods = replace_na(splt_foods, "^$"),
     outfrafood_sub = gsub(
       "Whole Egg",
       "egg",
@@ -1796,7 +1797,7 @@ dat_po |>
 
 @tbl-posterior-primary summarises the estimated model parameters for the probability of food allergy under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-density and @fig-posterior-difference-adjusted).
 
-The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were comparable. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in food allergy between wP and aP were (-0.02, 0.04). The probability of a reduction in food allergy under wP compared to aP was 0.35.
+The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in food allergy between wP and aP were (-0.02, 0.04). The probability of a reduction in food allergy under wP compared to aP was 0.35.
 
 ```{r}
 #| label: primary-outcome-analysis
@@ -1966,7 +1967,7 @@ po_diff |>
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10), limits = c(-0.1, 0.1)) +
   labs(
     fill = "Interval",
     x = "Difference in food allergy probability, wP - aP",
@@ -1989,7 +1990,7 @@ ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10), limits = c(-0.1, 0.1)) +
   labs(
     fill = "Interval",
     x = "Difference in food allergy probability, wP - aP",
@@ -2152,7 +2153,7 @@ tbl_stack(
 
 @tbl-posterior-eczema summarises the estimated model parameters for the probability of eczema by age under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-density-eczema and @fig-posterior-difference-eczema-adjusted).
 
-The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were comparable. Given the data, under the assumed primary model the most credible values (based on 95% equal-tailed credible interval) for the difference in eczema at 6 months [2.a] between wP and aP were (-0.04, 0.02) and at 12 months [2.b] (-0.04, 0.03). The probability of a reduction in eczema under wP compared to aP was 0.77 and 0.66 respectively.
+The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed primary model the most credible values (based on 95% equal-tailed credible interval) for the difference in eczema at 6 months [2.a] between wP and aP were (-0.04, 0.02) and at 12 months [2.b] (-0.04, 0.03). The probability of a reduction in eczema under wP compared to aP was 0.77 and 0.66 respectively.
 
 ```{r}
 #| label: eczema-analysis
