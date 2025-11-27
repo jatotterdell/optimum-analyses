@@ -1980,6 +1980,7 @@ po_diff |>
 #| label: fig-posterior-difference-adjusted
 #| fig-cap: Posterior difference in probability of food allergy for wP compared to aP, adjusted model.
 #| fig-height: 2
+#| fig-width: 5
 ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
   stat_histinterval(
     aes(fill = after_stat(level)),
