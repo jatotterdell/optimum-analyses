@@ -91,6 +91,12 @@ dat_fc <- get_ofc_long(dat_raw)
 # therefore, this outcome is excluded here
 dat_fa <- dat_fa |>
   filter(!(outfrafood == "walnut" & record_id == "4629-92"))
+
+# Fix wrong coding of delt in stage 2
+dat_base <- dat_base |>
+  mutate(
+    delt = case_match(delt, "Forceps/ vacuum assisted delivery" ~ "Forceps/vacuum assisted delivery", .default = delt)
+  )
 ```
 
 ```{r}
