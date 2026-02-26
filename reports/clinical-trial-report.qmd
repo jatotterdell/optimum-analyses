@@ -1,6 +1,10 @@
 ---
-title: OPTIMUM
-subtitle: Clinical Trial Report
+title: |
+  OPTIMUM: OPTimising IMmunisation Using Mixed schedules
+subtitle: |
+  Clinical Study Report - Statistical Analyses
+description: |
+  A double-blind, randomised, controlled trial to compare allergic outcomes in children following vaccination with acellular pertussis antigen given at 2 months of age versus whole cell pertussis in the infant vaccine schedule
 date: today
 author: James Totterdell
 ---
@@ -363,15 +367,15 @@ Analyses of secondary outcomes are analagous to those for the primary outcome, b
 
 \clearpage
 
-# Enrolment, Characteristics and Completion
+# Study Participants - Disposition and Characteristics
 
 ## Enrolment
 
-There were `r nrow(dat_base)` participants randomised, `r nrow(dat_base)/2` per treatment group. The first participant was randomised on `r as_date(min(dat_base$randdattim))` and the final participant was randomised on `r as_date(max(dat_base$randdattim))`. A summary of enrolment over calendar time is presented in @fig-enrolment-overall
+Participants were enrolled at 4 sites in Australia. There were `r nrow(dat_base)` participants randomised, `r nrow(dat_base)/2` per treatment group. The first participant was randomised on `r as_date(min(dat_base$randdattim))` and the final participant was randomised on `r as_date(max(dat_base$randdattim))` [@fig-enrolment-overall].
 
 ```{r}
 #| label: fig-enrolment-overall
-#| fig-cap: Cumulative enrolment.
+#| fig-cap: Cumulative trial enrolment by calendar time.
 #| fig-height: 3
 #| fig-width: 6
 dat_enrol <- dat_base |>
@@ -391,102 +395,9 @@ ggplot(
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-\clearpage
-
-## Characteristics
-
-The baseline characteristics of participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics. Characteristics were similar between the groups.
-
-```{r}
-#| label: tbl-baseline-characteristics
-#| tbl-cap: Baseline characteristics of trial participants.
-#| tbl-pos: "H"
-#| output: "asis"
-dat_base |>
-  tbl_summary(
-    include = c(
-      # Demographics and infant history
-      rand_stage,
-      rand_site,
-      gender,
-      v1_age_days,
-      parinc,
-      fborn,
-      fecurr,
-      fecat,
-      fedog,
-      # Birth history
-      mgrav_fac,
-      mpar_fac,
-      delt,
-      ipab,
-      neoab,
-      gestadelw,
-      wgt,
-      len,
-      inhc,
-      aps1_fac,
-      aps5_fac,
-      # Maternal immunisation
-      inmpertvp,
-      vacad,
-      prevpert,
-      minfvp,
-      # Family history
-      fha
-    ),
-    label = list(
-      rand_stage ~ "Protocol stage",
-      rand_site ~ "Participating site",
-      v1_age_days ~ "Age at enrolment (days)",
-      fborn ~ "First born",
-      mgrav_fac ~ "Maternal gravidity",
-      mpar_fac ~ "Maternal parity",
-      aps1_fac ~ "Apgar score (1 minute)",
-      aps5_fac ~ "Apgar score (5 minutes)",
-      prevpert ~ "Other maternal pertussis vaccination (last 5 years)",
-      fha ~ "Family history of atopy",
-      fecat ~ "Cat ownership",
-      fedog ~ "Dog ownership"
-    ),
-    by = trt,
-    missing_text = "(Missing)",
-    digits = list(v1_age_days ~ 0, gestadelw ~ 0)
-  ) |>
-  add_n() |>
-  add_overall(last = TRUE) |>
-  modify_header(
-    all_stat_cols() ~
-      paste0(
-        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
-        "N = {formatC(n, format='d', big.mark=',')}}}"
-      )
-  ) |>
-  as_gt() |>
-  cols_width(label ~ pct(30)) |>
-  tab_style(
-    style = cell_text(weight = "bold"),
-    locations = cells_body(
-      columns = label,
-      rows = row_type == "label"
-    )
-  ) |>
-  tab_options(
-    table.width = pct(100),
-    table.font.size = px(9),
-    latex.use_longtable = TRUE
-  ) |>
-  as_latex() |>
-  latex_unescape() |>
-  fix_footnote() |>
-  cat()
-```
-
-\clearpage
-
 ## Study completion
 
-The study completion status as reported in the database is summarised in @tbl-discharge-outcome and by site in @tbl-discharge-outcome-site. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who were scheduled for the additional blood collections, a number of which withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of these blood collections.
+The study completion status as reported in the database is summarised in @tbl-discharge-outcome and by site in @tbl-discharge-outcome-site. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who were scheduled for the additional blood collections, a number of who withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of those blood collections.
 
 ```{r}
 #| label: tbl-discharge-outcome
@@ -644,7 +555,20 @@ dat_base |>
 
 \clearpage
 
-## Missed visits
+## Protocol Deviations
+
+Full deviations are documented in the site deviation log.
+The following reports only on those of particular relevance to the analyses.
+
+### Treatment Administration
+
+All participants received the first scheduled vaccination at the first visit.
+
+For one participant the pharmacy reportedly dispensed the alternative study vaccine to the participants randomly allocated type. The IMP was monitored for all participants, and this was the only documented time this was reported to have occurred. This error was documented in the protocol deviations log [subject 02-333, record id 4629-184]. This participant was analysed as assigned, rather than as treated.
+
+### Missed visits
+
+The majority of participants attended each study visit [@tbl-stage1-visit-attendance; @tbl-stage2-visit-attendance].
 
 ```{r}
 #| label: tbl-stage1-visit-attendance
@@ -750,7 +674,7 @@ left_join(vs_by_trt, vs_ovr) |>
 
 \clearpage
 
-## Missed food and household questionnaires
+### Missed food and household questionnaires
 
 ```{r}
 #| label: tbl-stage1-fhq-completion
@@ -852,7 +776,101 @@ left_join(fhq_by_trt, fhq_ovr) |>
 
 \clearpage
 
+## Characteristics
+
+The baseline characteristics of participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics. Characteristics were similar between the groups.
+
+```{r}
+#| label: tbl-baseline-characteristics
+#| tbl-cap: Baseline characteristics of trial participants.
+#| tbl-pos: "H"
+#| output: "asis"
+dat_base |>
+  tbl_summary(
+    include = c(
+      # Demographics and infant history
+      rand_stage,
+      rand_site,
+      gender,
+      v1_age_days,
+      parinc,
+      fborn,
+      fecurr,
+      fecat,
+      fedog,
+      # Birth history
+      mgrav_fac,
+      mpar_fac,
+      delt,
+      ipab,
+      neoab,
+      gestadelw,
+      wgt,
+      len,
+      inhc,
+      aps1_fac,
+      aps5_fac,
+      # Maternal immunisation
+      inmpertvp,
+      vacad,
+      prevpert,
+      minfvp,
+      # Family history
+      fha
+    ),
+    label = list(
+      rand_stage ~ "Protocol stage",
+      rand_site ~ "Participating site",
+      v1_age_days ~ "Age at enrolment (days)",
+      fborn ~ "First born",
+      mgrav_fac ~ "Maternal gravidity",
+      mpar_fac ~ "Maternal parity",
+      aps1_fac ~ "Apgar score (1 minute)",
+      aps5_fac ~ "Apgar score (5 minutes)",
+      prevpert ~ "Other maternal pertussis vaccination (last 5 years)",
+      fha ~ "Family history of atopy",
+      fecat ~ "Cat ownership",
+      fedog ~ "Dog ownership"
+    ),
+    by = trt,
+    missing_text = "(Missing)",
+    digits = list(v1_age_days ~ 0, gestadelw ~ 0)
+  ) |>
+  add_n() |>
+  add_overall(last = TRUE) |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  cols_width(label ~ pct(30)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = label,
+      rows = row_type == "label"
+    )
+  ) |>
+  tab_options(
+    table.width = pct(100),
+    table.font.size = px(9),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
+\clearpage
+
+
 # Outcomes
+
+Analysis of outcomes grouped participants according to their assigned treatment.
 
 All of the trial outcomes depend upon a positive SPT to either a specific allergen or to any allergen. Therefore, this section first reports on the SPT data, and outcomes 2c and 2d, followed by the primary (food allergy) and other secondary (eczema) outcomes.
 
