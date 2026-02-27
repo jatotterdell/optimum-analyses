@@ -2097,7 +2097,15 @@ combine_diary <- function() {
     )
 
   st2_dc_shared <- st2_dc |>
-    select(record_id, visit, vaxage, diaretyn, solvacdat, matches("solloca")) |>
+    select(
+      record_id,
+      visit,
+      vaxage,
+      diaretyn,
+      diaimmscale,
+      solvacdat,
+      matches("solloca")
+    ) |>
     pivot_longer(
       contains("solloc"),
       names_pattern = "solloca([1-3])",
