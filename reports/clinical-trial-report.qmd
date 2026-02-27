@@ -3031,8 +3031,9 @@ diary_likert <- bind_rows(st1_lik, st2_lik) |>
 ```{r}
 #| label: tbl-diary-likert
 #| tbl-cap: |
-#|   Number and percentage of respondents giving each response to the question following 6-week vaccination, 
-#|    by assigned treatment group.
+#|   Number and percentage of respondents giving each response to the statement following 6-week vaccination, 
+#|   by assigned treatment group. Unknown is due to either a failure to return the diary card, or non-response
+#|   to the item.
 #| tbl-pos: "H"
 #| output: "asis"
 tbl_summary(
