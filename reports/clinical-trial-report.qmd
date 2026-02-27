@@ -2994,6 +2994,86 @@ tab_dat |>
 
 \clearpage
 
+### Parental Satisfaction
+
+```{r}
+#| label: diary-likert-data
+st1_lik <- read_parquet(file.path(st1_pth, "diary-satisfaction.parquet")) |>
+  select(subjectid, vaxage, diaimmscale) |>
+  mutate(subjid = gsub("^01", "01-", subjectid)) |>
+  to_factor() |>
+  left_join(select(dat_base, subjid, trt), join_by(subjid)) |>
+  mutate(diaimmscale = replace_values(diaimmscale, "Not completed" ~ NA_character_))
+st2_lik <- filter(st2_diary, reaction == "shared") |>
+  pull(data) |>
+  pluck(1) |>
+  filter(vaxage == "6-week", vaxloc_id == 1) |>
+  left_join(select(dat_base, record_id, subjid, trt), join_by(record_id)) |>
+  select(subjid, trt, vaxage, diaimmscale) |>
+  mutate(
+    diaimmscale = factor(recode_values(
+      diaimmscale, 
+      "Not completed" ~ NA_character_, 
+      "Strongly Disagree" ~ "Strongly disagree",
+      "Disagree" ~ "Disagree",
+      "Neither Agree or Disagree" ~ "Neither agree nor disagree",
+      "Agree" ~ "Agree",
+      "Strongly Agree" ~ "Strongly agree"),
+      levels = c("Strongly disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly agree"))
+    )
+
+diary_likert <- bind_rows(st1_lik, st2_lik) |>
+  mutate(
+    diaimmscale = fct_drop(diaimmscale, only = "Not completed")
+  )
+```
+
+```{r}
+#| label: tbl-diary-likert
+#| tbl-cap: |
+#|   Number and percentage of respondents giving each response to the question following 6-week vaccination, 
+#|    by assigned treatment group.
+#| tbl-pos: "H"
+#| output: "asis"
+tbl_summary(
+  diary_likert,
+  by = trt,
+  include = diaimmscale,
+  label = list(
+    diaimmscale ~ "I would be willing to have another child have this combination of immunisations at this age"
+  )
+) |>
+  add_overall(last = TRUE) |>
+  remove_footnote_header(contains("stat_")) |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  cols_width(label ~ pct(30)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = label,
+      rows = row_type == "label"
+    )
+  ) |>
+  tab_options(
+    table.width = pct(100),
+    table.font.size = px(9),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
+\clearpage
+
 ### Solicited systemic reactions
 
 ```{r}
