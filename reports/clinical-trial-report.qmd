@@ -57,8 +57,8 @@ sysfonts::font_add(
   bolditalic = "texgyrepagella-bolditalic.otf"
 )
 
-showtext::showtext_auto()
-showtext::showtext_opts(dpi = 244)
+# showtext::showtext_auto()
+# showtext::showtext_opts(dpi = 244)
 
 theme_set(
   theme_bw(base_size = 10, base_family = "TeX Gyre Pagella") +
@@ -2725,6 +2725,11 @@ dat_base_ae |>
 ## Diary Cards
 
 Combined stage 1 and stage 2 diary card responses are reported in the following sections.
+During stage 1, diary cards were obtained following 6-week, 4-month, 6-month and 18-month vaccinations.
+During stage 2, at PCH only for the first 153 participants, diary cards were obtained following 6-week and 18-month vaccinations.
+
+This report focuses on 6-week and 18-month occasions given the addition of stage 2 data. 
+The complete 4-month and 6-month data has been reported previously but is included here for completeness.
 
 ```{r}
 #| label: diary-data
@@ -2881,7 +2886,7 @@ st1_diary <- read_parquet(file.path(st1_pth, "diary-temperature.parquet"))
 st2_diary <- select_form(dat_raw, "diary")
 ```
 
-### Returned
+### Returned Diary Cards
 
 ```{r}
 tab_dat <- st1_diary |>
@@ -2917,7 +2922,7 @@ tab_dat <- st1_diary |>
 ```{r}
 #| label: tbl-diary-returned-stage1
 #| tbl-cap: |
-#|   Returned diary cards from stage 1.
+#|   Number and proportion of parents from stage 1 who returned diary cards following each vaccination occasion.
 #| tbl-pos: "H"
 #| results: "asis"
 tab_dat |>
@@ -2935,6 +2940,7 @@ tab_dat |>
     .combine_with = "tbl_stack",
     .combine_args = list(group_header = NULL)
   ) |>
+  modify_header(label = "**Vaccination**") |>
   modify_header(
     all_stat_cols() ~
       paste0(
@@ -2956,7 +2962,7 @@ tab_dat |>
 ```{r}
 #| label: tbl-diary-returned-stage2
 #| tbl-cap: |
-#|   Returned diary cards from stage 2.
+#|   Number and proportion of parents from stage 2 who returned diary cards following each vaccination occasion.
 #| tbl-pos: "H"
 #| results: "asis"
 tab_dat |>
@@ -2974,6 +2980,7 @@ tab_dat |>
     .combine_with = "tbl_stack",
     .combine_args = list(group_header = NULL)
   ) |>
+  modify_header(label = "**Vaccination**") |>
   modify_header(
     all_stat_cols() ~
       paste0(
@@ -3031,7 +3038,7 @@ diary_likert <- bind_rows(st1_lik, st2_lik) |>
 ```{r}
 #| label: tbl-diary-likert
 #| tbl-cap: |
-#|   Number and percentage of respondents giving each response to the statement following 6-week vaccination, 
+#|   Number and percentage of parents giving each response to the given statement following 6-week vaccination, 
 #|   by assigned treatment group. Unknown is due to either a failure to return the diary card, or non-response
 #|   to the item.
 #| tbl-pos: "H"
@@ -3105,7 +3112,176 @@ diary_sol <- bind_rows(st1_sol, st2_sol) |>
       levels = c("6-week", "4-month", "6-month", "18-month")
     )
   )
+
+diary_sol_max <- diary_sol |>
+  mutate(intensity = ordered(intensity)) |>
+  summarise(
+    .by = c(record_id, trt, vaxage, term),
+    intensity_max = max(intensity)
+  )
+
+diary_sol_any <- diary_sol |>
+  summarise(
+    y = case_when(
+      all(is.na(intensity)) ~ NA_real_,
+      any(intensity == "Severe") ~ 1,
+      TRUE ~ 0
+    ),
+    .by = c(record_id, trt, vaxage)
+  ) |>
+  summarise(
+    n = sum(!is.na(y)),
+    f = sum(y, na.rm = TRUE),
+    p = mean(y, na.rm = TRUE),
+    .by = c(trt, vaxage)
+  ) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(f, n, p)
+  )
 ```
+
+```{r}
+#| label: tbl-sol-intensity-any-severe
+#| tbl-cap: | 
+#|   Experience of any severe intensity systemic reaction following vaccination (day 0 to 6) by assigned treatment.
+#|   Excludes participants with missing diary cards or non-response for all days.
+#| tbl-pos: "H"
+out <- diary_sol_any |>
+  # filter(vaxage %in% c("6-week", "18-month")) |>
+  gt(rowname_col = "vaxage") |>
+  fmt_percent(
+    starts_with("p_"),
+    decimals = 0
+  ) |>
+  cols_merge(
+    c(f_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(f_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_label(
+    "f_aP" = "aP",
+    "f_wP" = "wP",
+    .fn = md
+  ) |>
+  cols_align(align = "center", columns = c(f_aP, f_wP)) |>
+  tab_options(table.font.size = px(9), table.width = pct(50)) |>
+  as_latex()
+# out_new <- paste("\\scriptsize", out, "\\normalsize", sep = "\n")
+out_new <- gsub("aP", r"(\\makecell{aP\\\\N = 152})", out)
+out_new <- gsub("wP", r"(\\makecell{wP\\\\N = 151})", out_new)
+attributes(out_new) <- attributes(out)
+out_new
+```
+
+```{r}
+#| label: fig-sol-intensity-max
+#| fig-cap: | 
+#|   Highest intensity grade for systemic reactions following each vaccination (day 0 to 6) by assigned treatment.
+#| fig-height: 6
+#| fig-width: 6
+pdat <- diary_sol_max |>
+  select(record_id, vaxage, term, trt, intensity_max) |>
+  count(vaxage, term, trt, intensity_max) |>
+  group_by(vaxage, term, trt) |>
+  mutate(
+    p = n / sum(n[!is.na(intensity_max)]),
+    lab = case_when(
+      is.na(intensity_max) ~ sprintf("%i", n),
+      TRUE ~ sprintf("%i (%.0f)", n, 100 * p)
+    )
+  ) |>
+  ungroup() |>
+  # filter(vaxage %in% c("6-week", "18-month")) |>
+  mutate(
+    intensity_max = recode_factor(
+      intensity_max,
+      "Mild" = "1",
+      "Moderate" = "2",
+      "Severe" = "3",
+      .ordered = TRUE
+    )
+  )
+
+plab <- diary_sol_max |>
+  select(record_id, vaxage, term, trt, intensity_max) |>
+  summarise(
+    n = sum(intensity_max != "None", na.rm = TRUE),
+    p = mean(intensity_max != "None", na.rm = TRUE),
+    lab = sprintf("%i/%i", sum(intensity_max != "None", na.rm = TRUE), sum(!is.na(intensity_max))),
+    .by = c(term, trt, vaxage)
+  ) 
+```
+
+```{r}
+#| label: tbl-maximum-intensity
+#| tbl-cap: |
+#|   Highest intensity grade for systemic reactions after the 6-week and 18-month vaccine doses. 
+#| tbl-pos: "H"
+tdat <- pdat |>
+  select(-n, -p) |>
+  pivot_wider(names_from = c(trt, intensity_max), values_from = lab, values_fill = list(lab = "0 (0)"))
+out <- gt(tdat, rowname_col = "term", groupname_col = "vaxage") |>
+  tab_spanner(
+    label = "aP",
+    columns = starts_with("aP")
+  ) |>
+  tab_spanner(
+    label = "wP",
+    columns = starts_with("wP")
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  cols_label(
+    ends_with("_None") ~ "None",
+    ends_with("_1") ~ "1",
+    ends_with("_2") ~ "2",
+    ends_with("_3") ~ "3",
+    ends_with("_NA") ~ "Missing"
+  ) |>
+  tab_footnote(
+    footnote = "For participants with non-responses for some days, the maximum intensity was taken as the greatest
+    intensity reported on days with responses available. Percentages exclude participants with a missing highest grade (diary card not returned, or non-response for all days)."
+  ) |>
+  tab_options(table.font.size = px(9))
+out
+```
+
+```{r}
+#| label: fig-maximum-intensity
+#| fig-cap: |
+#|    Highest intensity grade for systemic reactions after the 6-week and 18-month vaccination doses. aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).
+#| fig-height: 5
+p <- pdat |>
+  filter(!is.na(intensity_max), intensity_max !=  "None") |>
+  ggplot(aes(interaction(trt, vaxage, sep = "!"), p)) +
+  facet_wrap(~term, ncol = 2) +
+  geom_col(aes(fill = intensity_max)) +
+  geom_vline(xintercept = c(2.5, 4.5), colour = "grey80") +
+  geom_text(data = plab, aes(label = lab), vjust = -0.5, size = 2, family = "TeX Gyre Pagella") +
+  labs(
+    fill = "Maximum grade",
+    y = "Cumulative proportion"
+  ) +
+  scale_x_discrete(
+    guide = legendry::guide_axis_nested(key = "!"), 
+    name = "Vaccination age and treatment") +
+  ylim(0, 1) +
+  theme(
+    plot.caption = element_text(hjust = 0, size = rel(0.7), lineheight = 1),
+    panel.grid.major.x = element_blank(),
+    legend.position = "bottom",
+    axis.title = element_text(size = rel(0.9))
+  )
+p
+```
+
+\clearpage
 
 #### Irritability
 
@@ -3203,7 +3379,8 @@ st1_temp <- read_parquet(file.path(
   mutate(subjid = gsub("^01", "01-", subjectid)) |>
   left_join(select(dat_base, subjid, trt), join_by(subjid)) |>
   rename(record_id = subjid) |>
-  select(record_id, trt, vaxage, day, temp_fac)
+  select(record_id, trt, vaxage, day, temp_fac) |>
+  mutate(temp_fac = fct_recode(temp_fac, "38.0-38.4" = "38-38.4"))
 
 st2_temp <- filter(st2_diary, reaction == "temp") |>
   pull(data) |>
@@ -3219,6 +3396,67 @@ diary_temp <- bind_rows(st1_temp, st2_temp) |>
       levels = c("6-week", "4-month", "6-month", "18-month")
     )
   )
+```
+
+```{r}
+#| label: tbl-fever-max
+#| tbl-cap: Highest fever following each vaccination by assigned treatment.
+#| tbl-pos: "H"
+pdat <- diary_temp |>
+  mutate(temp_fac = as.ordered(temp_fac)) |>
+  summarise(
+    temp_max = ordered(max(temp_fac, na.rm = TRUE), levels = levels(diary_temp$temp_fac)),
+    .by = c(record_id, trt, vaxage)
+  ) |>
+    mutate(
+      temp_max = fct_na_value_to_level(fct_collapse(
+        temp_max,
+        "<38" = "None (<38)",
+        "38.0-38.9" = c("38.0-38.4", "38.5-38.9"),
+        "39.0-39.9" = c("39.0-39.4", "39.5-39.9"),
+        "≥40.0" = c("40.0-40.4", "40.5-40.9", "41.0 or more"),
+      ), "Missing")
+    ) |>
+  count(vaxage, trt, temp_max) |>
+  group_by(vaxage, trt) |>
+  mutate(
+    p = n / sum(n[temp_max != "Missing"]),
+    lab = case_when(
+      temp_max == "Missing" ~ sprintf("%i", n),
+      TRUE ~ sprintf("%i (%.0f)", n, 100 * p)
+    )
+  ) |>
+  ungroup()
+tdat <- pdat |>
+  complete(temp_max, vaxage, trt, fill = list(lab = "0 (0)")) |>
+  select(-n, -p) |>
+  arrange(temp_max) |>
+  pivot_wider(names_from = c(trt, temp_max), values_from = lab, values_fill = list(lab = "0 (0)"))
+out <- gt(tdat, rowname_col = "vaxage") |>
+  tab_spanner(
+    label = "aP",
+    columns = starts_with("aP")
+  ) |>
+  tab_spanner(
+    label = "wP",
+    columns = starts_with("wP")
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  cols_label_with(
+    fn = \(x) gsub("aP_", "", x)
+  ) |>
+  cols_label_with(
+    fn = \(x) gsub("wP_", "", x)
+  ) |>
+  tab_options(table.font.size = px(9)) |>
+  as_latex()
+out_new <- gsub("aP", r"(\\makecell{aP\\\\N = 152 (6-week, 18-month)\\\\N = 75 (4-month, 6-month)})", out)
+out_new <- gsub("wP", r"(\\makecell{wP\\\\N = 151 (6-week, 18-month)\\\\N = 75 (4-month, 6-month)})", out_new)
+attributes(out_new) <- attributes(out)
+out_new
 ```
 
 ```{r}
@@ -3257,24 +3495,44 @@ st1_isr <- read_parquet(file.path(st1_pth, "diary-site-reactions.parquet")) |>
   mutate(stage = 1)
 
 st2_isr <- st2_diary |>
-  filter(reaction == "isr") |>
+  filter(reaction == "shared") |>
   pull(data) |>
   pluck(1) |>
+  complete(record_id, nesting(vaxage, vaccine)) |>
+  filter(!is.na(vaccine)) |>
   left_join(
     st2_diary |>
-      filter(reaction == "shared") |>
+      filter(reaction == "isr") |>
       pull(data) |>
       pluck(1),
     join_by(record_id, visit, vaxage, vaxloc_id)
   ) |>
+  complete(record_id, nesting(vaxage, vaccine), day, term) |>
+  filter(!is.na(term), !is.na(day)) |>
   mutate(
     day = as.integer(day),
     vaccine = fct_recode(vaccine, "PCV-13" = "PCv13")
   ) |>
   select(record_id, vaxage, term, vaccine, day, size, size_fac) |>
   left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
-  mutate(stage = 2) |>
-  filter(!is.na(vaccine))
+  mutate(stage = 2)
+
+# st2_isr <- st2_diary |>
+#   filter(reaction == "isr") |>
+#   pull(data) |>
+#   pluck(1) |>
+#   left_join(
+# ,
+#     join_by(record_id, visit, vaxage, vaxloc_id)
+#   ) |>
+#   mutate(
+#     day = as.integer(day),
+#     vaccine = fct_recode(vaccine, "PCV-13" = "PCv13")
+#   ) |>
+#   select(record_id, vaxage, term, vaccine, day, size, size_fac) |>
+#   left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
+#   mutate(stage = 2) |>
+#   filter(!is.na(vaccine))
 
 
 diary_isr <- bind_rows(st1_isr, st2_isr) |>
@@ -3284,6 +3542,115 @@ diary_isr <- bind_rows(st1_isr, st2_isr) |>
       levels = c("6-week", "4-month", "6-month", "18-month")
     )
   )
+```
+
+```{r}
+#| label: tbl-maximum-site-reaction
+#| tbl-cap: |
+#|    Maximum injection site reaction size in the 7 days following vaccination,
+#|    by vaccination age, vaccine, and assigned treatment.
+#| tbl-pos: "H"
+pdat <- diary_isr |>
+  mutate(size_fac = ordered(size_fac)) |>
+  summarise(
+    size_max = fct_na_value_to_level(suppressWarnings(max(size_fac, na.rm = TRUE)), "Missing"),
+    .by = c(record_id, term, trt, vaxage, vaccine)
+  ) |>
+  count(term, vaxage, vaccine, trt, size_max) |>
+  complete(term, nesting(vaxage, vaccine), trt, size_max, fill = list(n = 0)) |>
+  mutate(
+    p = n / sum(n[size_max != "Missing"]),
+    lab = case_when(
+      size_max == "Missing" ~ sprintf("%i", n),
+      TRUE ~ sprintf("%i (%.0f)", n, 100 * p)
+    ), .by = c(term, vaxage, vaccine, trt)
+  )
+plab <- diary_isr |>
+  mutate(size_fac = ordered(size_fac)) |>
+  mutate(
+    size_max = suppressWarnings(max(size_fac, na.rm = TRUE)),
+    .by = c(record_id, term, trt, vaxage, vaccine)
+  ) |>
+  select(record_id, vaxage, vaccine, term, trt, size_max) |>
+  distinct() |>
+  summarise(
+    n = sum(size_max != "None", na.rm = TRUE),
+    p = mean(size_max != "None", na.rm = TRUE),
+    lab = sprintf("%i/%i", n, sum(!is.na(size_max))),
+    .by = c(term, vaccine, trt, vaxage)
+  )
+tdat <- pdat |>
+  select(-n, -p) |>
+  pivot_wider(names_from = c(trt, size_max), values_from = lab, values_fill = list(lab = "0 (0)"))
+out <- gt(tdat, rowname_col = "term", groupname_col = c("vaxage", "vaccine")) |>
+  tab_spanner(
+    id = "A",
+    label = "aP",
+    columns = starts_with("aP")
+  ) |>
+  tab_spanner(
+    id = "B",
+    label = "wP",
+    columns = starts_with("wP")
+  ) |>
+  tab_spanner(
+    label = "Size (mm)",
+    spanners = c("A", "B")
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  cols_label(
+    ends_with("_None") ~ "None",
+    ends_with("_>0 to 10") ~ ">0 to 10",
+    ends_with("_>10 to 25") ~ ">10 to 25",
+    ends_with("_>25 to 50") ~ ">25 to 50",
+    ends_with("_>50") ~ ">50",
+    ends_with("_Missing") ~ "Missing"
+  ) |>
+  tab_footnote(
+    footnote = "For participants with non-responses for some days, the maximum size is taken as the largest size reported on days with responses available. Percentages exclude participants with a missing highest grade (diary card not returned, or non-response for all days)."
+  ) |>
+  tab_options(table.font.size = px(8)) |>
+  as_latex()
+out_new <- gsub("\\{aP\\}", r"({\\makecell{aP\\\\(n = 152)}})", out)
+out_new <- gsub("\\{wP\\}", r"({\\makecell{wP\\\\(n = 151)}})", out_new)
+attributes(out_new) <- attributes(out)
+out_new
+```
+
+```{r}
+#| label: fig-maximum-site-reaction
+#| fig-cap: |
+#|   Maximum injection site reaction size in 7 days following each vaccination,
+#|   by vaccination age, vaccine, and assigned treatment.
+#|   Stage 1: 6-week, 4-month, 6-month, 18-month.
+#|   Stage 2: 6-week, 18-month.
+#| fig-width: 7
+#| fig-height: 4
+p <- pdat |>
+  filter(size_max != "None", size_max != "Missing") |>
+  ggplot(aes(interaction(trt, term, sep = "!"), p)) +
+  facet_wrap2(
+    vaxage ~ vaccine,
+    strip = strip_nested(
+      background_x = elem_list_rect(
+        fill = c("grey90", "grey80"),
+        colour = c("white", "grey20")
+      ),
+      by_layer_x = TRUE
+    ),
+    ncol = 4
+  ) +
+  geom_col(aes(fill = size_max)) +
+  geom_text(data = plab, aes(label = lab), vjust = -1, size = 1.8, family = "TeX Gyre Pagella") +
+  scale_fill_viridis_d("Maximum size (mm)") +
+  scale_x_discrete(guide = legendry::guide_axis_nested("!"), name = "Term and treatment") +
+  ylim(0, 1) +
+  labs(y = "Cumulative proportion") +
+  theme(axis.title = element_text(size = rel(0.9)), legend.position = "top")
+p
 ```
 
 ```{r}
