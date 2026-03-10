@@ -95,7 +95,8 @@ get_redcap_data <- function(append = "") {
     "diary_card_data_page_2",
     "adverse_events",
     "sae_reporting_log",
-    "other_immunological_data"
+    "other_immunological_data",
+    "antibody_results"
   )
 
   dat_raw <- read_redcap(
