@@ -327,7 +327,7 @@ IgE mediated food allergy with evidence of food sensitisation on skin prick test
 
 We will report on the number and proportion who satisfy this composite definition, and the number and proportion satisfying each of the three sub-components as per a hierarchy in order of 1.i, 1.ii, 2.
 
-### Secondary outcomes (2)
+### Secondary outcomes (2) {#sec-secondary-outcomes}
 
 a.  A history of parent-reported clinician-diagnosed new onset eczema by **6 months** *AND* a positive SPT to any allergen by approximately 12 months old.
 b.  A history of parent-reported clinician-diagnosed new onset eczema by **12 months** *AND* a positive SPT to any allergen by approximately 12 months old.
@@ -347,23 +347,23 @@ For eczema, the age requirement (by 6 or 12 months of age) was determined by the
 
 ## Analyses
 
-### Primary outcome
+### Primary outcome {#sec-primary-analysis}
 
-The primary analysis was to assume independent Binomial models for occurence of food allergy under each treatment group with uniform priors on the outcome probabilities. 
+The primary analysis was to assume independent Binomial models for occurrence of food allergy under each treatment group with uniform priors on the outcome probabilities. 
 
 ::: {.callout-note}
 
 ## Primary model
 
-Let $\theta_{\text{wP}}$ and $\theta_{\text{aP}}$ denote the probability of the outcome amongst infants who follow the respective strategy and $\delta = \theta_{\text{wP}} - \theta_{\text{aP}}$ the difference in probablity. If $n_{\text{wP}}$ and $n_{\text{aP}}$ infants were assigned to each respective strategy, with $y_{\text{wP}}$ and $y_{\text{aP}}$ events observed, than from our assumed model we estimate that $\theta_j \sim \text{Beta}(1 + y_j, 1 + n_j - y_j)$ represents our uncertainty and $\delta$ the difference between these.
+Let $\theta_{\text{wP}}$ and $\theta_{\text{aP}}$ denote the probability of the outcome amongst infants who are assigned to the respective strategy and $\delta = \theta_{\text{wP}} - \theta_{\text{aP}}$ the difference in probablity. If $n_{\text{wP}}$ and $n_{\text{aP}}$ infants were assigned to each respective strategy, with $y_{\text{wP}}$ and $y_{\text{aP}}$ events observed, than from our assumed model we estimate that $\theta_j \sim \text{Beta}(1 + y_j, 1 + n_j - y_j)$ represents our uncertainty and $\delta$ the difference between these.
 
 :::
 
-A secondary analysis was to assume a logistic regression model for occurence of food allergy adjusting for baseline factors: site, sex, breastfeeding status, birth order, parental income, mode of delivery, and family history of atopic disease.
+A secondary analysis was to assume a logistic regression model for occurrence of food allergy adjusting for baseline factors: site, sex, breastfeeding status, birth order, parental income, mode of delivery, and family history of atopic disease.
 
 ### Secondary clinical outcomes
 
-Analyses of secondary outcomes are analagous to those for the primary outcome, both the primary and secondary models.
+Analyses of secondary outcomes are analogous to those for the primary outcome, both the primary and secondary models.
 
 \clearpage
 
@@ -1168,7 +1168,7 @@ dat_spt |>
     .combine_with = "tbl_stack"
   ) |>
   as_gt() |>
-  tab_options(table.font.size = px(10), table.width = pct(100)) |>
+  tab_options(table.font.size = px(10), table.width = pct(70)) |>
   as_latex() |>
   latex_unescape() |>
   cat()
@@ -1256,11 +1256,12 @@ dat_spt |>
   as_gt() |>
   tab_options(
     table.font.size = px(10),
-    table.width = pct(70),
+    table.width = pct(50),
     latex.use_longtable = TRUE
   ) |>
   as_latex() |>
   latex_unescape() |>
+  gsub("NA", "-", x = _) |>
   cat()
 ```
 
@@ -1269,9 +1270,9 @@ dat_spt |>
 
 ### Skin prick test model
 
-@tbl-posterior-spt summarises the estimated model parameters for the probability of skin prick test sensitsation under each treatment group (see secondary outcomes in section 1.4.2 numbers 2c and 2d), and their differences (the posterior densities are shown in @fig-posterior-density-spt and @fig-posterior-difference-spt-adjusted).
+@tbl-posterior-spt summarises the observed counts and estimated model parameters for skin prick test sensitsation under each treatment group and by the size requirement (see @sec-secondary-outcomes numbers 2c and 2d), and their estimated differences (the posterior densities are shown in @fig-posterior-difference-spt-unadjusted-adjusted).
 
-The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in skin prick test sensitisation at 1mm [2.c] between wP and aP were (-0.04, 0.06) and at 3mm [2.d] were (-0.04, 0.05). The probability of a reduction in skin prick test sensitisation under wP compared to aP was 0.33 and 0.41 respectively.
+The results between the analyses (unadjusted and adjusted) (@sec-primary-analysis) were near identical. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in skin prick test sensitisation at 1mm [2.c] between wP and aP were (-0.04, 0.06) and at 3mm [2.d] were (-0.04, 0.05).
 
 ```{r}
 #| label: spt-analysis
@@ -1460,57 +1461,99 @@ dat_outcome |>
 ```{r}
 #| label: fig-posterior-density-spt
 #| fig-cap: |
-#|    Posterior density for difference in probability of positive skin prick test by size,
+#|    Posterior density for difference in probability of skin prick test sensitisation by size requirement,
 #|    unadjusted primary model.
 #| fig-height: 3
 #| fig-width: 5
-diff_outcome |>
+#| include: false
+p1 <- diff_outcome |>
+  select(size, delta) |>
   group_by(size) |>
   nest_rvars() |>
+  mutate(
+    size = factor(
+      size, 
+      levels = c("0mm", "1mm", "3mm"), 
+      labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]")
+    )
+  ) |>
   ggplot(aes(xdist = delta)) +
-  facet_wrap(~size, ncol = 1) +
+  facet_wrap(size ~ ., ncol = 1) +
   stat_histinterval(
     aes(fill = after_stat(level)),
     breaks = 100,
     .width = c(0.5, 0.8, 0.95),
+    point_size = 1.5,
     slab_linewidth = 0.5,
     slab_colour = "black"
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_y_continuous(limits = ~ range(.x, -0.05)) +
   labs(
     fill = "Interval",
-    x = "Difference in skin prick test sensitisation probability, wP - aP",
+    x = "Difference in skin prick test sensitisation, wP - aP",
     y = "Density"
-  )
+  ) +
+  guides(fill = guide_legend(override.aes = list(point_size = NA)))
+p1
 ```
 
 ```{r}
 #| label: fig-posterior-difference-spt-adjusted
 #| fig-cap: |
-#|   Posterior difference in probability of skin prick test sensitisation for wP compared to aP, adjusted model.
+#|   Posterior density for difference in probability of skin prick test sensitisation by size requirement, adjusted model.
 #| fig-height: 3
 #| fig-width: 5
-fit_outcome |>
+#| include: false
+p2 <- fit_outcome |>
   unnest(rd) |>
+  select(size, .rd_bootstrap) |>
+  mutate(
+    size = factor(
+      size, 
+      levels = c("0mm", "1mm", "3mm"), 
+      labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]")
+    )
+  ) |>
   ggplot(aes(xdist = .rd_bootstrap)) +
   facet_wrap(~size, ncol = 1) +
   stat_histinterval(
     aes(fill = after_stat(level)),
     breaks = 100,
     .width = c(0.5, 0.8, 0.95),
+    point_size = 1.5,
     slab_linewidth = 0.5,
     slab_colour = "black"
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_y_continuous(limits = ~ range(.x, -0.05)) +
   labs(
     fill = "Interval",
-    x = "Difference in skin prick test sensitisation probability, wP - aP",
+    x = "Difference in skin prick test sensitisation, wP - aP",
     y = "Density"
-  )
+  ) +
+  guides(fill = guide_legend(override.aes = list(point_size = NA)))
+p2
+```
+
+```{r}
+#| label: fig-posterior-difference-spt-unadjusted-adjusted
+#| fig-cap: |
+#|   Posterior density for difference in probability of skin prick test sensitisation by size and model.
+#| fig-height: 3.5
+#| fig-width: 6
+(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) + 
+  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & 
+  theme(
+    legend.position = "bottom", 
+    legend.margin = margin(t = 0, unit = "cm"),
+    legend.key.size = unit(1, "line"),
+    plot.title = element_text(size = rel(1)), 
+    text = element_text(size = 9))
 ```
 
 \clearpage
@@ -1527,7 +1570,7 @@ The following sections provide a summary of the number of infants who met each c
 
 ### Oral food challenge
 
-There were `r nrow(filter(dat_fa, outalltp == "Oral food challenge"))` outcome records for food allergy diagnoses resulting from oral food challenge amongst `r length(unique(filter(dat_fa, outalltp == "Oral food challenge")$record_id))` infants. One reaction (record ID `8644-34`) reportedly first occurred after 18 months of age and all others were by 18 months of age. All records had a matching positive skin prick test to the reported allergen and so all 22 infants met the primary outcome according to the definition (1.i).
+There were `r nrow(filter(dat_fa, outalltp == "Oral food challenge"))` outcome records for food allergy diagnoses resulting from oral food challenge amongst `r length(unique(filter(dat_fa, outalltp == "Oral food challenge")$record_id))` infants. One reaction (record ID `8644-34`) reportedly first occurred after 18 months of age and all others were by 18 months of age. All records had a matching positive skin prick test to the reported allergen and so 22 infants met the primary outcome according to the definition (1.i).
 
 ```{r}
 #| label: check-positive-spt-ofc
@@ -1573,7 +1616,7 @@ dat_po_ofc <- dat_fa |>
 
 ### Anaphylaxis
 
-There were `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` outcome records for food allergy diagnoses resulting from anaphylaxis amongst `r length(unique(filter(dat_fa, outalltp == "Anaphylaxis")$record_id))` infants. Two of these infants (`record_id: 68, 5785-283`) were diagnosed after 18 months of age with first reported reaction occuring after 18 months of age. One infant (`record_id = 8644-34`) had no skin prick test for the reported allergens. So of the infants with analphylaxis reported, 3 did not meet the criteria for the primary outcome according to the definition (1.ii).
+There were `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` outcome records for food allergy diagnoses resulting from anaphylaxis amongst `r length(unique(filter(dat_fa, outalltp == "Anaphylaxis")$record_id))` infants. Two of these infants (`record_id: 68, 5785-283`) were diagnosed after 18 months of age with first reported reaction occuring after 18 months of age. One infant (`record_id = 8644-34`) had no skin prick test for the reported allergens. So of the `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` infants with analphylaxis reported, 3 did not meet the criteria for the primary outcome according to the definition (1.ii) leacving `r nrow(filter(dat_fa, outalltp == "Anaphylaxis")) - 3` who met the condition.
 
 ```{r}
 #| label: check-positive-spt-ana
@@ -1619,7 +1662,7 @@ dat_po_ana <- dat_fa |>
 
 ### Highly probable IgE mediated food allergy
 
-There were `r nrow(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy"))` outcome records for food allergy diagnoses resulting from highly probable IgE mediated allergy amongst `r length(unique(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy")$record_id))` infants. For one infant (`record_id: 68`), the age at first reaction and age at diagnosis were after 18 months of age. Four infants (`record_id: 75, 5785-239, 5785-243, 5785-331`) had no positive SPT to the reported allergen. Of the infants with IgE-mediated food allergy reported, 5 did not meet the primary outcome according to the definition (2.).
+There were `r nrow(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy"))` outcome records for food allergy diagnoses resulting from highly probable IgE mediated allergy amongst `r length(unique(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy")$record_id))` infants. For one infant (`record_id: 68`), the age at first reaction and age at diagnosis were after 18 months of age. Four infants (`record_id: 75, 5785-239, 5785-243, 5785-331`) had no positive SPT to the reported allergen. Of the 43 infants with IgE-mediated food allergy reported, 5 did not meet the primary outcome according to the definition (2.) leaving 38 infants who met the condition.
 
 ```{r}
 #| label: check-positive-spt-ige
@@ -1676,7 +1719,7 @@ dat_po_ige_1 <- dat_fa |>
 dat_po_ige <- dat_po_ige_1 |>
   summarise(
     outfrafood = paste(unique(tolower(outfrafood)), collapse = ", "),
-    any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
+    any_food_match = any(match_food != "" & outageval_months2 <= 18),
     matched_foods = gsub(
       "^, ",
       "",
@@ -1815,12 +1858,13 @@ dat_po |>
 
 ### Primary outcome model
 
-@tbl-posterior-primary summarises the estimated model parameters for the probability of food allergy under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-density and @fig-posterior-difference-adjusted).
+@tbl-posterior-primary summarises the estimated model parameters for the probability of food allergy under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-difference-primary-unadjusted-adjusted).
 
-The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in food allergy between wP and aP were (-0.02, 0.04). The probability of a reduction in food allergy under wP compared to aP was 0.35.
+The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most credible values (based on 95% equal-tailed credible interval) for the difference in food allergy between wP and aP were (-0.02, 0.04). The probability of a reduction in food allergy under wP compared to aP was 0.25.
 
 ```{r}
 #| label: primary-outcome-analysis
+set.seed(7761)
 po_sum <- dat_po |>
   summarise(
     n = n(),
@@ -1975,24 +2019,29 @@ po_sum |>
 #| fig-cap: Posterior density for difference in probability of primary outcome, unadjusted primary model.
 #| fig-height: 2
 #| fig-width: 5
-po_diff |>
+#| include: false
+p1 <- po_diff |>
   nest_rvars() |>
   ggplot(aes(xdist = delta)) +
   stat_histinterval(
     aes(fill = after_stat(level)),
     breaks = 100,
     .width = c(0.5, 0.8, 0.95),
+    point_size = 1.5,
     slab_linewidth = 0.5,
     slab_colour = "black"
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10), limits = c(-0.1, 0.1)) +
+  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
     x = "Difference in food allergy probability, wP - aP",
     y = "Density"
-  )
+  ) +
+  guides(fill = guide_legend(override.aes = list(point_size = NA)))
+p1
 ```
 
 
@@ -2001,29 +2050,50 @@ po_diff |>
 #| fig-cap: Posterior difference in probability of food allergy for wP compared to aP, adjusted model.
 #| fig-height: 2
 #| fig-width: 5
-ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
+#| include: false
+p2 <- ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
   stat_histinterval(
     aes(fill = after_stat(level)),
     breaks = 100,
     .width = c(0.5, 0.8, 0.95),
+    point_size = 1.5,
     slab_linewidth = 0.5,
     slab_colour = "black"
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10), limits = c(-0.1, 0.1)) +
+  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
     x = "Difference in food allergy probability, wP - aP",
     y = "Density"
-  )
+  ) +
+  guides(fill = guide_legend(override.aes = list(point_size = NA)))
+p2
+```
+
+```{r}
+#| label: fig-posterior-difference-primary-unadjusted-adjusted
+#| fig-cap: |
+#|   Posterior density for difference in probability of food allergy by model.
+#| fig-height: 2
+#| fig-width: 6
+(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) + 
+  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & 
+  theme(
+    legend.position = "bottom", 
+    legend.margin = margin(t = 0, unit = "cm"),
+    legend.key.size = unit(1, "line"),
+    plot.title = element_text(size = rel(1)), 
+    text = element_text(size = 9))
 ```
 
 \clearpage
 
 ## Eczema
 
-The primary source of information for eczema was the `outcome_report` form. Reported outcomes were cross checked against the food and household questionnaire form and medical history forms. Infants whose first reaction date for clinician-diagnosed eczema was prior to enrolment were considered to have "pre-existing" eczema and were excluded from the analysis set. There were `r sum(dat_ecz$out_ecz_preexisting)` such infants.
+The primary source of information for eczema was the `outcome_report` form. The eczema timing was based on the documented age at which allergy first occurred. Reported outcomes were cross checked against the food and household questionnaire form and medical history forms. Infants whose first reaction date for clinician-diagnosed eczema was prior to enrolment were considered to have "pre-existing" eczema and were excluded from the analysis set. There were `r sum(dat_ecz$out_ecz_preexisting)` such infants.
 
 The number and percentage of infants with any clinician-diagnosed eczema is reported in @tbl-eczema-trt. For the protocol defined outcomes \[2a. and 2b.\], the eczema diagnosis needed to be new-onset and accompanied by a positive SPT to at least one allergen by approximately 12 months of age. These are reported in @tbl-eczema-trt-newonset.
 
@@ -2172,7 +2242,7 @@ tbl_stack(
 
 ### Eczema model
 
-@tbl-posterior-eczema summarises the estimated model parameters for the probability of eczema by age under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-density-eczema and @fig-posterior-difference-eczema-adjusted).
+@tbl-posterior-eczema summarises the estimated model parameters for the probability of eczema by age under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-difference-eczema-unadjusted-adjusted).
 
 The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed primary model the most credible values (based on 95% equal-tailed credible interval) for the difference in eczema at 6 months [2.a] between wP and aP were (-0.04, 0.02) and at 12 months [2.b] (-0.04, 0.03). The probability of a reduction in eczema under wP compared to aP was 0.77 and 0.66 respectively.
 
@@ -2362,7 +2432,8 @@ dat_outcome |>
 #|    unadjusted primary model.
 #| fig-height: 3
 #| fig-width: 5
-diff_outcome |>
+#| include: false
+p1 <- diff_outcome |>
   group_by(age) |>
   nest_rvars() |>
   ggplot(aes(xdist = delta)) +
@@ -2371,17 +2442,21 @@ diff_outcome |>
     aes(fill = after_stat(level)),
     breaks = 100,
     .width = c(0.5, 0.8, 0.95),
+    point_size = 1.5,
     slab_linewidth = 0.5,
     slab_colour = "black"
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
     x = "Difference in eczema probability, wP - aP",
     y = "Density"
-  )
+  ) +
+  guides(fill = guide_legend(override.aes = list(point_size = NA)))
+p1
 ```
 
 
@@ -2391,7 +2466,8 @@ diff_outcome |>
 #|   Posterior difference in probability of eczema diagnosis for wP compared to aP, adjusted model.
 #| fig-height: 3
 #| fig-width: 5
-fit_outcome |>
+#| include: false
+p2 <- fit_outcome |>
   unnest(rd) |>
   ggplot(aes(xdist = .rd_bootstrap)) +
   facet_wrap(~age, ncol = 1) +
@@ -2399,17 +2475,37 @@ fit_outcome |>
     aes(fill = after_stat(level)),
     breaks = 100,
     .width = c(0.5, 0.8, 0.95),
+    point_size = 1.5,
     slab_linewidth = 0.5,
     slab_colour = "black"
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_y_continuous(limits = ~ range(.x, -0.15)) +
   labs(
     fill = "Interval",
     x = "Difference in eczema probability, wP - aP",
     y = "Density"
-  )
+  ) +
+  guides(fill = guide_legend(override.aes = list(point_size = NA)))
+p2
+```
+
+```{r}
+#| label: fig-posterior-difference-eczema-unadjusted-adjusted
+#| fig-cap: |
+#|   Posterior density for difference in probability of eczema by age and model.
+#| fig-height: 3.5
+#| fig-width: 6
+(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) + 
+  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & 
+  theme(
+    legend.position = "bottom", 
+    legend.margin = margin(t = 0, unit = "cm"),
+    legend.key.size = unit(1, "line"),
+    plot.title = element_text(size = rel(1)), 
+    text = element_text(size = 9))
 ```
 
 \clearpage
@@ -2494,10 +2590,6 @@ dat_base_ae <- dat_base |>
 There were `r nrow(dat_ae)` adverse events documented during the trial.
 Most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`) with only `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (@tbl-events-by-stage-and-site and listing in @tbl-listing-ae-non-pch).
 
-There was a higher number of adverse events in the wP group compared to the aP group, but for both groups the majority of events were documented as unrelated to the blinded study vaccine (@tbl-summary-ae-pch). A listing of the related AEs is given in @tbl-listing-ae-related-pch.
-
-A summary of the number and proportion of infants randomised at PCH with any reported adverse event by the MeDRA preferred term is given in @tbl-any-event-ae.  A summary of the total number of events is given in @tbl-events-ae.
-
 ```{r}
 #| label: tbl-events-by-stage-and-site
 #| tbl-cap: |
@@ -2545,6 +2637,8 @@ dat_base_ae |>
   cols_align(align = "left")
 ```
 
+There was a higher number of adverse events in the wP group compared to the aP group, but for both groups the majority of events were documented as unrelated to the blinded study vaccine (@tbl-summary-ae-pch). A listing of the related AEs is given in @tbl-listing-ae-related-pch.
+
 ```{r}
 #| label: tbl-summary-ae-pch
 #| tbl-cap: |
@@ -2554,48 +2648,17 @@ dat_base_ae |>
 dat_base_ae |>
   filter(rand_site == "PCH") |>
   summarise(
-    `
-Any
-AE
-` = any(!is.na(aecode1)),
-    `
-Any
-SAE
-` = any(aetype == "SAE", na.rm = TRUE),
-    `
-Any
-related
-AE
-` = any(aerel == "Related", na.rm = TRUE),
-    `
-Any
-severe
-AE
-` = any(aesev == "Severe", na.rm = TRUE),
-    `
-Number
-of
-AEs
-` = sum(!is.na(aecode1)),
-    `
-Number
-of
-related
-AEs
-` = sum(aerel == "Related", na.rm = TRUE),
+    `Any AE` = any(!is.na(aecode1)),
+    `Any SAE` = any(aetype == "SAE", na.rm = TRUE),
+    `Any related AE` = any(aerel == "Related", na.rm = TRUE),
+    `Any severe AE` = any(aesev == "Severe", na.rm = TRUE),
+    `Number of AEs` = sum(!is.na(aecode1)),
+    `Number of related AEs` = sum(aerel == "Related", na.rm = TRUE),
     .by = c(record_id, trt)
   ) |>
   tbl_summary(
     by = "trt",
-    include = `
-Any
-AE
-`:`
-Number
-of
-related
-AEs
-`,
+    include = `Any AE`:`Number of related AEs`,
     digits = ~0
   ) |>
   add_overall(last = TRUE) |>
@@ -2611,7 +2674,7 @@ AEs
   as_gt() |>
   tab_options(
     table.font.size = px(9),
-    table.width = pct(100),
+    table.width = pct(70),
     latex.use_longtable = TRUE
   ) |>
   as_latex() |>
@@ -2649,6 +2712,8 @@ dat_base_ae |>
   sub_missing()
 ```
 
+A summary of the number and proportion of infants randomised at PCH with any reported adverse event by the MeDRA preferred term is given in @tbl-any-event-ae.  A summary of the total number of events is given in @tbl-events-ae.
+
 ```{r}
 #| label: tbl-any-event-ae
 #| tbl-cap: |
@@ -2677,7 +2742,7 @@ dat_base_ae |>
   as_gt() |>
   tab_options(
     table.font.size = px(9),
-    table.width = pct(100),
+    table.width = pct(70),
     latex.use_longtable = TRUE
   ) |>
   as_latex() |>
@@ -2712,7 +2777,7 @@ dat_base_ae |>
   as_gt() |>
   tab_options(
     table.font.size = px(9),
-    table.width = pct(100),
+    table.width = pct(70),
     latex.use_longtable = TRUE
   ) |>
   as_latex() |>
@@ -2722,14 +2787,16 @@ dat_base_ae |>
 
 \clearpage
 
-## Diary Cards
+## Reactogenicity
 
 Combined stage 1 and stage 2 diary card responses are reported in the following sections.
-During stage 1, diary cards were obtained following 6-week, 4-month, 6-month and 18-month vaccinations.
-During stage 2, at PCH only for the first 153 participants, diary cards were obtained following 6-week and 18-month vaccinations.
+During stage 1, diary cards were provided following 6-week, 4-month, 6-month and 18-month vaccinations.
+During stage 2, at PCH only for the first 153 participants, diary cards were provided following 6-week and 18-month vaccinations.
 
 This report focuses on 6-week and 18-month occasions given the addition of stage 2 data. 
 The complete 4-month and 6-month data has been reported previously but is included here for completeness.
+The denominators for the 6-week and 18-month responses differ from those for the 4-month and 6-month responses.
+The number and percentage of returned diary cards for stage 1 are shown in @tbl-diary-returned-stage1 and stage 2 in @tbl-diary-returned-stage2.
 
 ```{r}
 #| label: diary-data
