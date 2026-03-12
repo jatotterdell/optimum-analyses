@@ -57,9 +57,6 @@ sysfonts::font_add(
   bolditalic = "texgyrepagella-bolditalic.otf"
 )
 
-# showtext::showtext_auto()
-# showtext::showtext_opts(dpi = 244)
-
 theme_set(
   theme_bw(base_size = 10, base_family = "TeX Gyre Pagella") +
     theme(panel.grid.minor = element_blank())
@@ -99,7 +96,11 @@ dat_fa <- dat_fa |>
 # Fix wrong coding of delt in stage 2
 dat_base <- dat_base |>
   mutate(
-    delt = case_match(delt, "Forceps/ vacuum assisted delivery" ~ "Forceps/vacuum assisted delivery", .default = delt)
+    delt = case_match(
+      delt,
+      "Forceps/ vacuum assisted delivery" ~ "Forceps/vacuum assisted delivery",
+      .default = delt
+    )
   )
 ```
 
@@ -286,11 +287,14 @@ This report summarises the data and results of the analyses for main outcomes of
 trial. 
 The report includes results for:
 
-- baseline demographics
+- participant disposition
+- participant baseline characteristics
 - skin prick tests
 - food allergy
 - eczema
 - safety reporting
+  - adverse events
+  - reactogenicity
 
 For full details of the trial processes, objectives, and outcomes refer to the protocol
 and statistical analysis plan.
@@ -397,7 +401,7 @@ ggplot(
 
 ## Study completion
 
-The study completion status as reported in the database is summarised in @tbl-discharge-outcome and by site in @tbl-discharge-outcome-site. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who were scheduled for the additional blood collections, a number of who withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of those blood collections.
+The study completion status as reported in the database is summarised in @tbl-discharge-outcome and by site in @tbl-discharge-outcome-site. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who were scheduled for the additional blood collections, a number of who withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of those blood collections, and so these participants may not have been "early termination" in the sense of having withdrawn from participating in the trial. There were 17 participants where contact was lost at or before 15 months of age (based on `discdat`) (@tbl-listing-early-withdrawal).
 
 ```{r}
 #| label: tbl-discharge-outcome
@@ -508,8 +512,6 @@ tbl_study_termination_by(dat_base) |>
   cat()
 ```
 
-There were 17 participants where contact was lost at or before 15 months of age (based on `discdat`) (@tbl-listing-early-withdrawal).
-
 ```{r}
 #| label: tbl-listing-early-withdrawal
 #| tbl-cap: |
@@ -564,7 +566,7 @@ The following reports only on those of particular relevance to the analyses.
 
 All participants received the first scheduled vaccination at the first visit.
 
-For one participant the pharmacy reportedly dispensed the alternative study vaccine to the participants randomly allocated type. The IMP was monitored for all participants, and this was the only documented time this was reported to have occurred. This error was documented in the protocol deviations log [subject 02-333, record id 4629-184]. This participant was analysed as assigned, rather than as treated.
+For one participant the pharmacy reportedly dispensed the alternative study vaccine to what the participant had been randomly allocated. The IMP was monitored for all participants, and this was the only documented occasion that this was reported to have occurred. This error was documented in the protocol deviations log [subject 02-333, record id 4629-184]. This participant was analysed as assigned rather than as treated. Given there was only one such case, the analyses were not repeated with their treatment group switched to as treated.
 
 ### Missed visits
 
@@ -574,7 +576,7 @@ The majority of participants attended each study visit [@tbl-stage1-visit-attend
 #| label: tbl-stage1-visit-attendance
 #| tbl-cap: |
 #|   Number and proportion of infants who attended each visit in stage 1
-#|   (based on presence of "visit date").
+#|   (based on presence of a reported "visit date").
 #|    6-month + 72 hour was optional visit.
 #| tbl-pos: "H"
 #| output: "asis"
@@ -625,8 +627,8 @@ left_join(vs_by_trt, vs_ovr) |>
 #| label: tbl-stage2-visit-attendance
 #| tbl-cap: |
 #|   Number and proportion of infants who attended each visit in stage 2
-#|   (based on presence of "visit date").
-#|   19-month visit was for first 150 at PCH only.
+#|   (based on presence of a reported "visit date").
+#|   19-month visit was for first 150 at PCH only so 58/75 (77%) and 46/75 (61%) attended.
 #| tbl-pos: "H"
 #| output: "asis"
 vs_by_trt <- dat_grid_vs |>
@@ -675,6 +677,8 @@ left_join(vs_by_trt, vs_ovr) |>
 \clearpage
 
 ### Missed food and household questionnaires
+
+The majority of food and household quesionnnaires were completed.
 
 ```{r}
 #| label: tbl-stage1-fhq-completion
@@ -834,10 +838,11 @@ dat_base |>
     ),
     by = trt,
     missing_text = "(Missing)",
-    digits = list(v1_age_days ~ 0, gestadelw ~ 0)
+    digits = ~0
   ) |>
   add_n() |>
   add_overall(last = TRUE) |>
+  modify_column_alignment(all_stat_cols(), "right") |>
   modify_header(
     all_stat_cols() ~
       paste0(
@@ -870,7 +875,7 @@ dat_base |>
 
 # Outcomes
 
-Analysis of outcomes grouped participants according to their assigned treatment.
+Analyses of outcomes grouped participants according to their *assigned* treatment.
 
 All of the trial outcomes depend upon a positive SPT to either a specific allergen or to any allergen. Therefore, this section first reports on the SPT data, and outcomes 2c and 2d, followed by the primary (food allergy) and other secondary (eczema) outcomes.
 
@@ -942,7 +947,9 @@ tbl_summary(
 
 For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT in months was derived from `birthdat` (date of birth) and `pridat` (date of skin prick test) or in some cases `univdat` (date of unscheduled visit) when `pridat` was missing. 
 
-Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age (@fig-spt-age). There were 5 infants who did have an SPT, but none by 18-months of age (@tbl-spt-listing-after-18months). Participants who were enrolled under earlier stage 1 protocol versions had their SPT scheduled for 18 months of age rather than 12 months of age. Delays meant some of these SPT's did not occur until 19 or 20 months of age. For the outcomes, "approximately 12 months of age" was taken to mean "by 18 months of age" which then currently excludes some of these later SPTs.
+Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age (@fig-spt-age). There were 5 infants who did have an SPT, but none by 18-months of age (record IDS: 3, 25, 34, 36, 5785-10) (@tbl-spt-listing-after-18months). 
+
+Participants who were enrolled under early stage 1 protocol versions had their SPT scheduled for 18 months of age rather than 12 months of age. Delays meant some of these SPT's did not occur until 19 or 20 months of age. For the outcomes, "approximately 12 months of age" was taken to mean "by 18 months of age" which then currently excludes some of these later SPTs.
 
 ```{r}
 #| label: fig-spt-age
@@ -962,7 +969,11 @@ dat_spt |>
     ))
   ) |>
   ggplot(aes(spt_age)) +
-  ggh4x::facet_grid2(spt_occasion ~ rand_stage, scales = "free_y", independent = "y") +
+  ggh4x::facet_grid2(
+    spt_occasion ~ rand_stage,
+    scales = "free_y",
+    independent = "y"
+  ) +
   geom_bar() +
   scale_x_continuous("Age (months)", breaks = seq(0, 30, 2)) +
   scale_y_continuous(
@@ -1000,10 +1011,6 @@ dat_spt |>
 ```
 
 @tbl-spt-positive reports on the number and percentage of infants who had a SPT result of \>1mm and ≥3mm relative to negative control for at least one tested allergen (outcomes 2c and 2d). Any infants with no SPT records by 18 months of age are reported as missing.
-
-@tbl-spt-positive-tested provides a breakdown of the specific allergens from the standard panel which satisfied the sensitisation criteria. @tbl-spt-positive-tested-other reports on any other tested allergens beyond the standard panel.
-
-Whole egg had a higher proportion of missingness than other allergens from the standard panel. This was usually because either egg white or egg yolk specifically was assessed and reported in the additional allergens instead of whole egg.
 
 ```{r}
 #| label: tbl-spt-positive
@@ -1050,6 +1057,10 @@ dat_spt |>
   latex_unescape() |>
   cat()
 ```
+
+@tbl-spt-positive-tested provides a breakdown of the specific allergens from the standard panel which satisfied the sensitisation criteria. @tbl-spt-positive-tested-other reports on any other tested allergens beyond the standard panel.
+
+Whole egg had a higher proportion of missingness than other allergens from the standard panel. This was usually because either egg white or egg yolk specifically was assessed and reported in the additional allergens instead of whole egg.
 
 ```{r}
 #| include: false
@@ -1168,7 +1179,7 @@ dat_spt |>
     .combine_with = "tbl_stack"
   ) |>
   as_gt() |>
-  tab_options(table.font.size = px(10), table.width = pct(70)) |>
+  tab_options(table.font.size = px(10), table.width = pct(80)) |>
   as_latex() |>
   latex_unescape() |>
   cat()
@@ -1472,8 +1483,8 @@ p1 <- diff_outcome |>
   nest_rvars() |>
   mutate(
     size = factor(
-      size, 
-      levels = c("0mm", "1mm", "3mm"), 
+      size,
+      levels = c("0mm", "1mm", "3mm"),
       labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]")
     )
   ) |>
@@ -1512,8 +1523,8 @@ p2 <- fit_outcome |>
   select(size, .rd_bootstrap) |>
   mutate(
     size = factor(
-      size, 
-      levels = c("0mm", "1mm", "3mm"), 
+      size,
+      levels = c("0mm", "1mm", "3mm"),
       labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]")
     )
   ) |>
@@ -1546,14 +1557,15 @@ p2
 #|   Posterior density for difference in probability of skin prick test sensitisation by size and model.
 #| fig-height: 3.5
 #| fig-width: 6
-(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) + 
-  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & 
+(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) +
+  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") &
   theme(
-    legend.position = "bottom", 
+    legend.position = "bottom",
     legend.margin = margin(t = 0, unit = "cm"),
     legend.key.size = unit(1, "line"),
-    plot.title = element_text(size = rel(1)), 
-    text = element_text(size = 9))
+    plot.title = element_text(size = rel(1)),
+    text = element_text(size = 9)
+  )
 ```
 
 \clearpage
@@ -1777,7 +1789,7 @@ dat_po <- dat_base |>
   )
 ```
 
-@tbl-primary-outcome-criteria reports on the number of participants who met each of the primary outcome criteria (1.i, 1.ii, and 2) as outlined in the sections above.
+@tbl-primary-outcome-criteria reports on the number of participants who met each of the primary outcome criteria (1.i, 1.ii, and 2) as outlined in the sections above by their assigned treatment group.
 
 @tbl-primary-outcome-overall reports the total number of infants who met the primary outcome, and the primary reason grouped hierarchically according to the ordering in the definition (i.e. OFC → Anaphylaxis → IgE mediated) (irrespective of their timing).
 
@@ -2079,14 +2091,15 @@ p2
 #|   Posterior density for difference in probability of food allergy by model.
 #| fig-height: 2
 #| fig-width: 6
-(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) + 
-  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & 
+(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) +
+  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") &
   theme(
-    legend.position = "bottom", 
+    legend.position = "bottom",
     legend.margin = margin(t = 0, unit = "cm"),
     legend.key.size = unit(1, "line"),
-    plot.title = element_text(size = rel(1)), 
-    text = element_text(size = 9))
+    plot.title = element_text(size = rel(1)),
+    text = element_text(size = 9)
+  )
 ```
 
 \clearpage
@@ -2255,7 +2268,13 @@ dat_outcome <- dat_ecz_analysis |>
     names_to = "age",
     values_to = "outcome"
   ) |>
-  mutate(age = factor(age, levels = c("6m", "12m", "18m"), labels = c("6m [2.a]", "12m [2.b]", "18m"))) |>
+  mutate(
+    age = factor(
+      age,
+      levels = c("6m", "12m", "18m"),
+      labels = c("6m [2.a]", "12m [2.b]", "18m")
+    )
+  ) |>
   filter(!is.na(outcome)) |>
   summarise(
     n = n(),
@@ -2289,7 +2308,13 @@ fit_outcome <- dat_ecz_analysis |>
     names_to = "age",
     values_to = "outcome"
   ) |>
-  mutate(age = factor(age, levels = c("6m", "12m", "18m"), labels = c("6m [2.a]", "12m [2.b]", "18m"))) |>
+  mutate(
+    age = factor(
+      age,
+      levels = c("6m", "12m", "18m"),
+      labels = c("6m [2.a]", "12m [2.b]", "18m")
+    )
+  ) |>
   nest(-age) |>
   mutate(
     fit = map(
@@ -2498,14 +2523,15 @@ p2
 #|   Posterior density for difference in probability of eczema by age and model.
 #| fig-height: 3.5
 #| fig-width: 6
-(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) + 
-  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") & 
+(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) +
+  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") &
   theme(
-    legend.position = "bottom", 
+    legend.position = "bottom",
     legend.margin = margin(t = 0, unit = "cm"),
     legend.key.size = unit(1, "line"),
-    plot.title = element_text(size = rel(1)), 
-    text = element_text(size = 9))
+    plot.title = element_text(size = rel(1)),
+    text = element_text(size = 9)
+  )
 ```
 
 \clearpage
@@ -2561,6 +2587,7 @@ dat_saes |>
 ## Adverse events
 
 ```{r}
+#| label: ae-data-prep
 dat_ae <- dat_raw |>
   select_form("adverse_events") |>
   left_join(select(dat_base, record_id, rand_site), join_by(record_id))
@@ -2886,6 +2913,7 @@ plot_isr <- function(
   ylim = 1,
   var_lab = "Size (mm)"
 ) {
+  library(ggtext)
   make_plot_data <- function(dat, trt = trt, var = var, ref = ref) {
     pdat <- dat |>
       group_by({{ trt }}, vaxage, vaccine, day) |>
@@ -2905,12 +2933,15 @@ plot_isr <- function(
     plab <- dat |>
       summarise(
         n = sum({{ var }} != ref, na.rm = TRUE),
+        N = sum(!is.na({{ var }})),
         p = mean({{ var }} != ref, na.rm = TRUE),
-        lab = sprintf(
-          "%i/%i",
-          sum({{ var }} != ref, na.rm = TRUE),
-          sum(!is.na({{ var }}))
-        ),
+        lab = paste0("frac(", n, ",", N, ")"),
+        lab = paste0("<sup>", n, "</sup>&frasl;<sub>", N, "</sub>"),
+        # lab = sprintf(
+        #   "%i/%i",
+        #   n,
+        #   N)
+        # ),
         .by = c({{ trt }}, vaxage, vaccine, day)
       )
     return(list(pdat, plab))
@@ -2937,13 +2968,37 @@ plot_isr <- function(
       ) +
       geom_col(aes(fill = {{ var }})) +
       geom_vline(xintercept = 7.5, colour = "grey80") +
+      geom_richtext(
+        data = plab,
+        aes(label = lab),
+        fill = NA,
+        label.color = NA,
+        size = 1.4,
+        vjust = 0,
+        family = "serif"
+      ) +
+      # geom_text(
+      #   data = plab,
+      #   aes(label = lab),
+      #   vjust = 0,
+      #   size = 1.5,
+      #   parse = TRUE,
+      #   family = "serif"
+      # ) +
       scale_fill_viridis_d(var_lab) +
       scale_x_discrete(
         guide = legendry::guide_axis_nested(key_range_auto(sep = "!")),
         name = "Day following vaccination"
       ) +
       scale_y_continuous("Proportion", limit = c(0, ylim), expand = c(0, 0)) +
-      theme(panel.grid.major.x = element_blank(), legend.position = "top")
+      theme(
+        panel.grid.major.x = element_blank(),
+        legend.position = "bottom",
+        legend.margin = margin(t = 0, unit = "cm"),
+        legend.key.size = unit(1, "line"),
+        plot.title = element_text(size = rel(1)),
+        text = element_text(size = 9)
+      )
   }
   g <- base_plot(pdat, plab)
   return(g)
@@ -3077,7 +3132,9 @@ st1_lik <- read_parquet(file.path(st1_pth, "diary-satisfaction.parquet")) |>
   mutate(subjid = gsub("^01", "01-", subjectid)) |>
   to_factor() |>
   left_join(select(dat_base, subjid, trt), join_by(subjid)) |>
-  mutate(diaimmscale = replace_values(diaimmscale, "Not completed" ~ NA_character_))
+  mutate(
+    diaimmscale = replace_values(diaimmscale, "Not completed" ~ NA_character_)
+  )
 st2_lik <- filter(st2_diary, reaction == "shared") |>
   pull(data) |>
   pluck(1) |>
@@ -3085,16 +3142,25 @@ st2_lik <- filter(st2_diary, reaction == "shared") |>
   left_join(select(dat_base, record_id, subjid, trt), join_by(record_id)) |>
   select(subjid, trt, vaxage, diaimmscale) |>
   mutate(
-    diaimmscale = factor(recode_values(
-      diaimmscale, 
-      "Not completed" ~ NA_character_, 
-      "Strongly Disagree" ~ "Strongly disagree",
-      "Disagree" ~ "Disagree",
-      "Neither Agree or Disagree" ~ "Neither agree nor disagree",
-      "Agree" ~ "Agree",
-      "Strongly Agree" ~ "Strongly agree"),
-      levels = c("Strongly disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly agree"))
+    diaimmscale = factor(
+      recode_values(
+        diaimmscale,
+        "Not completed" ~ NA_character_,
+        "Strongly Disagree" ~ "Strongly disagree",
+        "Disagree" ~ "Disagree",
+        "Neither Agree or Disagree" ~ "Neither agree nor disagree",
+        "Agree" ~ "Agree",
+        "Strongly Agree" ~ "Strongly agree"
+      ),
+      levels = c(
+        "Strongly disagree",
+        "Disagree",
+        "Neither agree nor disagree",
+        "Agree",
+        "Strongly agree"
+      )
     )
+  )
 
 diary_likert <- bind_rows(st1_lik, st2_lik) |>
   mutate(
@@ -3105,7 +3171,7 @@ diary_likert <- bind_rows(st1_lik, st2_lik) |>
 ```{r}
 #| label: tbl-diary-likert
 #| tbl-cap: |
-#|   Number and percentage of parents giving each response to the given statement following 6-week vaccination, 
+#|   Number and percentage of parents giving each response to the given statement following 6-week vaccination,
 #|   by assigned treatment group. Unknown is due to either a failure to return the diary card, or non-response
 #|   to the item.
 #| tbl-pos: "H"
@@ -3208,9 +3274,13 @@ diary_sol_any <- diary_sol |>
   )
 ```
 
+The number and percentage of participants who experienced any severe reaction over the 7 days following vaccination, and the highest reaction grade by type over those 7 days are reported in @tbl-sol-intensity-any-severe, @tbl-sol-maximum-intensity, and @fig-sol-maximum-intensity. 
+
+The subsequent sections report on the daily reaction grades following each vaccination occasion by the type of reaction.
+
 ```{r}
 #| label: tbl-sol-intensity-any-severe
-#| tbl-cap: | 
+#| tbl-cap: |
 #|   Experience of any severe intensity systemic reaction following vaccination (day 0 to 6) by assigned treatment.
 #|   Excludes participants with missing diary cards or non-response for all days.
 #| tbl-pos: "H"
@@ -3234,7 +3304,7 @@ out <- diary_sol_any |>
     "f_wP" = "wP",
     .fn = md
   ) |>
-  cols_align(align = "center", columns = c(f_aP, f_wP)) |>
+  cols_align(align = "right", columns = c(f_aP, f_wP)) |>
   tab_options(table.font.size = px(9), table.width = pct(50)) |>
   as_latex()
 # out_new <- paste("\\scriptsize", out, "\\normalsize", sep = "\n")
@@ -3245,11 +3315,7 @@ out_new
 ```
 
 ```{r}
-#| label: fig-sol-intensity-max
-#| fig-cap: | 
-#|   Highest intensity grade for systemic reactions following each vaccination (day 0 to 6) by assigned treatment.
-#| fig-height: 6
-#| fig-width: 6
+#| label: sol-intensity-max
 pdat <- diary_sol_max |>
   select(record_id, vaxage, term, trt, intensity_max) |>
   count(vaxage, term, trt, intensity_max) |>
@@ -3278,19 +3344,27 @@ plab <- diary_sol_max |>
   summarise(
     n = sum(intensity_max != "None", na.rm = TRUE),
     p = mean(intensity_max != "None", na.rm = TRUE),
-    lab = sprintf("%i/%i", sum(intensity_max != "None", na.rm = TRUE), sum(!is.na(intensity_max))),
+    lab = sprintf(
+      "%i/%i",
+      sum(intensity_max != "None", na.rm = TRUE),
+      sum(!is.na(intensity_max))
+    ),
     .by = c(term, trt, vaxage)
-  ) 
+  )
 ```
 
 ```{r}
-#| label: tbl-maximum-intensity
+#| label: tbl-sol-maximum-intensity
 #| tbl-cap: |
-#|   Highest intensity grade for systemic reactions after the 6-week and 18-month vaccine doses. 
+#|   Highest intensity grade for systemic reactions after the 6-week and 18-month vaccine doses.
 #| tbl-pos: "H"
 tdat <- pdat |>
   select(-n, -p) |>
-  pivot_wider(names_from = c(trt, intensity_max), values_from = lab, values_fill = list(lab = "0 (0)"))
+  pivot_wider(
+    names_from = c(trt, intensity_max),
+    values_from = lab,
+    values_fill = list(lab = "0 (0)")
+  )
 out <- gt(tdat, rowname_col = "term", groupname_col = "vaxage") |>
   tab_spanner(
     label = "aP",
@@ -3320,24 +3394,31 @@ out
 ```
 
 ```{r}
-#| label: fig-maximum-intensity
+#| label: fig-sol-maximum-intensity
 #| fig-cap: |
-#|    Highest intensity grade for systemic reactions after the 6-week and 18-month vaccination doses. aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).
+#|    Highest intensity grade for systemic reactions after the 6-week and 18-month vaccination doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 5
 p <- pdat |>
-  filter(!is.na(intensity_max), intensity_max !=  "None") |>
+  filter(!is.na(intensity_max), intensity_max != "None") |>
   ggplot(aes(interaction(trt, vaxage, sep = "!"), p)) +
   facet_wrap(~term, ncol = 2) +
   geom_col(aes(fill = intensity_max)) +
   geom_vline(xintercept = c(2.5, 4.5), colour = "grey80") +
-  geom_text(data = plab, aes(label = lab), vjust = -0.5, size = 2, family = "TeX Gyre Pagella") +
+  geom_text(
+    data = plab,
+    aes(label = lab),
+    vjust = -0.5,
+    size = 2,
+    family = "TeX Gyre Pagella"
+  ) +
   labs(
     fill = "Maximum grade",
     y = "Cumulative proportion"
   ) +
   scale_x_discrete(
-    guide = legendry::guide_axis_nested(key = "!"), 
-    name = "Vaccination age and treatment") +
+    guide = legendry::guide_axis_nested(key = "!"),
+    name = "Vaccination age and treatment"
+  ) +
   ylim(0, 1) +
   theme(
     plot.caption = element_text(hjust = 0, size = rel(0.7), lineheight = 1),
@@ -3354,7 +3435,8 @@ p
 
 ```{r}
 #| label: fig-irritability-daily
-#| fig-cap: Irritability day 0 to 6 by vaccination age and assigned treatment.
+#| fig-cap: |
+#|   Irritability in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Irritability")
@@ -3368,7 +3450,8 @@ plot_sys_reaction(diary_sol, "Irritability")
 
 ```{r}
 #| label: fig-vomiting-daily
-#| fig-cap: Vomiting day 0 to 6 by vaccination age and assigned treatment.
+#| fig-cap: |
+#|   Vomiting in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Vomiting")
@@ -3382,7 +3465,8 @@ plot_sys_reaction(diary_sol, "Vomiting")
 
 ```{r}
 #| label: fig-diarrhoea-daily
-#| fig-cap: Diarrhoea day 0 to 6 by vaccination age and assigned treatment.
+#| fig-cap: |
+#|   Diarrhoea in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Diarrhoea")
@@ -3396,7 +3480,8 @@ plot_sys_reaction(diary_sol, "Diarrhoea")
 
 ```{r}
 #| label: fig-decreasedfeeding-daily
-#| fig-cap: Decreased feeding day 0 to 6 by vaccination age and assigned treatment.
+#| fig-cap: |
+#|   Decreased feeding in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Decreased feeding")
@@ -3410,7 +3495,8 @@ plot_sys_reaction(diary_sol, "Decreased feeding")
 
 ```{r}
 #| label: fig-drowsiness-daily
-#| fig-cap: Drowsiness day 0 to 6 by vaccination age and assigned treatment.
+#| fig-cap: |
+#|   Drowsiness in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Drowsiness")
@@ -3424,7 +3510,8 @@ plot_sys_reaction(diary_sol, "Drowsiness")
 
 ```{r}
 #| label: fig-restlessness-daily
-#| fig-cap: Restlessness day 0 to 6 by vaccination age and assigned treatment.
+#| fig-cap: |
+#|   Restlessness in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Restlessness")
@@ -3472,18 +3559,24 @@ diary_temp <- bind_rows(st1_temp, st2_temp) |>
 pdat <- diary_temp |>
   mutate(temp_fac = as.ordered(temp_fac)) |>
   summarise(
-    temp_max = ordered(max(temp_fac, na.rm = TRUE), levels = levels(diary_temp$temp_fac)),
+    temp_max = ordered(
+      max(temp_fac, na.rm = TRUE),
+      levels = levels(diary_temp$temp_fac)
+    ),
     .by = c(record_id, trt, vaxage)
   ) |>
-    mutate(
-      temp_max = fct_na_value_to_level(fct_collapse(
+  mutate(
+    temp_max = fct_na_value_to_level(
+      fct_collapse(
         temp_max,
         "<38" = "None (<38)",
         "38.0-38.9" = c("38.0-38.4", "38.5-38.9"),
         "39.0-39.9" = c("39.0-39.4", "39.5-39.9"),
         "≥40.0" = c("40.0-40.4", "40.5-40.9", "41.0 or more"),
-      ), "Missing")
-    ) |>
+      ),
+      "Missing"
+    )
+  ) |>
   count(vaxage, trt, temp_max) |>
   group_by(vaxage, trt) |>
   mutate(
@@ -3498,7 +3591,11 @@ tdat <- pdat |>
   complete(temp_max, vaxage, trt, fill = list(lab = "0 (0)")) |>
   select(-n, -p) |>
   arrange(temp_max) |>
-  pivot_wider(names_from = c(trt, temp_max), values_from = lab, values_fill = list(lab = "0 (0)"))
+  pivot_wider(
+    names_from = c(trt, temp_max),
+    values_from = lab,
+    values_fill = list(lab = "0 (0)")
+  )
 out <- gt(tdat, rowname_col = "vaxage") |>
   tab_spanner(
     label = "aP",
@@ -3520,8 +3617,16 @@ out <- gt(tdat, rowname_col = "vaxage") |>
   ) |>
   tab_options(table.font.size = px(9)) |>
   as_latex()
-out_new <- gsub("aP", r"(\\makecell{aP\\\\N = 152 (6-week, 18-month)\\\\N = 75 (4-month, 6-month)})", out)
-out_new <- gsub("wP", r"(\\makecell{wP\\\\N = 151 (6-week, 18-month)\\\\N = 75 (4-month, 6-month)})", out_new)
+out_new <- gsub(
+  "aP",
+  r"(\\makecell{aP\\\\N = 152 (6-week, 18-month)\\\\N = 75 (4-month, 6-month)})",
+  out
+)
+out_new <- gsub(
+  "wP",
+  r"(\\makecell{wP\\\\N = 151 (6-week, 18-month)\\\\N = 75 (4-month, 6-month)})",
+  out_new
+)
 attributes(out_new) <- attributes(out)
 out_new
 ```
@@ -3541,6 +3646,10 @@ plot_fever()
 \clearpage
 
 ### Solicited Injection Site Reactions
+
+The number and percentage of participants who experienced any severe injection site reaction over the 7 days following vaccination, and the highest reaction size by type over those 7 days are reported in @tbl-sol-intensity-any-severe, @tbl-maximum-site-reaction, and @fig-maximum-site-reaction. 
+
+The subsequent sections report on the daily injection site reaction sizes following each vaccination occasion by the type of reaction.
 
 ```{r}
 #| label: data-isr
@@ -3601,7 +3710,6 @@ st2_isr <- st2_diary |>
 #   mutate(stage = 2) |>
 #   filter(!is.na(vaccine))
 
-
 diary_isr <- bind_rows(st1_isr, st2_isr) |>
   mutate(
     vaxage = factor(
@@ -3620,7 +3728,10 @@ diary_isr <- bind_rows(st1_isr, st2_isr) |>
 pdat <- diary_isr |>
   mutate(size_fac = ordered(size_fac)) |>
   summarise(
-    size_max = fct_na_value_to_level(suppressWarnings(max(size_fac, na.rm = TRUE)), "Missing"),
+    size_max = fct_na_value_to_level(
+      suppressWarnings(max(size_fac, na.rm = TRUE)),
+      "Missing"
+    ),
     .by = c(record_id, term, trt, vaxage, vaccine)
   ) |>
   count(term, vaxage, vaccine, trt, size_max) |>
@@ -3630,7 +3741,8 @@ pdat <- diary_isr |>
     lab = case_when(
       size_max == "Missing" ~ sprintf("%i", n),
       TRUE ~ sprintf("%i (%.0f)", n, 100 * p)
-    ), .by = c(term, vaxage, vaccine, trt)
+    ),
+    .by = c(term, vaxage, vaccine, trt)
   )
 plab <- diary_isr |>
   mutate(size_fac = ordered(size_fac)) |>
@@ -3648,7 +3760,11 @@ plab <- diary_isr |>
   )
 tdat <- pdat |>
   select(-n, -p) |>
-  pivot_wider(names_from = c(trt, size_max), values_from = lab, values_fill = list(lab = "0 (0)"))
+  pivot_wider(
+    names_from = c(trt, size_max),
+    values_from = lab,
+    values_fill = list(lab = "0 (0)")
+  )
 out <- gt(tdat, rowname_col = "term", groupname_col = c("vaxage", "vaccine")) |>
   tab_spanner(
     id = "A",
@@ -3711,14 +3827,30 @@ p <- pdat |>
     ncol = 4
   ) +
   geom_col(aes(fill = size_max)) +
-  geom_text(data = plab, aes(label = lab), vjust = -1, size = 1.8, family = "TeX Gyre Pagella") +
+  geom_text(
+    data = plab,
+    aes(label = lab),
+    vjust = -1,
+    size = 1.8,
+    family = "TeX Gyre Pagella"
+  ) +
   scale_fill_viridis_d("Maximum size (mm)") +
-  scale_x_discrete(guide = legendry::guide_axis_nested("!"), name = "Term and treatment") +
+  scale_x_discrete(
+    guide = legendry::guide_axis_nested("!"),
+    name = "Term and treatment"
+  ) +
   ylim(0, 1) +
   labs(y = "Cumulative proportion") +
   theme(axis.title = element_text(size = rel(0.9)), legend.position = "top")
 p
 ```
+
+\clearpage
+
+::: {.landscape}
+
+
+#### Erythema
 
 ```{r}
 #| label: fig-redness-daily
@@ -3726,7 +3858,7 @@ p
 #|    Injection site erythema by vaccination age, vaccine, and assigned treatment.
 #|    Stage 1: 6-week, 4-month, 6-month, 18-month.
 #|    Stage 2: 6-week, 18-month.
-#| fig-width: 7
+#| fig-width: 9
 #| fig-height: 4
 plot_isr(
   diary_isr |> filter(term == "Erythema"),
@@ -3737,13 +3869,22 @@ plot_isr(
 )
 ```
 
+
+:::
+
+\clearpage
+
+::: {.landscape}
+
+#### Swelling
+
 ```{r}
 #| label: fig-swelling-daily
 #| fig-cap: |
 #|   Injection site swelling by vaccination age, vaccine, and assigned treatment.
 #|   Stage 1: 6-week, 4-month, 6-month, 18-month.
 #|   Stage 2: 6-week, 18-month.
-#| fig-width: 7
+#| fig-width: 9
 #| fig-height: 4
 plot_isr(
   diary_isr |> filter(term == "Swelling"),
@@ -3754,13 +3895,21 @@ plot_isr(
 )
 ```
 
+:::
+
+\clearpage
+
+::: {.landscape}
+
+#### Induration
+
 ```{r}
 #| label: fig-induration-daily
 #| fig-cap:  |
 #|   Injection site induration by vaccination age, vaccine, and assigned treatment.
 #|   Stage 1: 6-week, 4-month, 6-month, 18-month.
 #|   Stage 2: 6-week, 18-month.
-#| fig-width: 7
+#| fig-width: 9
 #| fig-height: 4
 plot_isr(
   diary_isr |> filter(term == "Induration"),
@@ -3770,6 +3919,12 @@ plot_isr(
   var_lab = "Induration size (mm)"
 )
 ```
+
+:::
+
+\clearpage
+
+#### Pain
 
 ```{r}
 #| label: diary-pain-data
@@ -3826,14 +3981,144 @@ diary_pain <- bind_rows(st1_pain, st2_pain) |>
   )
 ```
 
+
+```{r}
+#| label: tbl-maximum-pain-reaction
+#| tbl-cap: |
+#|    Maximum injection site pain in the 7 days following vaccination,
+#|    by vaccination age, vaccine, and assigned treatment.
+#| tbl-pos: "H"
+pdat <- diary_pain |>
+  mutate(pain = ordered(pain)) |>
+  summarise(
+    pain_max = fct_na_value_to_level(
+      suppressWarnings(max(pain, na.rm = TRUE)),
+      "Missing"
+    ),
+    .by = c(record_id, trt, vaxage, vaccine)
+  ) |>
+  count(vaxage, vaccine, trt, pain_max) |>
+  complete(nesting(vaxage, vaccine), trt, pain_max, fill = list(n = 0)) |>
+  mutate(
+    p = n / sum(n[pain_max != "Missing"]),
+    lab = case_when(
+      pain_max == "Missing" ~ sprintf("%i", n),
+      TRUE ~ sprintf("%i (%.0f)", n, 100 * p)
+    ),
+    .by = c(vaxage, vaccine, trt)
+  )
+plab <- diary_pain |>
+  mutate(pain = ordered(pain)) |>
+  mutate(
+    pain_max = suppressWarnings(max(pain, na.rm = TRUE)),
+    .by = c(record_id, trt, vaxage, vaccine)
+  ) |>
+  select(record_id, vaxage, vaccine, trt, pain_max) |>
+  distinct() |>
+  summarise(
+    n = sum(pain_max != "None", na.rm = TRUE),
+    p = mean(pain_max != "None", na.rm = TRUE),
+    lab = sprintf("%i/%i", n, sum(!is.na(pain_max))),
+    .by = c(vaccine, trt, vaxage)
+  )
+tdat <- pdat |>
+  select(-n, -p) |>
+  pivot_wider(
+    names_from = c(trt, pain_max),
+    values_from = lab,
+    values_fill = list(lab = "0 (0)")
+  )
+out <- gt(tdat, rowname_col = "vaccine", groupname_col = "vaxage") |>
+  tab_spanner(
+    id = "A",
+    label = "aP",
+    columns = starts_with("aP")
+  ) |>
+  tab_spanner(
+    id = "B",
+    label = "wP",
+    columns = starts_with("wP")
+  ) |>
+  tab_spanner(
+    label = "Pain",
+    spanners = c("A", "B")
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  cols_label(
+    ends_with("_None") ~ "None",
+    ends_with("_Mild") ~ "Mild",
+    ends_with("_Moderate") ~ "Moderate",
+    ends_with("_Severe") ~ "Severe",
+    ends_with("_Missing") ~ "Missing"
+  ) |>
+  tab_footnote(
+    footnote = "For participants with non-responses for some days, the maximum pain is taken as the greatest pain grade reported on days with responses available. Percentages exclude participants with a missing highest grade (diary card not returned, or non-response for all days)."
+  ) |>
+  tab_options(table.font.size = px(8)) |>
+  as_latex()
+out_new <- gsub("\\{aP\\}", r"({\\makecell{aP\\\\(n = 152)}})", out)
+out_new <- gsub("\\{wP\\}", r"({\\makecell{wP\\\\(n = 151)}})", out_new)
+attributes(out_new) <- attributes(out)
+out_new
+```
+
+```{r}
+#| label: fig-maximum-site-pain
+#| fig-cap: |
+#|   Maximum injection site pain in 7 days following each vaccination,
+#|   by vaccination age, vaccine, and assigned treatment.
+#|   Stage 1: 6-week, 4-month, 6-month, 18-month.
+#|   Stage 2: 6-week, 18-month.
+#| fig-width: 7
+#| fig-height: 4
+p <- pdat |>
+  filter(pain_max != "None", pain_max != "Missing") |>
+  ggplot(aes(trt, p)) +
+  facet_wrap2(
+    vaxage ~ vaccine,
+    strip = strip_nested(
+      background_x = elem_list_rect(
+        fill = c("grey90", "grey80"),
+        colour = c("white", "grey20")
+      ),
+      by_layer_x = TRUE
+    ),
+    ncol = 4
+  ) +
+  geom_col(aes(fill = pain_max)) +
+  geom_text(
+    data = plab,
+    aes(label = lab),
+    vjust = -1,
+    size = 1.8,
+    family = "TeX Gyre Pagella"
+  ) +
+  scale_fill_viridis_d("Maximum pain") +
+  scale_x_discrete(
+    guide = legendry::guide_axis_nested("!"),
+    name = "Term and treatment"
+  ) +
+  ylim(0, 1) +
+  labs(y = "Cumulative proportion") +
+  theme(axis.title = element_text(size = rel(0.9)), legend.position = "top")
+p
+```
+
+::: {.landscape}
+
 ```{r}
 #| label: fig-pain-daily
 #| fig-cap: Injection site pain by vaccination age, vaccine, and assigned treatment.
-#| fig-width: 7
-#| fig-height: 4
+#| fig-width: 9
+#| fig-height: 5
 plot_isr(diary_pain, trt, pain, ref = "None", var_lab = "Pain intensity")
 ```
-  
+
+:::
+
 \clearpage
 
 # Appendix {.appendix}
@@ -3982,14 +4267,17 @@ make_stan_data <- function(
 gmr_table_dat <- function(gmr) {
   tdat <- gmr |>
     mutate(
-      across(V1, list(
-        mean = ~ mean(.x),
-        sd = ~ sd(.x),
-        med = ~ median(.x),
-        lo = ~ quantile(.x, 0.025)[1, ],
-        hi = ~ quantile(.x, 0.975)[1, ],
-        pr = ~ Pr(.x < 1)
-      ))
+      across(
+        V1,
+        list(
+          mean = ~ mean(.x),
+          sd = ~ sd(.x),
+          med = ~ median(.x),
+          lo = ~ quantile(.x, 0.025)[1, ],
+          hi = ~ quantile(.x, 0.975)[1, ],
+          pr = ~ Pr(.x < 1)
+        )
+      )
     ) |>
     select(-V1)
   return(tdat)
@@ -4207,7 +4495,10 @@ fit_ige_model <- function(ige_ref) {
   gmr2 <- 10^sdrw2$b[, 2]
   gmfir1 <- 10^(sdrw1$b[-1, 2] - sdrw1$b[-3, 2])
   gmfir2 <- 10^(sdrw2$b[-1, 2] - sdrw2$b[-3, 2])
-  rownames(gmfir1) <- rownames(gmfir2) <- c("7/6-month (GMFR)", "19/7-month (GMFR)")
+  rownames(gmfir1) <- rownames(gmfir2) <- c(
+    "7/6-month (GMFR)",
+    "19/7-month (GMFR)"
+  )
 
   # Fill missing observations with conditional predictions
   # yfill <- t(as_rvar(sdat1$Y))
