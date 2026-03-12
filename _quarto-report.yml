@@ -27,6 +27,7 @@ format:
     colorlinks: true
     link-citations: true
     tbl-pos: "H"
+    fig-dpi: 244
     include-in-header:
       text: |
         \usepackage[font=small,labelfont={bf,small},listformat=simple]{caption}
