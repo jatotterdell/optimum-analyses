@@ -1605,6 +1605,10 @@ combine_blood_collection <- function() {
     rename(record_id = medrioid) |>
     mutate(record_id = as.character(record_id))
   st2_bc <- extract_tibble(st2_data, "blood_sample_collection") |>
+    filter(
+      redcap_data_access_group == "Perth Children's Hospital",
+      as.numeric(substr(record_id, 6, 8)) <= 150
+    ) |>
     select(-c(redcap_data_access_group, form_status_complete)) |>
     rowwise() |>
     mutate(
