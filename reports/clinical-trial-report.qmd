@@ -2932,7 +2932,7 @@ plot_react <- function(
     scale_fill_viridis_d(slab) +
     scale_x_discrete(
       guide = legendry::guide_axis_nested(key = key_range_auto(sep = "!")),
-      name = "Day following vaccination"
+      name = "Treatment and day following vaccination"
     ) +
     scale_y_continuous("Proportion", limit = c(0, ymax), expand = c(0, 0)) +
     labs(y = "Proportion") +
@@ -2989,13 +2989,9 @@ plot_isr <- function(
         n = sum({{ var }} != ref, na.rm = TRUE),
         N = sum(!is.na({{ var }})),
         p = mean({{ var }} != ref, na.rm = TRUE),
-        lab = paste0("frac(", n, ",", N, ")"),
-        lab = paste0("<sup>", n, "</sup>&frasl;<sub>", N, "</sub>"),
-        # lab = sprintf(
-        #   "%i/%i",
-        #   n,
-        #   N)
-        # ),
+        # lab = paste0("frac(", n, ",", N, ")"),
+        # lab = paste0("<sup>", n, "</sup>&frasl;<sub>", N, "</sub>"),
+        lab = sprintf("%i/%i", n, N),
         .by = c({{ trt }}, vaxage, vaccine, day)
       )
     return(list(pdat, plab))
@@ -3004,11 +3000,19 @@ plot_isr <- function(
   pdat <- out[[1]]
   plab <- out[[2]]
 
+  design <- "
+  AB#
+  CD#
+  E##
+  FGH
+  "
+
   base_plot <- function(pdat, plab) {
     ggplot(
       pdat |> filter({{ var }} != ref),
       aes(interaction(day, {{ trt }}, sep = "!"), p)
     ) +
+      # For landscape plot
       facet_wrap2(
         vaxage ~ vaccine,
         strip = strip_nested(
@@ -3020,25 +3024,47 @@ plot_isr <- function(
         ),
         ncol = 4
       ) +
-      geom_col(aes(fill = {{ var }})) +
-      geom_vline(xintercept = 7.5, colour = "grey80") +
-      geom_richtext(
-        data = plab,
-        aes(label = lab),
-        fill = NA,
-        label.color = NA,
-        size = 1.4,
-        vjust = 0,
-        family = "serif"
+      # For vertical plot
+      # facet_manual(
+      #   vaxage ~ vaccine,
+      #   strip = strip_nested(
+      #     background_x = elem_list_rect(
+      #       fill = c("grey90", "grey80"),
+      #       colour = c("white", "grey20")
+      #     ),
+      #     by_layer_x = TRUE
+      #   ),
+      #   design = design
+      # ) +
+      geom_rect(
+        data = pdat |>
+          filter({{ var }} != ref, vaccine == "aP/wP"),
+        xmin = -Inf,
+        xmax = Inf,
+        ymin = -Inf,
+        ymax = Inf,
+        fill = "red",
+        alpha = 0.005
       ) +
-      # geom_text(
+      geom_col(aes(fill = {{ var }})) +
+      geom_vline(xintercept = 7.5, colour = "grey10") +
+      # geom_richtext(
       #   data = plab,
       #   aes(label = lab),
+      #   fill = NA,
+      #   label.color = NA,
+      #   size = 1.4,
       #   vjust = 0,
-      #   size = 1.5,
-      #   parse = TRUE,
       #   family = "serif"
       # ) +
+      geom_text(
+        data = plab,
+        aes(label = lab),
+        vjust = -0.5,
+        size = 1.4,
+        parse = TRUE,
+        family = "serif"
+      ) +
       scale_fill_viridis_d(var_lab) +
       scale_x_discrete(
         guide = legendry::guide_axis_nested(key_range_auto(sep = "!")),
@@ -3840,16 +3866,19 @@ out <- gt(tdat, rowname_col = "term", groupname_col = c("vaxage", "vaccine")) |>
   ) |>
   cols_label(
     ends_with("_None") ~ "None",
-    ends_with("_>0 to 10") ~ ">0 to 10",
-    ends_with("_>10 to 25") ~ ">10 to 25",
-    ends_with("_>25 to 50") ~ ">25 to 50",
+    ends_with("_>0 to 10") ~ ">0--10",
+    ends_with("_>10 to 25") ~ ">10--25",
+    ends_with("_>25 to 50") ~ ">25--50",
     ends_with("_>50") ~ ">50",
     ends_with("_Missing") ~ "Missing"
   ) |>
   tab_footnote(
     footnote = "For participants with non-responses for some days, the maximum size is taken as the largest size reported on days with responses available. Percentages exclude participants with a missing highest grade (diary card not returned, or non-response for all days)."
   ) |>
-  tab_options(table.font.size = px(8)) |>
+  tab_options(
+    table.font.size = px(7),
+    table.width = pct(80)
+  ) |>
   as_latex()
 out_new <- gsub("\\{aP\\}", r"({\\makecell{aP\\\\(n = 152)}})", out)
 out_new <- gsub("\\{wP\\}", r"({\\makecell{wP\\\\(n = 151)}})", out_new)
@@ -3880,6 +3909,16 @@ p <- pdat |>
     ),
     ncol = 4
   ) +
+  geom_rect(
+    data = pdat |>
+      filter(size_max != "None", size_max != "Missing", vaccine == "aP/wP"),
+    xmin = -Inf,
+    xmax = Inf,
+    ymin = -Inf,
+    ymax = Inf,
+    fill = "red",
+    alpha = 0.005
+  ) +
   geom_col(aes(fill = size_max)) +
   geom_text(
     data = plab,
@@ -3901,18 +3940,17 @@ p
 
 \clearpage
 
-::: {.landscape}
+\newgeometry{top=15mm, bottom=25mm}
 
+::: {.landscape}
 
 #### Erythema
 
 ```{r}
 #| label: fig-redness-daily
 #| fig-cap: |
-#|    Injection site erythema by vaccination age, vaccine, and assigned treatment.
-#|    Stage 1: 6-week, 4-month, 6-month, 18-month.
-#|    Stage 2: 6-week, 18-month.
-#| fig-width: 9
+#|    Erythema in the 7 days following the 6-week, 4-month, 6-month, and 18-month vaccinations. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine. Above each bar (n/N), we indicate the number of infants reporting any injection site reaction (numerator; n) versus the total number of infants reporting on injection site reactions (denominator; N).*
+#| fig-width: 10
 #| fig-height: 4
 plot_isr(
   diary_isr |> filter(term == "Erythema"),
@@ -3922,7 +3960,6 @@ plot_isr(
   var_lab = "Redness size (mm)"
 )
 ```
-
 
 :::
 
@@ -3935,10 +3972,8 @@ plot_isr(
 ```{r}
 #| label: fig-swelling-daily
 #| fig-cap: |
-#|   Injection site swelling by vaccination age, vaccine, and assigned treatment.
-#|   Stage 1: 6-week, 4-month, 6-month, 18-month.
-#|   Stage 2: 6-week, 18-month.
-#| fig-width: 9
+#|    Swelling in the 7 days following the 6-week, 4-month, 6-month, and 18-month vaccinations. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine. Above each bar (n/N), we indicate the number of infants reporting any injection site reaction (numerator; n) versus the total number of infants reporting on injection site reactions (denominator; N).*
+#| fig-width: 10
 #| fig-height: 4
 plot_isr(
   diary_isr |> filter(term == "Swelling"),
@@ -3960,10 +3995,8 @@ plot_isr(
 ```{r}
 #| label: fig-induration-daily
 #| fig-cap:  |
-#|   Injection site induration by vaccination age, vaccine, and assigned treatment.
-#|   Stage 1: 6-week, 4-month, 6-month, 18-month.
-#|   Stage 2: 6-week, 18-month.
-#| fig-width: 9
+#|    Induration in the 7 days following the 6-week, 4-month, 6-month, and 18-month vaccinations. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine. Above each bar (n/N), we indicate the number of infants reporting any injection site reaction (numerator; n) versus the total number of infants reporting on injection site reactions (denominator; N).*
+#| fig-width: 10
 #| fig-height: 4
 plot_isr(
   diary_isr |> filter(term == "Induration"),
@@ -3977,6 +4010,8 @@ plot_isr(
 :::
 
 \clearpage
+
+\restoregeometry
 
 #### Pain
 
@@ -4122,10 +4157,8 @@ out_new
 ```{r}
 #| label: fig-maximum-site-pain
 #| fig-cap: |
-#|   Maximum injection site pain in 7 days following each vaccination,
-#|   by vaccination age, vaccine, and assigned treatment.
-#|   Stage 1: 6-week, 4-month, 6-month, 18-month.
-#|   Stage 2: 6-week, 18-month.
+#|    Maximum injection site pain in the 7 days following vaccination,
+#|    by vaccination age, vaccine, and assigned treatment.
 #| fig-width: 7
 #| fig-height: 4
 p <- pdat |>
@@ -4142,12 +4175,22 @@ p <- pdat |>
     ),
     ncol = 4
   ) +
+  geom_rect(
+    data = pdat |>
+      filter(pain_max != "None", pain_max != "Missing", vaccine == "aP/wP"),
+    xmin = -Inf,
+    xmax = Inf,
+    ymin = -Inf,
+    ymax = Inf,
+    fill = "red",
+    alpha = 0.005
+  ) +
   geom_col(aes(fill = pain_max)) +
   geom_text(
     data = plab,
     aes(label = lab),
     vjust = -1,
-    size = 1.8,
+    size = 2,
     family = "TeX Gyre Pagella"
   ) +
   scale_fill_viridis_d("Maximum pain") +
@@ -4161,19 +4204,24 @@ p <- pdat |>
 p
 ```
 
+\newgeometry{top=15mm, bottom=25mm}  
+
 ::: {.landscape}
 
 ```{r}
 #| label: fig-pain-daily
-#| fig-cap: Injection site pain by vaccination age, vaccine, and assigned treatment.
-#| fig-width: 9
-#| fig-height: 5
+#| fig-cap: |
+#|   Pain in the 7 days following the 6-week, 4-month, 6-month, and 18-month vaccinations. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine. Above each bar (n/N), we indicate the number of infants reporting any injection site reaction (numerator; n) versus the total number of infants reporting on injection site reactions
+#| fig-width: 10
+#| fig-height: 4
 plot_isr(diary_pain, trt, pain, ref = "None", var_lab = "Pain intensity")
 ```
 
 :::
 
 \clearpage
+
+\restoregeometry
 
 # Appendix {.appendix}
 
