@@ -1038,6 +1038,12 @@ combine_outcome_report <- function() {
   out
 }
 
+combine_primary_outcome_status <- function() {
+  st2_out <- extract_tibble(st2_data, "primary_outcome_status") |>
+    select(-c(redcap_event, redcap_data_access_group))
+  st2_out
+}
+
 combine_other_immuno_data <- function() {
   st1_imm <- read_delim(
     file.path(st1_path, "oth_immun_data.txt"),
@@ -2340,6 +2346,7 @@ dat_fc <- combine_food_challenge()
 dat_ae <- combine_adverse_events()
 dat_sae <- combine_sae()
 dat_out <- combine_outcome_report()
+dat_pri <- combine_primary_outcome_status()
 dat_food <- combine_food_household()
 dat_fha <- combine_family_history_atopy()
 dat_bc <- combine_blood_collection()
@@ -2364,6 +2371,7 @@ optimum_data <- list(
   "study_termination" = dat_st,
   "participant_assessment" = dat_pass,
   "outcome_report" = dat_out,
+  "primary_outcome_status" = dat_pri,
   "food_and_household_questionnaire" = dat_food,
   "family_history_of_atopy" = dat_fha,
   "blood_collection" = dat_bc,
