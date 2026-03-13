@@ -6,6 +6,19 @@ project:
 format:
   pdf:
     documentclass: scrartcl
+    geometry:
+      - inner=1cm
+      - outer=1cm
+      - left=3cm
+      - right=3cm
+      - top=3cm
+      - bottom=4cm
+      - headsep=22pt
+      - headheight=11pt
+      - footskip=33pt
+      - ignorehead
+      - ignorefoot
+      - heightrounded
     pdf-engine: lualatex
     papersize: a4
     fontsize: 10pt
@@ -34,6 +47,7 @@ format:
         \usepackage{makecell}
         \usepackage{moresize}
         \setkomafont{section}{\fontsize{14}{14}\selectfont}
+        \usepackage{geometry}
 
 execute: 
   freeze: false
