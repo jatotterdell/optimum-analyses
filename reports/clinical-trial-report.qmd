@@ -516,6 +516,7 @@ tbl_study_termination_by(dat_base) |>
 #| label: tbl-listing-early-withdrawal
 #| tbl-cap: |
 #|   Listing of infants with last contact occuring at or prior to 15 months of age.
+#| tbl-pos: "H"
 dat_base |>
   select(record_id, stetrreas, birthdat, disc_age_mth) |>
   left_join(
@@ -543,16 +544,18 @@ dat_base |>
   select(-starts_with("reas"), -starts_with("oth")) |>
   gt() |>
   cols_label(
-    stetrreas = "Withdrawal reason",
-    disc_age_mth = "Age at last contact",
-    visit_attend_12m = "Attend 12-month visit",
-    visit_attend_18m = "Attend 18-month visit"
+    record_id = md("**Record ID**"),
+    birthdat = md("**Date of birth**"),
+    stetrreas = md("**Withdrawal reason**"),
+    disc_age_mth = md("**Age last contact**"),
+    visit_attend_12m = md("**Attend 12-month visit**"),
+    visit_attend_18m = md("**Attend 18-month visit**")
   ) |>
   fmt_date(
     c(birthdat)
   ) |>
   sub_missing() |>
-  tab_options(table.font.size = px(10), table.width = pct(100))
+  tab_options(table.font.size = px(9), table.width = pct(100))
 ```
 
 \clearpage
@@ -903,7 +906,7 @@ no_spt_record |>
   ) |>
   tab_options(
     table.font.size = px(9),
-    table.width = pct(100)
+    table.width = pct(90)
   )
 ```
 
@@ -1371,8 +1374,7 @@ fit_outcome <- dat_spt_analysis |>
 ```{r}
 #| label: tbl-posterior-spt
 #| tbl-cap: |
-#|   Posterior summaries for probability and difference in probability of positive skin prick test by size,
-#|    unadjusted primary model. Point indicates median.
+#|   Posterior summaries for risk and difference in risk of positive skin prick test by size.
 #| tbl-pos: "H"
 diff_agg <- diff_outcome |>
   group_by(size) |>
@@ -1476,7 +1478,7 @@ dat_outcome |>
 ```{r}
 #| label: fig-posterior-density-spt
 #| fig-cap: |
-#|    Posterior density for difference in probability of skin prick test sensitisation by size requirement,
+#|    Posterior density for difference in risk of skin prick test sensitisation by size requirement,
 #|    unadjusted primary model.
 #| fig-height: 3
 #| fig-width: 5
@@ -1518,7 +1520,7 @@ p1
 ```{r}
 #| label: fig-posterior-difference-spt-adjusted
 #| fig-cap: |
-#|   Posterior density for difference in probability of skin prick test sensitisation by size requirement, adjusted model.
+#|   Posterior density for difference in risk of skin prick test sensitisation by size requirement, adjusted model.
 #| fig-height: 3
 #| fig-width: 5
 #| include: false
@@ -1558,7 +1560,7 @@ p2
 ```{r}
 #| label: fig-posterior-difference-spt-unadjusted-adjusted
 #| fig-cap: |
-#|   Posterior density for difference in probability of skin prick test sensitisation by size and model.
+#|   Posterior density for difference in risk of skin prick test sensitisation by size and model.
 #| fig-height: 3.25
 #| fig-width: 6
 (p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) +
@@ -1976,8 +1978,7 @@ The results between the primary analysis (unadjusted) and secondary (adjusted) a
 ```{r}
 #| label: tbl-posterior-primary
 #| tbl-cap: |
-#|   Posterior summaries for probability and difference in probability of food allergy,
-#|   unadjusted primary model.
+#|   Posterior summaries for risk and difference in risk of food allergy.
 #| tbl-pos: "H"
 
 diff_agg <- po_diff |>
@@ -2073,7 +2074,7 @@ po_sum |>
 ```{r}
 #| label: fig-posterior-density
 #| fig-cap: |
-#|   Posterior density for difference in probability of primary outcome, unadjusted primary model.
+#|   Posterior density for difference in risk of primary outcome, unadjusted primary model.
 #| fig-height: 2
 #| fig-width: 5
 #| include: false
@@ -2094,7 +2095,7 @@ p1 <- po_diff |>
   scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
-    x = "Difference in food allergy probability, wP - aP",
+    x = "Difference in food allergy risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -2104,7 +2105,7 @@ p1
 
 ```{r}
 #| label: fig-posterior-difference-adjusted
-#| fig-cap: Posterior difference in probability of food allergy for wP compared to aP, adjusted model.
+#| fig-cap: Posterior difference in risk of food allergy for wP compared to aP, adjusted model.
 #| fig-height: 2
 #| fig-width: 5
 #| include: false
@@ -2123,7 +2124,7 @@ p2 <- ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
   scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
-    x = "Difference in food allergy probability, wP - aP",
+    x = "Difference in food allergy risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -2133,7 +2134,7 @@ p2
 ```{r}
 #| label: fig-posterior-difference-primary-unadjusted-adjusted
 #| fig-cap: |
-#|   Posterior density for difference in probability of food allergy by model.
+#|   Posterior density for difference in risk of food allergy by model.
 #|   Values in regions with high density are those most plausible given the data and model assumptions.
 #| fig-height: 2
 #| fig-width: 6
@@ -2408,8 +2409,7 @@ fit_outcome <- dat_ecz_analysis |>
 ```{r}
 #| label: tbl-posterior-eczema
 #| tbl-cap: |
-#|   Posterior summaries for probability and difference in probability of eczema by age of onset,
-#|    unadjusted primary model.
+#|   Posterior summaries for risk and difference in risk of eczema by age of onset.
 #| tbl-pos: "H"
 diff_agg <- diff_outcome |>
   group_by(age) |>
@@ -2506,7 +2506,7 @@ dat_outcome |>
 ```{r}
 #| label: fig-posterior-density-eczema
 #| fig-cap: |
-#|    Posterior density for difference in probability of eczema diagnosis by age at reaction,
+#|    Posterior density for difference in risk of eczema diagnosis by age at reaction,
 #|    unadjusted primary model.
 #| fig-height: 3
 #| fig-width: 5
@@ -2530,7 +2530,7 @@ p1 <- diff_outcome |>
   scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
-    x = "Difference in eczema probability, wP - aP",
+    x = "Difference in eczema risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -2541,7 +2541,7 @@ p1
 ```{r}
 #| label: fig-posterior-difference-eczema-adjusted
 #| fig-cap: |
-#|   Posterior difference in probability of eczema diagnosis for wP compared to aP, adjusted model.
+#|   Posterior difference in risk of eczema diagnosis for wP compared to aP, adjusted model.
 #| fig-height: 3
 #| fig-width: 5
 #| include: false
@@ -2563,7 +2563,7 @@ p2 <- fit_outcome |>
   scale_y_continuous(limits = ~ range(.x, -0.15)) +
   labs(
     fill = "Interval",
-    x = "Difference in eczema probability, wP - aP",
+    x = "Difference in eczema risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -2573,7 +2573,7 @@ p2
 ```{r}
 #| label: fig-posterior-difference-eczema-unadjusted-adjusted
 #| fig-cap: |
-#|   Posterior density for difference in probability of eczema by age and model.
+#|   Posterior density for difference in risk of eczema by age and model.
 #|   Values in regions with high density are those most plausible given the data and model assumptions.
 #| fig-height: 3.25
 #| fig-width: 6
@@ -2676,6 +2676,7 @@ Most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site 
 #| tbl-cap: |
 #|   Number of adverse events by study stage and site.
 #| tbl-pos: "H"
+#| results: "asis"
 dat_base_ae |>
   summarise(
     participants = length(unique(record_id)),
@@ -2694,10 +2695,22 @@ dat_base_ae |>
     pattern = "{1}/{2}"
   ) |>
   cols_label(
-    aes_aP ~ "aP (events/participants)",
-    aes_wP ~ "wP (events/participants)"
+    aes_aP ~ "**aP<br>(events/participants)**",
+    aes_wP ~ "**wP<br>(events/participants)**",
+    .fn = md
   ) |>
-  tab_options(table.font.size = px(9), table.width = pct(50))
+  cols_width(
+    aes_aP ~ px(130),
+    aes_wP ~ px(130)
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  cols_align(align = "center", columns = c(aes_aP, aes_wP)) |>
+  tab_options(table.font.size = px(9), table.width = pct(50)) |>
+  as_latex() |>
+  cat()
 ```
 
 ```{r}
@@ -2778,15 +2791,15 @@ dat_base_ae |>
   ) |>
   tab_options(table.font.size = px(9), table.width = pct(100)) |>
   cols_width(
-    record_id ~ px(80),
-    trt ~ px(80),
+    record_id ~ px(70),
+    trt ~ px(70),
     aecode1 ~ px(100),
     aetymead ~ px(100),
     aerel ~ px(80),
     aetype ~ px(80),
     aesev ~ px(80),
     aerel ~ px(80),
-    aeday_v1 ~ px(60)
+    aeday_v1 ~ px(50)
   ) |>
   cols_align(align = "left") |>
   cols_align(aeday_v1, align = "right") |>
