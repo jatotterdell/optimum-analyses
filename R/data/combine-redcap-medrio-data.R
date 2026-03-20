@@ -1985,6 +1985,58 @@ combine_ige <- function() {
 }
 
 combine_diary <- function() {
+  # For all medrioid and subjid values
+  st1_demo <- read_delim(
+    file.path(st1_path, "DEMO.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded")) |>
+    select(medrioid)
+
+  # For diary return status
+  st1_pa <- read_delim(
+    file.path(st1_path, "V2-5.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(medrioid, visit, diaretyn) |>
+    filter(visit %in% c("Visit 2", "Visit 3", "Visit 5", "Visit 8")) |>
+    complete(st1_demo, visit) |>
+    mutate(
+      diaretyn = case_when(
+        is.na(diaretyn) ~ FALSE,
+        diaretyn == "No" ~ FALSE,
+        diaretyn == "Yes" ~ TRUE
+      )
+    )
+
+  # For diary card data
+  st1_diary <- read_delim(
+    file.path(st1_path, "DIARY.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(-ends_with("_coded"))
+
+  # Parent satisfaction data
+  st1_parental <- st1_diary |>
+    filter(row_number() == 1, .by = c(medrioid, visit)) |>
+    select(medrioid, visit, diaimmscale) |>
+    complete(st1_demo, visit) |>
+    left_join(st1_pa, join_by(medrioid, visit)) |>
+    rename(record_id = medrioid) |>
+    mutate(
+      record_id = as.character(record_id),
+      visit = as.numeric(gsub("Visit ", "", visit)),
+      vaxage = case_when(
+        visit == 2 ~ "6-week",
+        visit == 3 ~ "4-month",
+        visit == 5 ~ "6-month",
+        visit == 8 ~ "18-month"
+      )
+    )
+
   # Stage 1 vaccination locations check, 6-week and 18-month only
   st1_vax1 <- read_delim(
     file.path(st1_path, "VAX V1.txt"),
@@ -2144,6 +2196,10 @@ combine_diary <- function() {
       )
     )
 
+  st2_parental <- st2_dc_shared |>
+    select(record_id, visit, vaxage, diaretyn, diaimmscale) |>
+    distinct()
+
   st2_temp <- st2_dc |>
     select(record_id, visit, vaxage, matches("temp")) |>
     pivot_longer(
@@ -2262,10 +2318,36 @@ combine_diary <- function() {
     ) |>
     filter(!(visit == 1 & vaxloc_id == 3))
 
+  com_parental <- bind_rows(st2_parental, st1_parental) |>
+    mutate(
+      vaxage = factor(
+        vaxage,
+        levels = c("6-week", "4-month", "6-month", "18-month")
+      ),
+      diaimmscale = factor(
+        replace_values(
+          diaimmscale,
+          "Not completed" ~ NA_character_,
+          "Not Completed" ~ NA_character_,
+          "Strongly Disagree" ~ "Strongly disagree",
+          "Strongly Agree" ~ "Strongly agree",
+          "Neither Agree or Disagree" ~ "Neither agree or disagree"
+        ),
+        levels = c(
+          "Strongly disagree",
+          "Disagree",
+          "Neither agree or disagree",
+          "Agree",
+          "Strongly agree"
+        )
+      )
+    )
+
   # fmt: skip
   tribble(
     ~ "reaction", ~ "data",
     "shared", st2_dc_shared,
+    "parental", com_parental,
     "temp", st2_temp,
     "sol", st2_sol,
     "pain", st2_pain,
