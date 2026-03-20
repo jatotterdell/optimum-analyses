@@ -292,9 +292,8 @@ The report includes results for:
 - skin prick tests
 - food allergy
 - eczema
-- safety reporting
-  - adverse events
-  - reactogenicity
+- safety
+- reactogenicity
 
 For full details of the trial processes, objectives, and outcomes refer to the protocol
 and statistical analysis plan.
@@ -518,7 +517,7 @@ tbl_study_termination_by(dat_base) |>
 #|   Listing of infants with last contact occuring at or prior to 15 months of age.
 #| tbl-pos: "H"
 dat_base |>
-  select(record_id, stetrreas, birthdat, disc_age_mth) |>
+  select(record_id, trt, stetrreas, birthdat, disc_age_mth) |>
   left_join(
     filter(dat_grid_vs, visage == "12-month") |>
       select(record_id, visit_attended, windreas, windothspec) |>
@@ -545,6 +544,7 @@ dat_base |>
   gt() |>
   cols_label(
     record_id = md("**Record ID**"),
+    trt = md("**Treatment**"),
     birthdat = md("**Date of birth**"),
     stetrreas = md("**Withdrawal reason**"),
     disc_age_mth = md("**Age last contact**"),
@@ -2222,16 +2222,16 @@ tbl0 <- dat_ecz_spt |>
 tbl1 <- dat_ecz_spt |>
   filter(!out_ecz_preexisting) |>
   mutate(
-    ecz = ecz & !out_ecz_preexisting,
+    ecz_any = ecz & !out_ecz_preexisting,
     ecz_6m = ecz & !out_ecz_preexisting & outageval_months2 <= 6,
     ecz_12m = ecz & !out_ecz_preexisting & outageval_months2 <= 12,
     ecz_18m = ecz & !out_ecz_preexisting & outageval_months2 <= 18
   ) |>
   tbl_summary(
     by = trt,
-    include = c(ecz, ecz_6m, ecz_12m, ecz_18m),
+    include = c(ecz_any, ecz_6m, ecz_12m, ecz_18m),
     label = c(
-      ecz ~ "Eczema",
+      ecz_any ~ "Eczema",
       ecz_6m ~ "Eczema by 6-months",
       ecz_12m ~ "Eczema by 12-months",
       ecz_18m ~ "Eczema by 18-months"
@@ -2245,7 +2245,7 @@ tbl1 <- dat_ecz_spt |>
 tbl2 <- dat_ecz_spt |>
   filter(!out_ecz_preexisting) |>
   mutate(
-    ecz = ecz & !out_ecz_preexisting & any_pos_spt,
+    ecz_any = ecz & !out_ecz_preexisting & any_pos_spt,
     ecz_6m = ecz & !out_ecz_preexisting & outageval_months2 <= 6 & any_pos_spt,
     ecz_12m = ecz &
       !out_ecz_preexisting &
@@ -2255,9 +2255,9 @@ tbl2 <- dat_ecz_spt |>
   ) |>
   tbl_summary(
     by = trt,
-    include = c(ecz, ecz_6m, ecz_12m, ecz_18m),
+    include = c(ecz_any, ecz_6m, ecz_12m, ecz_18m),
     label = c(
-      ecz ~ "Eczema",
+      ecz_any ~ "Eczema",
       ecz_6m ~ "Eczema by 6-months",
       ecz_12m ~ "Eczema by 12-months",
       ecz_18m ~ "Eczema by 18-months"
@@ -2669,12 +2669,17 @@ dat_base_ae <- dat_base |>
 ```
 
 There were `r nrow(dat_ae)` adverse events documented during the trial.
-Most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`) with only `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (@tbl-events-by-stage-and-site and listing in @tbl-listing-ae-non-pch) which may indicate some differential reporting.
+Most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`).
+Most of these events were due to the additional monitoring performed as part of stage 1 (@tbl-events-by-stage-and-site) and for the first 150 participants recruited as part of stage 2 (@tbl-pch-adverse-events). There were `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (listing in @tbl-listing-ae-non-pch).
+
+There was a higher number of adverse events in the wP group compared to aP. There was also a higher number of infants who experienced at least one AE (@tbl-summary-ae-pch). Some of the difference in total AEs was due to infants with mulitple events. For both groups only a few AEs were documented as related to the blinded study vaccine . A listing of the related AEs is given in @tbl-listing-ae-related-pch.
+
+A summary of the number and proportion of infants randomised at PCH with any reported adverse event by the MeDRA preferred term is given in @tbl-any-event-ae.  A summary of the total number of events is given in @tbl-events-ae.
 
 ```{r}
 #| label: tbl-events-by-stage-and-site
 #| tbl-cap: |
-#|   Number of adverse events by study stage and site.
+#|   Total number of adverse events (event rate) by study stage and site.
 #| tbl-pos: "H"
 #| results: "asis"
 dat_base_ae |>
@@ -2714,6 +2719,56 @@ dat_base_ae |>
 ```
 
 ```{r}
+#| label: tbl-pch-adverse-events
+#| tbl-cap: |
+#|   Number of adverse events amongst stage 2 PCH participants for the first 150 and for the remaining participants.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_base_ae |>
+  filter(rand_site == "PCH", rand_stage == 2) |>
+  mutate(
+    cohort = if_else(
+      as.numeric(substr(record_id, 6, 9)) <= 150,
+      "First 150 at PCH",
+      "Remaining PCH participants"
+    )
+  ) |>
+  summarise(
+    participants = length(unique(record_id)),
+    aes = sum(!is.na(aecode1)),
+    .by = c(trt, cohort)
+  ) |>
+  arrange(trt) |>
+  pivot_wider(names_from = trt, values_from = c(participants, aes)) |>
+  gt(rowname_col = "cohort") |>
+  cols_merge(
+    c(aes_aP, participants_aP),
+    pattern = "{1}/{2}"
+  ) |>
+  cols_merge(
+    c(aes_wP, participants_wP),
+    pattern = "{1}/{2}"
+  ) |>
+  cols_label(
+    aes_aP ~ "**aP<br>(events/participants)**",
+    aes_wP ~ "**wP<br>(events/participants)**",
+    .fn = md
+  ) |>
+  cols_width(
+    aes_aP ~ px(130),
+    aes_wP ~ px(130)
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  cols_align(align = "center", columns = c(aes_aP, aes_wP)) |>
+  tab_options(table.font.size = px(9), table.width = pct(70)) |>
+  as_latex() |>
+  cat()
+```
+
+```{r}
 #| label: tbl-listing-ae-non-pch
 #| tbl-cap: |
 #|   Adverse event listing of infants randomised at a site other than PCH.
@@ -2730,8 +2785,6 @@ dat_base_ae |>
   cols_width(aecode1 ~ px(100), aetymead ~ px(100), aerel ~ px(100)) |>
   cols_align(align = "left")
 ```
-
-There was a higher number of adverse events in the wP group compared to the aP group, but for both groups the majority of events were documented as unrelated to the blinded study vaccine (@tbl-summary-ae-pch). A listing of the related AEs is given in @tbl-listing-ae-related-pch.
 
 ```{r}
 #| label: tbl-summary-ae-pch
@@ -2806,8 +2859,6 @@ dat_base_ae |>
   sub_missing()
 ```
 
-A summary of the number and proportion of infants randomised at PCH with any reported adverse event by the MeDRA preferred term is given in @tbl-any-event-ae.  A summary of the total number of events is given in @tbl-events-ae.
-
 ```{r}
 #| label: tbl-any-event-ae
 #| tbl-cap: |
@@ -2881,15 +2932,18 @@ dat_base_ae |>
 
 \clearpage
 
-## Reactogenicity
+# Reactogenicity
 
-Combined stage 1 and stage 2 diary card responses are reported in the following sections.
+## Diary Cards
+
+Combined data from stage 1 and stage 2 diary card responses are reported in the following sections.
 During stage 1, diary cards were provided following 6-week, 4-month, 6-month and 18-month vaccinations.
-During stage 2, at PCH only for the first 153 participants, diary cards were provided following 6-week and 18-month vaccinations.
+During stage 2, at PCH only, for the first 153 participants, diary cards were provided following 6-week and 18-month vaccinations.
+Given the different collection schedules for the protocol versions, the denominators for the 6-week and 18-month responses differ to those for the 4-month and 6-month responses.
 
 This report focuses on 6-week and 18-month occasions given the addition of stage 2 data. 
-The complete 4-month and 6-month data has been reported previously but is included here for completeness.
-The denominators for the 6-week and 18-month responses differ from those for the 4-month and 6-month responses.
+The complete 4-month and 6-month data from stage 1 has been reported previously but is included here for completeness.
+
 The number and percentage of returned diary cards for stage 1 are shown in @tbl-diary-returned-stage1 and stage 2 in @tbl-diary-returned-stage2.
 
 ```{r}
@@ -3101,8 +3155,6 @@ st1_diary <- read_parquet(file.path(st1_pth, "diary-temperature.parquet"))
 st2_diary <- select_form(dat_raw, "diary")
 ```
 
-### Returned Diary Cards
-
 ```{r}
 tab_dat <- st1_diary |>
   to_factor() |>
@@ -3216,10 +3268,26 @@ tab_dat |>
 
 \clearpage
 
-### Parental Satisfaction
+## Parental Satisfaction
+
+Following vaccination, parent's were asked whether they would be willing to have another child have the combination of immunisations at the given age. There were 3 occasions were parent disagreed or strongly disagreed.
 
 ```{r}
 #| label: diary-likert-data
+lik <- filter(dat_raw, form == "diary") |>
+  pull(data) |>
+  pluck(1) |>
+  filter(reaction == "parental") |>
+  pull(data) |>
+  pluck(1) |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
+  mutate(
+    vaxage = factor(
+      vaxage,
+      levels = c("6-week", "4-month", "6-month", "18-month")
+    )
+  )
+
 st1_lik <- read_parquet(file.path(st1_pth, "diary-satisfaction.parquet")) |>
   select(subjectid, vaxage, diaimmscale) |>
   mutate(subjid = gsub("^01", "01-", subjectid)) |>
@@ -3264,11 +3332,10 @@ diary_likert <- bind_rows(st1_lik, st2_lik) |>
 ```{r}
 #| label: tbl-diary-likert
 #| tbl-cap: |
-#|   Number and percentage of parents giving each response to the given statement following 6-week vaccination,
-#|   by assigned treatment group. Unknown is due to either a failure to return the diary card, or non-response
-#|   to the item.
+#|   Number and percentage of parents giving each response to the given statement following 6-week vaccination, by assigned treatment group. Unknown is due to either a failure to return the diary card, or non-response to the item.
 #| tbl-pos: "H"
 #| output: "asis"
+#| include: false
 tbl_summary(
   diary_likert,
   by = trt,
@@ -3306,9 +3373,55 @@ tbl_summary(
   cat()
 ```
 
+```{r}
+#| label: tbl-diary-likert-all
+#| tbl-cap: |
+#|   Number and percentage of parents giving each response to the given statement following 6-week, 4-month, 6-month, and 18-month vaccination, by assigned treatment group. Unknown is due to either a failure to return the diary card, or non-response to the item.
+#| tbl-pos: "H"
+#| output: "asis"
+tbl_strata2(
+  lik,
+  strata = "vaxage",
+  .tbl_fun = ~ . |>
+    tbl_summary(
+      by = trt,
+      include = diaimmscale,
+      label = list(
+        diaimmscale ~ "I would be willing to have another child have this combination of immunisations at this age"
+      )
+    ) |>
+    remove_footnote_header(contains("stat_")) |>
+    modify_header(
+      all_stat_cols() ~
+        paste0(
+          "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+          "N = {formatC(n, format='d', big.mark=',')}}}"
+        )
+    )
+) |>
+  as_gt() |>
+  cols_width(label ~ pct(30)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = label,
+      rows = row_type == "label"
+    )
+  ) |>
+  tab_options(
+    table.width = pct(100),
+    table.font.size = px(9),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
 \clearpage
 
-### Solicited systemic reactions
+## Solicited systemic reactions
 
 ```{r}
 #| label: diary-sol-data
@@ -3524,7 +3637,7 @@ p
 
 \clearpage
 
-#### Irritability
+### Irritability
 
 ```{r}
 #| label: fig-irritability-daily
@@ -3537,7 +3650,7 @@ plot_sys_reaction(diary_sol, "Irritability")
 
 \clearpage
 
-#### Vomiting
+### Vomiting
 
 @fig-vomiting-daily presents the distribution of daily grades for vomiting following each vaccination occassion by assigned treatment.
 
@@ -3552,7 +3665,7 @@ plot_sys_reaction(diary_sol, "Vomiting")
 
 \clearpage
 
-#### Diarrhoea
+### Diarrhoea
 
 @fig-diarrhoea-daily presents the distribution of daily grades for diarrhoea following each vaccination occassion by assigned treatment.
 
@@ -3567,7 +3680,7 @@ plot_sys_reaction(diary_sol, "Diarrhoea")
 
 \clearpage
 
-#### Decreased Feeding
+### Decreased Feeding
 
 @fig-decreasedfeeding-daily presents the distribution of daily intensity grades for decreased feeding following each vaccination occassion by assigned treatment.
 
@@ -3582,7 +3695,7 @@ plot_sys_reaction(diary_sol, "Decreased feeding")
 
 \clearpage
 
-#### Drowsiness
+### Drowsiness
 
 @fig-drowsiness-daily presents the distribution of daily intensity grades for drowsiness following each vaccination occassion by assigned treatment.
 
@@ -3597,7 +3710,7 @@ plot_sys_reaction(diary_sol, "Drowsiness")
 
 \clearpage
 
-#### Restlessness
+### Restlessness
 
 @fig-restlessness-daily presents the distribution of daily intensity grades for restlessness following each vaccination occassion by assigned treatment.
 
@@ -3612,7 +3725,7 @@ plot_sys_reaction(diary_sol, "Restlessness")
 
 \clearpage
 
-#### Fever
+### Fever
 
 ```{r}
 #| label: diary-temp-data
@@ -3738,7 +3851,7 @@ plot_fever()
 
 \clearpage
 
-### Solicited Injection Site Reactions
+## Solicited Injection Site Reactions
 
 The number and percentage of participants who experienced any severe injection site reaction over the 7 days following vaccination, and the highest reaction size by type over those 7 days are reported in @tbl-sol-intensity-any-severe, @tbl-maximum-site-reaction, and @fig-maximum-site-reaction. 
 
@@ -3957,7 +4070,7 @@ p
 
 ::: {.landscape}
 
-#### Erythema
+### Erythema
 
 ```{r}
 #| label: fig-redness-daily
@@ -3980,7 +4093,7 @@ plot_isr(
 
 ::: {.landscape}
 
-#### Swelling
+### Swelling
 
 ```{r}
 #| label: fig-swelling-daily
@@ -4003,7 +4116,7 @@ plot_isr(
 
 ::: {.landscape}
 
-#### Induration
+### Induration
 
 ```{r}
 #| label: fig-induration-daily
@@ -4026,7 +4139,7 @@ plot_isr(
 
 \restoregeometry
 
-#### Pain
+### Pain
 
 ```{r}
 #| label: diary-pain-data
@@ -4196,7 +4309,7 @@ p <- pdat |>
     ymin = -Inf,
     ymax = Inf,
     fill = "red",
-    alpha = 0.005
+    alpha = 0.01
   ) +
   geom_col(aes(fill = pain_max)) +
   geom_text(
