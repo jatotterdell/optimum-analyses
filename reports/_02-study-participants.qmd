@@ -1,0 +1,505 @@
+
+# Study Participants - Disposition and Characteristics
+
+## Enrolment
+
+Participants were enrolled at 4 sites in Australia. There were `r nrow(dat_base)` participants randomised, `r nrow(dat_base)/2` per treatment group. The first participant was randomised on `r as_date(min(dat_base$randdattim))` and the final participant was randomised on `r as_date(max(dat_base$randdattim))` [@fig-enrolment-overall].
+
+```{r}
+#| label: fig-enrolment-overall
+#| fig-cap: Cumulative trial enrolment by calendar time.
+#| fig-height: 3
+#| fig-width: 6
+dat_enrol <- dat_base |>
+  select(record_id, randdattim) |>
+  mutate(randdate = as_date(randdattim)) |>
+  arrange(randdate) |>
+  summarise(n = n(), .by = randdate) |>
+  mutate(cn = cumsum(n))
+
+ggplot(
+  dat_enrol,
+  aes(randdate, cn)
+) +
+  geom_step() +
+  scale_x_date("Calendar time", breaks = "3 months", date_labels = "%d %b %y") +
+  scale_y_continuous("Number enrolled", breaks = seq(0, 1000, 100)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Study completion
+
+The study completion status as reported in the database is summarised in @tbl-discharge-outcome and by site in @tbl-discharge-outcome-site. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who were scheduled for the additional blood collections, a number of who withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of those blood collections, and so these participants may not have been "early termination" in the sense of having withdrawn from participating in the trial. There were 17 participants where contact was lost at or before 15 months of age (based on `discdat`) (@tbl-listing-early-withdrawal).
+
+```{r}
+#| label: tbl-discharge-outcome
+#| code-summary: Study completion
+#| tbl-cap: Number of early study withdrawals and associated reasons.
+#| tbl-pos: "H"
+#| output: "asis"
+tbl_study_termination <- function(dat) {
+  st_by_trt <- dat |>
+    count(streas, stetrreas, trt) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n), .by = trt) |>
+    pivot_wider(names_from = trt, values_from = c(n, p))
+
+  st_ovr <- dat |>
+    count(streas, stetrreas) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n)) |>
+    rename(n_ovr = n, p_ovr = p)
+
+  left_join(st_by_trt, st_ovr, join_by(streas, stetrreas)) |>
+    gt() |>
+    cols_align(
+      align = "left",
+      columns = c(streas, stetrreas)
+    ) |>
+    fmt_percent(starts_with("p_"), decimals = 1) |>
+    cols_merge(c(n_aP, p_aP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_wP, p_wP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_ovr, p_ovr), pattern = "{1} ({2})") |>
+    cols_label(
+      streas ~ md("**Participant status**"),
+      stetrreas ~ md("**Reason**"),
+      n_aP ~ "\\makecell{\\textbf{aP} \\\\ N = 486}",
+      n_wP ~ "\\makecell{\\textbf{wP} \\\\ N = 486}",
+      n_ovr ~ "\\makecell{\\textbf{Overall} \\\\ N = 972}"
+    ) |>
+    tab_options(table.font.size = "10px") |>
+    sub_missing() |>
+    tab_style(
+      style = cell_text(align = "left"),
+      locations = cells_footnotes()
+    ) |>
+    tab_style(
+      style = cell_text(align = "center"),
+      locations = cells_column_labels(n_aP:n_ovr)
+    )
+}
+
+tbl_study_termination(dat_base) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-discharge-outcome-site
+#| code-summary: Study completion by site
+#| tbl-cap: Number of early study withdrawals and associated reasons by study site.
+#| tbl-pos: "H"
+#| output: "asis"
+tbl_study_termination_by <- function(dat, by = rand_site) {
+  st_by_trt <- dat |>
+    count({{ by }}, streas, stetrreas, trt) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n), .by = c({{ by }}, trt)) |>
+    pivot_wider(names_from = trt, values_from = c(n, p))
+
+  st_ovr <- dat |>
+    count({{ by }}, streas, stetrreas) |>
+    mutate(across(c(streas), ~ fct_na_value_to_level(., level = "Missing"))) |>
+    mutate(p = n / sum(n), .by = {{ by }}) |>
+    rename(n_ovr = n, p_ovr = p)
+
+  left_join(st_by_trt, st_ovr, join_by({{ by }}, streas, stetrreas)) |>
+    group_by({{ by }}) |>
+    gt() |>
+    cols_align(
+      align = "left",
+      columns = c(streas, stetrreas)
+    ) |>
+    fmt_percent(starts_with("p_"), decimals = 1) |>
+    cols_merge(c(n_aP, p_aP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_wP, p_wP), pattern = "{1} ({2})") |>
+    cols_merge(c(n_ovr, p_ovr), pattern = "{1} ({2})") |>
+    cols_label(
+      streas ~ md("**Participant status**"),
+      stetrreas ~ md("**Reason**"),
+      n_aP ~ "\\makecell{\\textbf{aP} \\\\ N = 486}",
+      n_wP ~ "\\makecell{\\textbf{wP} \\\\ N = 486}",
+      n_ovr ~ "\\makecell{\\textbf{Overall} \\\\ N = 972}"
+    ) |>
+    tab_options(table.font.size = "10px") |>
+    sub_missing() |>
+    tab_style(
+      style = cell_text(align = "left"),
+      locations = cells_footnotes()
+    ) |>
+    tab_style(
+      style = cell_text(align = "center"),
+      locations = cells_column_labels(n_aP:n_ovr)
+    )
+}
+
+tbl_study_termination_by(dat_base) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-listing-early-withdrawal
+#| tbl-cap: |
+#|   Listing of infants with last contact occuring at or prior to 15 months of age.
+#| tbl-pos: "H"
+dat_base |>
+  select(record_id, trt, stetrreas, birthdat, disc_age_mth) |>
+  left_join(
+    filter(dat_grid_vs, visage == "12-month") |>
+      select(record_id, visit_attended, windreas, windothspec) |>
+      rename(
+        visit_attend_12m = visit_attended,
+        reas_12m = windreas,
+        oth_12m = windothspec
+      ),
+    join_by(record_id)
+  ) |>
+  left_join(
+    filter(dat_grid_vs, visage == "18-month") |>
+      select(record_id, visit_attended, windreas, windothspec) |>
+      rename(
+        visit_attend_18m = visit_attended,
+        reas_18m = windreas,
+        oth_18m = windothspec
+      ),
+    join_by(record_id)
+  ) |>
+  arrange(disc_age_mth) |>
+  filter(disc_age_mth <= 15) |>
+  select(-starts_with("reas"), -starts_with("oth")) |>
+  gt() |>
+  cols_label(
+    record_id = md("**Record ID**"),
+    trt = md("**Treatment**"),
+    birthdat = md("**Date of birth**"),
+    stetrreas = md("**Withdrawal reason**"),
+    disc_age_mth = md("**Age last contact**"),
+    visit_attend_12m = md("**Attend 12-month visit**"),
+    visit_attend_18m = md("**Attend 18-month visit**")
+  ) |>
+  fmt_date(
+    c(birthdat)
+  ) |>
+  sub_missing() |>
+  tab_options(table.font.size = px(9), table.width = pct(100))
+```
+
+\clearpage
+
+## Protocol Deviations
+
+Full deviations are documented in the site deviation log.
+The following reports only on those of particular relevance to the analyses.
+
+### Treatment Administration
+
+All participants received the first scheduled vaccination at the first visit.
+
+For one participant the pharmacy reportedly dispensed the alternative study vaccine to what the participant had been randomly allocated. The IMP was monitored for all participants, and this was the only documented occasion that this was reported to have occurred. This error was documented in the protocol deviations log [subject 02-333, record id 4629-184]. This participant was analysed as assigned rather than as treated. Given there was only one such case, the analyses were not repeated with their treatment group switched to as treated.
+
+### Missed visits
+
+The majority of participants attended each study visit [@tbl-stage1-visit-attendance; @tbl-stage2-visit-attendance].
+
+```{r}
+#| label: tbl-stage1-visit-attendance
+#| tbl-cap: |
+#|   Number and proportion of infants who attended each visit in stage 1
+#|   (based on presence of a reported "visit date").
+#|    6-month + 72 hour was optional visit.
+#| tbl-pos: "H"
+#| output: "asis"
+vs_by_trt <- dat_grid_vs |>
+  filter(rand_stage == 1) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = c(trt, visage)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+vs_ovr <- dat_grid_vs |>
+  filter(rand_stage == 1) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = visage
+  )
+
+left_join(vs_by_trt, vs_ovr) |>
+  gt() |>
+  cols_label(
+    visage ~ md("**Visit**"),
+    aP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 150}"
+  ) |>
+  cols_align(align = "left", columns = visage) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-stage2-visit-attendance
+#| tbl-cap: |
+#|   Number and proportion of infants who attended each visit in stage 2
+#|   (based on presence of a reported "visit date").
+#|   19-month visit was for first 150 at PCH only so 58/75 (77%) and 46/75 (61%) attended.
+#| tbl-pos: "H"
+#| output: "asis"
+vs_by_trt <- dat_grid_vs |>
+  filter(rand_stage == 2, visage %in% c("12-month", "18-month", "19-month")) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = c(trt, visage)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+vs_ovr <- dat_grid_vs |>
+  filter(rand_stage == 2, visage %in% c("12-month", "18-month", "19-month")) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(visit_attended),
+      100 * mean(visit_attended)
+    ),
+    .by = visage
+  )
+
+left_join(vs_by_trt, vs_ovr) |>
+  gt() |>
+  cols_label(
+    visage ~ md("**Visit**"),
+    aP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 822}"
+  ) |>
+  cols_align(align = "left", columns = visage) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+\clearpage
+
+### Food and household questionnaires
+
+The majority of food and household quesionnnaires were completed.
+
+```{r}
+#| label: tbl-stage1-fhq-completion
+#| tbl-cap: |
+#|   Number and proportion of infants who completed food and household questionnaire for each occasion in stage 1.
+#| tbl-pos: "H"
+#| output: "asis"
+fhq_by_trt <- dat_grid_fhq |>
+  filter(rand_stage == 1) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(fhq_completed),
+      100 * mean(fhq_completed)
+    ),
+    .by = c(trt, visit_age)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+fhq_ovr <- dat_grid_fhq |>
+  filter(rand_stage == 1) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(fhq_completed),
+      100 * mean(fhq_completed)
+    ),
+    .by = visit_age
+  )
+
+left_join(fhq_by_trt, fhq_ovr) |>
+  gt() |>
+  cols_label(
+    visit_age ~ md("**Visit**"),
+    aP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 150}"
+  ) |>
+  cols_align(align = "left", columns = visit_age) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-stage2-fhq-completion
+#| tbl-cap: |
+#|   Number and proportion of infants who completed food and household questionnaire for each occasion in stage 2.
+#| tbl-pos: "H"
+#| output: "asis"
+fhq_by_trt <- dat_grid_fhq |>
+  filter(rand_stage == 2) |>
+  summarise(
+    lab = sprintf(
+      "%i (%.0f%%)",
+      sum(fhq_completed),
+      100 * mean(fhq_completed)
+    ),
+    .by = c(trt, visit_age)
+  ) |>
+  pivot_wider(names_from = trt, values_from = lab)
+
+fhq_ovr <- dat_grid_fhq |>
+  filter(rand_stage == 2) |>
+  summarise(
+    Overall = sprintf(
+      "%i (%.0f%%)",
+      sum(fhq_completed),
+      100 * mean(fhq_completed)
+    ),
+    .by = visit_age
+  )
+
+left_join(fhq_by_trt, fhq_ovr) |>
+  gt() |>
+  cols_label(
+    visit_age ~ md("**Visit**"),
+    aP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 822}"
+  ) |>
+  cols_align(align = "left", columns = visit_age) |>
+  cols_align(align = "right", columns = aP:Overall) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+\clearpage
+
+## Characteristics
+
+The baseline characteristics of participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics. Characteristics were similar between the groups.
+
+```{r}
+#| label: tbl-baseline-characteristics
+#| tbl-cap: Baseline characteristics of trial participants.
+#| tbl-pos: "H"
+#| output: "asis"
+dat_base |>
+  tbl_summary(
+    include = c(
+      # Demographics and infant history
+      rand_stage,
+      rand_site,
+      gender,
+      v1_age_days,
+      parinc,
+      fborn,
+      fecurr,
+      fecat,
+      fedog,
+      # Birth history
+      mgrav_fac,
+      mpar_fac,
+      delt,
+      ipab,
+      neoab,
+      gestadelw,
+      wgt,
+      len,
+      inhc,
+      aps1_fac,
+      aps5_fac,
+      # Maternal immunisation
+      inmpertvp,
+      vacad,
+      prevpert,
+      minfvp,
+      # Family history
+      fha
+    ),
+    label = list(
+      rand_stage ~ "Protocol stage",
+      rand_site ~ "Participating site",
+      v1_age_days ~ "Age at enrolment (days)",
+      fborn ~ "First born",
+      mgrav_fac ~ "Maternal gravidity",
+      mpar_fac ~ "Maternal parity",
+      aps1_fac ~ "Apgar score (1 minute)",
+      aps5_fac ~ "Apgar score (5 minutes)",
+      prevpert ~ "Other maternal pertussis vaccination (last 5 years)",
+      fha ~ "Family history of atopy",
+      fecat ~ "Cat ownership",
+      fedog ~ "Dog ownership"
+    ),
+    by = trt,
+    missing_text = "(Missing)",
+    digits = ~0
+  ) |>
+  add_n() |>
+  add_overall(last = TRUE) |>
+  modify_column_alignment(all_stat_cols(), "right") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  cols_width(label ~ pct(30)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = label,
+      rows = row_type == "label"
+    )
+  ) |>
+  tab_options(
+    table.width = pct(100),
+    table.font.size = px(9),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
+\clearpage

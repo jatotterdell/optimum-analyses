@@ -1,0 +1,342 @@
+
+# Safety
+
+## Serious adverse events
+
+A listing of serious adverse events are reported in @tbl-listing-sae. These are any events reported either in the SAE reporting log (`sae_reporting_log`, stage 2 only) or on the adverse events form (`adverse_events`) with `aetype = "SAE"`. In some cases, a record was on the SAE log but not the adverse event log, resulting in some missing information below.
+
+```{r}
+#| label: tbl-listing-sae
+#| tbl-cap: |
+#|   Listing of serious adverse events.
+#|   Missing values were due to no adverse event record for corresponding SAE log record.
+#| tbl-pos: "H"
+dat_sae <- dat_raw |>
+  select_form("serious_adverse_events") |>
+  select(record_id, saestdat, saemeddra) |>
+  distinct() |>
+  arrange(str_rank(record_id, numeric = TRUE))
+
+dat_ae_sae <- dat_raw |>
+  select_form("adverse_events") |>
+  filter(aetype == "SAE") |>
+  select(record_id, aecode1, aesev, aetymead, aerel, aestdat, aeenddat) |>
+  rename(saestdat = aestdat) |>
+  arrange(str_rank(record_id, numeric = TRUE))
+
+dat_saes <- full_join(dat_sae, dat_ae_sae, join_by(record_id, saestdat)) |>
+  arrange(str_rank(record_id, numeric = TRUE), saestdat) |>
+  mutate(saemeddra = if_else(is.na(aecode1), saemeddra, aecode1)) |>
+  left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
+  relocate(trt, .after = record_id)
+
+dat_saes |>
+  left_join(select(dat_base, record_id, visdat1)) |>
+  mutate(aeday = interval(visdat1, saestdat) %/% days(1)) |>
+  select(-visdat1, -saestdat, -aeenddat, -aecode1) |>
+  gt() |>
+  cols_label(
+    trt ~ "Treatment",
+    saemeddra ~ "MedDRA code",
+    aeday ~ "Days after visit 1"
+  ) |>
+  sub_missing() |>
+  tab_options(table.font.size = px(8), table.width = pct(100)) |>
+  cols_width(c(aerel, aetymead) ~ px(100))
+```
+
+\clearpage
+
+## Adverse events
+
+```{r}
+#| label: ae-data-prep
+dat_ae <- dat_raw |>
+  select_form("adverse_events") |>
+  left_join(select(dat_base, record_id, rand_site), join_by(record_id))
+dat_base_ae <- dat_base |>
+  select(
+    record_id,
+    rand_site,
+    rand_stage,
+    randdattim,
+    trt,
+    birthdat,
+    visdat1
+  ) |>
+  left_join(
+    select_form(dat_raw, "vaccine_administration_v3") |>
+      select(record_id, vac7admdat),
+    join_by(record_id)
+  ) |>
+  left_join(dat_ae, join_by(record_id, rand_site)) |>
+  mutate(
+    ae_age = interval(birthdat, aestdat) %/% days(1),
+    aeday_v1 = interval(visdat1, aestdat) %/% days(1),
+    aeday_v3 = interval(vac7admdat, aestdat) %/% days(1)
+  )
+```
+
+There were `r nrow(dat_ae)` adverse events documented during the trial.
+Most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`).
+Most of these events were due to the additional monitoring performed as part of stage 1 (@tbl-events-by-stage-and-site) and for the first 150 participants recruited as part of stage 2 (@tbl-pch-adverse-events). There were `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (listing in @tbl-listing-ae-non-pch).
+
+There was a higher number of adverse events in the wP group compared to aP. There was also a higher number of infants who experienced at least one AE (@tbl-summary-ae-pch). Some of the difference in total AEs was due to infants with mulitple events. For both groups only a few AEs were documented as related to the blinded study vaccine . A listing of the related AEs is given in @tbl-listing-ae-related-pch.
+
+A summary of the number and proportion of infants randomised at PCH with any reported adverse event by the MeDRA preferred term is given in @tbl-any-event-ae.  A summary of the total number of events is given in @tbl-events-ae.
+
+```{r}
+#| label: tbl-events-by-stage-and-site
+#| tbl-cap: |
+#|   Total number of adverse events (event rate) by study stage and site.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_base_ae |>
+  summarise(
+    participants = length(unique(record_id)),
+    aes = sum(!is.na(aecode1)),
+    .by = c(trt, rand_site, rand_stage)
+  ) |>
+  pivot_wider(names_from = trt, values_from = c(participants, aes)) |>
+  mutate(rand_stage = paste0("Stage ", rand_stage)) |>
+  gt(groupname_col = "rand_stage", rowname_col = "rand_site") |>
+  cols_merge(
+    c(aes_aP, participants_aP),
+    pattern = "{1}/{2}"
+  ) |>
+  cols_merge(
+    c(aes_wP, participants_wP),
+    pattern = "{1}/{2}"
+  ) |>
+  cols_label(
+    aes_aP ~ "**aP<br>(events/participants)**",
+    aes_wP ~ "**wP<br>(events/participants)**",
+    .fn = md
+  ) |>
+  cols_width(
+    aes_aP ~ px(130),
+    aes_wP ~ px(130)
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  cols_align(align = "center", columns = c(aes_aP, aes_wP)) |>
+  tab_options(table.font.size = px(9), table.width = pct(50)) |>
+  as_latex() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-pch-adverse-events
+#| tbl-cap: |
+#|   Number of adverse events amongst stage 2 PCH participants for the first 150 and for the remaining participants.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_base_ae |>
+  filter(rand_site == "PCH", rand_stage == 2) |>
+  mutate(
+    cohort = if_else(
+      as.numeric(substr(record_id, 6, 9)) <= 150,
+      "First 150 at PCH",
+      "Remaining PCH participants"
+    )
+  ) |>
+  summarise(
+    participants = length(unique(record_id)),
+    aes = sum(!is.na(aecode1)),
+    .by = c(trt, cohort)
+  ) |>
+  arrange(trt) |>
+  pivot_wider(names_from = trt, values_from = c(participants, aes)) |>
+  gt(rowname_col = "cohort") |>
+  cols_merge(
+    c(aes_aP, participants_aP),
+    pattern = "{1}/{2}"
+  ) |>
+  cols_merge(
+    c(aes_wP, participants_wP),
+    pattern = "{1}/{2}"
+  ) |>
+  cols_label(
+    aes_aP ~ "**aP<br>(events/participants)**",
+    aes_wP ~ "**wP<br>(events/participants)**",
+    .fn = md
+  ) |>
+  cols_width(
+    aes_aP ~ px(130),
+    aes_wP ~ px(130)
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    location = cells_column_labels()
+  ) |>
+  cols_align(align = "center", columns = c(aes_aP, aes_wP)) |>
+  tab_options(table.font.size = px(9), table.width = pct(70)) |>
+  as_latex() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-listing-ae-non-pch
+#| tbl-cap: |
+#|   Adverse event listing of infants randomised at a site other than PCH.
+#| tbl-pos: "H"
+dat_base_ae |>
+  filter(rand_site != "PCH", !is.na(aecode1)) |>
+  select(record_id, rand_site, trt, aecode1, aesev, aerel, aetymead) |>
+  gt() |>
+  cols_label(
+    rand_site ~ "Site",
+    trt ~ "Treatment"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(100)) |>
+  cols_width(aecode1 ~ px(100), aetymead ~ px(100), aerel ~ px(100)) |>
+  cols_align(align = "left")
+```
+
+```{r}
+#| label: tbl-summary-ae-pch
+#| tbl-cap: |
+#|   Number and proportion of infants with any adverse events and the number of adverse events per infant, at PCH.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_base_ae |>
+  filter(rand_site == "PCH") |>
+  summarise(
+    `Any AE` = any(!is.na(aecode1)),
+    `Any SAE` = any(aetype == "SAE", na.rm = TRUE),
+    `Any related AE` = any(aerel == "Related", na.rm = TRUE),
+    `Any severe AE` = any(aesev == "Severe", na.rm = TRUE),
+    `Number of AEs` = sum(!is.na(aecode1)),
+    `Number of related AEs` = sum(aerel == "Related", na.rm = TRUE),
+    .by = c(record_id, trt)
+  ) |>
+  tbl_summary(
+    by = "trt",
+    include = `Any AE`:`Number of related AEs`,
+    digits = ~0
+  ) |>
+  add_overall(last = TRUE) |>
+  modify_column_alignment(columns = starts_with("stat"), align = "right") |>
+  remove_footnote_header() |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(70),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-listing-ae-related-pch
+#| tbl-cap: |
+#|   Listing of adverse events designated as "Related".
+#| tbl-pos: "H"
+dat_base_ae |>
+  filter(aerel == "Related") |>
+  select(record_id, trt, aecode1, aeday_v1, aetype, aesev, aerel, aetymead) |>
+  gt() |>
+  cols_label(
+    trt ~ "Treatment",
+    aeday_v1 ~ "Days after visit 1"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(100)) |>
+  cols_width(
+    record_id ~ px(70),
+    trt ~ px(70),
+    aecode1 ~ px(100),
+    aetymead ~ px(100),
+    aerel ~ px(80),
+    aetype ~ px(80),
+    aesev ~ px(80),
+    aerel ~ px(80),
+    aeday_v1 ~ px(50)
+  ) |>
+  cols_align(align = "left") |>
+  cols_align(aeday_v1, align = "right") |>
+  sub_missing()
+```
+
+```{r}
+#| label: tbl-any-event-ae
+#| tbl-cap: |
+#|   Proportion of infants with any event by MeDRA preferred terms, PCH only.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_base_ae |>
+  filter(rand_site == "PCH") |>
+  tbl_hierarchical(
+    variables = aecode1,
+    by = trt,
+    id = record_id,
+    overall_row = TRUE,
+    denominator = filter(dat_base, rand_site == "PCH")
+  ) |>
+  add_overall(last = TRUE) |>
+  modify_column_alignment(columns = starts_with("stat"), "right") |>
+  remove_footnote_header() |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(70),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-events-ae
+#| tbl-cap: |
+#|   Number of events by MeDRA preferred terms, PCH only.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_base_ae |>
+  filter(rand_site == "PCH") |>
+  tbl_hierarchical_count(
+    variables = aecode1,
+    by = trt,
+    overall_row = TRUE,
+    denominator = filter(dat_base, rand_site == "PCH")
+  ) |>
+  add_overall(last = TRUE) |>
+  modify_column_alignment(columns = starts_with("stat"), "right") |>
+  remove_footnote_header() |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(70),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+\clearpage
