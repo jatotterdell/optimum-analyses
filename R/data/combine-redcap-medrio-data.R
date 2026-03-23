@@ -722,7 +722,7 @@ combine_food_household <- function() {
     mutate(
       across(
         c(febfever, febfform, fethickyn, fesupp, ferash, fedcyn),
-        ~ case_match(.x, FALSE ~ "No", TRUE ~ "Yes")
+        ~ recode_values(.x, FALSE ~ "No", TRUE ~ "Yes")
       )
     )
 
@@ -2128,7 +2128,7 @@ combine_diary <- function() {
         "Arm",
         gsub("thigh|Thigh", "Leg", gsub(" (IM|SC) injection", "", location))
       ),
-      vaccine = case_match(
+      vaccine = replace_values(
         vaccine,
         "ip" ~ "DTPa-IPV",
         "mmr" ~ "MMR",
@@ -2148,8 +2148,8 @@ combine_diary <- function() {
       as.numeric(gsub("4629-", "", record_id)) <= 153
     ) |>
     mutate(
-      visit = case_match(redcap_event, "visit_1" ~ 1, "visit_3" ~ 3),
-      vaxage = case_match(visit, 1 ~ "6-week", 3 ~ "18-month"),
+      visit = recode_values(redcap_event, "visit_1" ~ 1, "visit_3" ~ 3),
+      vaxage = recode_values(visit, 1 ~ "6-week", 3 ~ "18-month"),
       # Fix some locations
       solloca1 = if_else(
         visit == 1 & solloca1 == "Right Leg" & solloca2 == "Right Leg",
