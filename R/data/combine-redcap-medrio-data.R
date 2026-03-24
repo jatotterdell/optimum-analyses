@@ -1577,6 +1577,7 @@ combine_blood_collection <- function() {
   #   file.path(st1_path, "CONSCHG.txt"),
   #   show_col_types = FALSE
   # )
+
   st1_bc <- read_delim(
     file.path(st1_path, "BC.txt"),
     show_col_types = FALSE
@@ -1609,7 +1610,8 @@ combine_blood_collection <- function() {
     rename(lbiptim = lbiptm) |>
     select(-visit) |>
     rename(record_id = medrioid) |>
-    mutate(record_id = as.character(record_id))
+    mutate(record_id = as.character(record_id)) |>
+    complete(record_id, visage)
   st2_bc <- extract_tibble(st2_data, "blood_sample_collection") |>
     filter(
       redcap_data_access_group == "Perth Children's Hospital",
@@ -1639,82 +1641,36 @@ combine_blood_collection <- function() {
     mutate(
       visage = factor(
         visage,
-        levels = c("6-month", "7-month", "18-month", "19-month")
+        levels = c("6-month", "6-month + 72hrs", "7-month", "18-month", "19-month")
       )
     )
 }
 
 combine_igg <- function() {
   units_igg <- tribble(
-    ~antigen   ,
-    ~units     ,
-    ~ref       ,
-    "HBsAg"    ,
-    "mIU/mL"   ,
-            10 ,
-    "Hib-PRP"  ,
-    "ng/mL"    ,
-          1000 ,
-    "PnPs 1"   ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 3"   ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 4"   ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 5"   ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 6A"  ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 6B"  ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 7F"  ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 9V"  ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 11A" ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 14"  ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 18C" ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 19A" ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 19F" ,
-    "ng/mL"    ,
-           350 ,
-    "PnPs 23F" ,
-    "ng/mL"    ,
-           350 ,
-    "DT"       ,
-    "mIU/mL"   ,
-           100 ,
-    "FHA"      ,
-    "mIU/mL"   ,
-          5000 ,
-    "FIM2/3"   ,
-    "mIU/mL"   ,
-          5000 ,
-    "PRN"      ,
-    "mIU/mL"   ,
-          5000 ,
-    "PT"       ,
-    "mIU/mL"   ,
-          5000 ,
-    "TT"       ,
-    "mIU/mL"   ,
-           100
+    ~antigen   , ~units   , ~ref ,
+    "HBsAg"    , "mIU/mL" ,   10 ,
+    "Hib-PRP"  , "ng/mL"  , 1000 ,
+    "PnPs 1"   , "ng/mL"  ,  350 ,
+    "PnPs 3"   , "ng/mL"  ,  350 ,
+    "PnPs 4"   , "ng/mL"  ,  350 ,
+    "PnPs 5"   , "ng/mL"  ,  350 ,
+    "PnPs 6A"  , "ng/mL"  ,  350 ,
+    "PnPs 6B"  , "ng/mL"  ,  350 ,
+    "PnPs 7F"  , "ng/mL"  ,  350 ,
+    "PnPs 9V"  , "ng/mL"  ,  350 ,
+    "PnPs 11A" , "ng/mL"  ,  350 ,
+    "PnPs 14"  , "ng/mL"  ,  350 ,
+    "PnPs 18C" , "ng/mL"  ,  350 ,
+    "PnPs 19A" , "ng/mL"  ,  350 ,
+    "PnPs 19F" , "ng/mL"  ,  350 ,
+    "PnPs 23F" , "ng/mL"  ,  350 ,
+    "DT"       , "mIU/mL" ,  100 ,
+    "FHA"      , "mIU/mL" , 5000 ,
+    "FIM2/3"   , "mIU/mL" , 5000 ,
+    "PRN"      , "mIU/mL" , 5000 ,
+    "PT"       , "mIU/mL" , 5000 ,
+    "TT"       , "mIU/mL" ,  100
   ) |>
     mutate(antigen = fct_inorder(antigen))
 
