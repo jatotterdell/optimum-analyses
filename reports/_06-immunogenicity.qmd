@@ -7,9 +7,56 @@ The 6 and 7 month IgE responses were previously reported. What follows additiona
 ```{r}
 source(here("reports", "R", "functions.R"))
 
-dat_ige <- select_form(dat_raw, "ige")
-dat_ige <- dat_base |>
-  right_join(dat_ige, join_by(record_id, subjid)) |>
+# Blood collection data
+dat_bc <- select_form(dat_raw, "blood_collection") |>
+  left_join(select(dat_base, record_id, subjid), join_by(record_id)) |>
+  select(-record_id, -starts_with("lbsite___")) |>
+  filter(visage != "6-month + 72hrs")
+
+# IgG data
+dat_igg <- select_form(dat_raw, "igg") |>
+  left_join(dat_bc, join_by(subjid, visage)) |>
+  left_join(dat_base, join_by(subjid)) |>
+  select(
+    record_id,
+    subjid,
+    rand_site,
+    rand_stage,
+    randdat,
+    birthdat,
+    trt,
+    gender,
+    bfed,
+    fborn,
+    parinc_imp,
+    ces,
+    fha,
+    visage,
+    type,
+    antigen,
+    units,
+    ref,
+    concentration,
+    log_concentration,
+    positive,
+    lbipvst,
+    lbncireas,
+    lbvol,
+    lbsite,
+    lbipdat
+  ) |>
+  mutate(stage = if_else(substr(subjid, 1, 2) == "01", "1", "2")) |>
+  filter(!(antigen %in% c("PnPs 11A"))) |>
+  mutate(antigen = fct_inorder(antigen)) |>
+  mutate(
+    any_obs_concentration = any(!is.na(concentration)),
+    all_obs_concentration = all(!is.na(concentration)),
+    .by = subjid
+  )
+
+# IgE data
+dat_ige <- select_form(dat_raw, "ige") |>
+  left_join(dat_base, join_by(record_id, subjid)) |>
   select(
     record_id,
     subjid,
@@ -680,5 +727,100 @@ out
 \clearpage
 
 ## IgG Concentrations
+
+### Missingness
+
+```{r}
+#| label: tbl-overall-missingness
+#| tbl-cap: |
+#|    Number and proportion of participants with at least one observed response,
+#|    and with all planned responses observed.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_igg |>
+  select(record_id, trt, any_obs_concentration, all_obs_concentration) |>
+  distinct() |>
+  tbl_summary(
+    include = c(any_obs_concentration, all_obs_concentration),
+    label = list(
+      any_obs_concentration ~ "At least one IgG response available",
+      all_obs_concentration ~ "All planned IgG responses available"
+    ),
+    by = trt
+  ) |>
+  add_overall(last = TRUE) |>
+  remove_footnote_header() |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = label,
+      rows = row_type == "label"
+    )
+  ) |>
+  tab_options(
+    table.font.size = px(8),
+    table.width = pct(80)
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-igg-missingness-dtap
+#| tbl-cap:
+#|    Missingness pattern of IgG concentrations for DTaP and Hib-PRP by study stage.
+#| tbl-pos: H
+miss_pattern_trt_tab(filter(dat_igg, antigen == "PT")) |>
+  tab_options(
+    table.font.size = px(8),
+    table.width = pct(80)
+  )
+```
+
+\clearpage
+
+### Descriptive
+
+```{r}
+#| label: tbl-igg-summary-dtap
+#| tbl-cap: Descriptive statistics for DTaP IgG concentrations.
+#| results: "asis"
+igg_gmc_summary_tab(
+  filter(dat_igg, type != "PnPs")
+) |>
+  tab_options(
+    latex.use_longtable = TRUE,
+    table.font.size = px(8)
+  ) |>
+  as_latex() |>
+  gsub(pattern = "\\\\textendash", replacement = "\\\\textendash ") |>
+  cat()
+```
+
+```{r}
+#| label: tbl-igg-summary-pnps
+#| tbl-cap: Descriptive statistics for PnP IgG concentrations.
+#| results: "asis"
+igg_gmc_summary_tab(
+  filter(dat_igg, type == "PnPs"),
+  rn = "visage"
+) |>
+  tab_options(
+    latex.use_longtable = TRUE,
+    table.font.size = px(8)
+  ) |>
+  as_latex() |>
+  gsub(pattern = "\\\\textendash", replacement = "\\\\textendash ") |>
+  cat()
+```
 
 \clearpage

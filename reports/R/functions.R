@@ -63,7 +63,7 @@ miss_pattern_trt_tab <- function(dat, var = concentration) {
       `n_aP` = md("aP<br>(n = 150)"),
       `n_wP` = md("wP<br>(n = 150)")
     ) |>
-    cols_align(align = "center", columns = 1:2) |>
+    cols_align(align = "center", columns = 1:4) |>
     tab_spanner(
       label = "Count (%)",
       columns = 3:4

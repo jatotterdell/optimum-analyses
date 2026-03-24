@@ -64,7 +64,7 @@ The definition and intensity grading for fever, diarrhoea and local reactions (e
 
 Total, tetanus toxoid and food allergen-specific IgE were measured in plasma at the age of 6, 7 and 19 months (stage 1 only), using ImmunoCAP total and specific IgE assays (Thermo Fisher Scientific/Phadia, Uppsala, Sweden).
 
-Vaccine antigen-specific IgG titres were measured immediately before and 21–35 days after the 6-month (stage 1 only) and 18-month vaccine doses. These antibody levels were measured using a multiplex fluorescent bead assay. For stage 1, sera were tested for IgG against B. pertussis antigens (pertussis toxin (PT), filamentous haemagglutinin (FHA), pertactin, fimbriae agglutinogens 2–3), tetanus toxoid (TT), capsular polysaccharide of Hib (Hib-PRP) and each of the 13-valent pneumococcal vaccine serotypes (PnPs). For stage 2, sera were only tested for pertussis toxin-specific IgG in the first 300 study participants enrolled at PCH.
+Vaccine antigen-specific IgG titres were measured immediately before and 21–35 days after the 6-month (stage 1 only) and 18-month vaccine doses. These antibody levels were measured using a multiplex fluorescent bead assay. For stage 1, sera were tested for IgG against B. pertussis antigens (pertussis toxin (PT), filamentous haemagglutinin (FHA), pertactin (PRN), fimbriae agglutinogens 2–3 (FIM2/3)), tetanus toxoid (TT), capsular polysaccharide of Hib (Hib-PRP) and each of the 13-valent pneumococcal vaccine serotypes (PnPs). For stage 2, sera were only tested for pertussis toxin-specific IgG in the first additional 150 study participants enrolled at PCH.
 
 ### Additional outcome details
 

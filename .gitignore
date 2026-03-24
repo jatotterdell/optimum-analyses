@@ -21,3 +21,4 @@ _freeze
 **/*.quarto_ipynb
 *_cache
 *_files
+*.rmarkdown
