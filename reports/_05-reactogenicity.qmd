@@ -1,7 +1,7 @@
 
 # Reactogenicity
 
-## Diary Cards
+## Diary cards
 
 Combined data from stage 1 and stage 2 diary card responses are reported in the following sections.
 During stage 1, diary cards were provided following 6-week, 4-month, 6-month and 18-month vaccinations.

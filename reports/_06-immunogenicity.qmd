@@ -1,6 +1,6 @@
 # Immunological Outcomes
 
-## IgE Concentrations
+## IgE concentrations
 
 The 6 and 7 month IgE responses were previously reported. What follows additionally reports on 19-month IgE responses.
 
@@ -726,7 +726,7 @@ out
 
 \clearpage
 
-## IgG Concentrations
+## IgG concentrations
 
 ### Missingness
 

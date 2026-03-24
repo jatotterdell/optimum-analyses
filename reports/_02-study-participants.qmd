@@ -189,12 +189,12 @@ dat_base |>
 
 \clearpage
 
-## Protocol Deviations
+## Protocol deviations
 
 Full deviations are documented in the site deviation log.
 The following reports only on those of particular relevance to the analyses.
 
-### Treatment Administration
+### Treatment administration
 
 All participants received the first scheduled vaccination at the first visit.
 
