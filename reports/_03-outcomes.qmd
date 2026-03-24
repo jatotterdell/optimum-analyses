@@ -136,7 +136,7 @@ dat_spt |>
   tab_options(table.font.size = px(10), table.width = pct(50))
 ```
 
-@tbl-spt-positive reports on the number and percentage of infants who had a SPT result of \>1mm and ≥3mm relative to negative control for at least one tested allergen (outcomes 2c and 2d). Any infants with no SPT records by 18 months of age are reported as missing.
+@tbl-spt-positive reports on the number and percentage of infants who had a SPT result of \>1mm and ≥3mm relative to negative control for at least one tested allergen (outcomes 2c and 2d) and also the number with any SPT result >0mm. Any infants with no SPT records by 18 months of age are reported as missing.
 
 ```{r}
 #| label: tbl-spt-positive
@@ -159,9 +159,9 @@ dat_spt |>
   ) |>
   tbl_summary(
     by = trt,
-    include = c(spt_1mm, spt_3mm),
+    include = c(spt_0mm, spt_1mm, spt_3mm),
     label = c(
-      # spt_0mm ~ "Any SPT >0mm",
+      spt_0mm ~ "Any SPT >0mm",
       spt_1mm ~ "Any SPT >1mm vs. neg control",
       spt_3mm ~ "Any SPT ≥3mm vs neg. control"
     ),

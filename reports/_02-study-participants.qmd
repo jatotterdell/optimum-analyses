@@ -414,7 +414,7 @@ left_join(fhq_by_trt, fhq_ovr) |>
 
 ## Characteristics
 
-The baseline characteristics of participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics. Characteristics were similar between the groups.
+The baseline characteristics of all participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics. Characteristics were similar between the groups.
 
 ```{r}
 #| label: tbl-baseline-characteristics
@@ -501,5 +501,95 @@ dat_base |>
   fix_footnote() |>
   cat()
 ```
+
+Reactogenicity and immunogenicity data was only collected for the first 300 participants at PCH.
+The baseline characteristics of this cohort of participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics-pch-300.
+
+```{r}
+#| label: tbl-baseline-characteristics-pch-300
+#| tbl-cap: Baseline characteristics of trial participants.
+#| tbl-pos: "H"
+#| output: "asis"
+dat_base |>
+  filter(rand_site == "PCH") |>
+  filter(substr(subjid, 4, 6) %in% str_pad(1:300, 3, pad = "0")) |>
+  tbl_summary(
+    include = c(
+      # Demographics and infant history
+      rand_stage,
+      gender,
+      v1_age_days,
+      parinc,
+      fborn,
+      fecurr,
+      fecat,
+      fedog,
+      # Birth history
+      mgrav_fac,
+      mpar_fac,
+      delt,
+      ipab,
+      neoab,
+      gestadelw,
+      wgt,
+      len,
+      inhc,
+      aps1_fac,
+      aps5_fac,
+      # Maternal immunisation
+      inmpertvp,
+      vacad,
+      prevpert,
+      minfvp,
+      # Family history
+      fha
+    ),
+    label = list(
+      rand_stage ~ "Protocol stage",
+      v1_age_days ~ "Age at enrolment (days)",
+      fborn ~ "First born",
+      mgrav_fac ~ "Maternal gravidity",
+      mpar_fac ~ "Maternal parity",
+      aps1_fac ~ "Apgar score (1 minute)",
+      aps5_fac ~ "Apgar score (5 minutes)",
+      prevpert ~ "Other maternal pertussis vaccination (last 5 years)",
+      fha ~ "Family history of atopy",
+      fecat ~ "Cat ownership",
+      fedog ~ "Dog ownership"
+    ),
+    by = trt,
+    missing_text = "(Missing)",
+    digits = ~0
+  ) |>
+  add_n() |>
+  add_overall(last = TRUE) |>
+  modify_column_alignment(all_stat_cols(), "right") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  cols_width(label ~ pct(30)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = label,
+      rows = row_type == "label"
+    )
+  ) |>
+  tab_options(
+    table.width = pct(100),
+    table.font.size = px(9),
+    latex.use_longtable = TRUE
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
 
 \clearpage

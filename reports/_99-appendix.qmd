@@ -1,0 +1,76 @@
+
+# Appendix {.appendix}
+
+## Primary outcome listings {#sec-primary-outcome-listing}
+  
+```{r}
+#| label: tbl-listing-ofc-matched-foods
+#| tbl-cap: |
+#|    Listing of infants with oral food challenge outcome by 18 months of age and corresponding SPT positive allergens.
+#| tbl-pos: "H"
+dat_po_ofc |>
+  select(record_id, trt, po_ofc_foods, po_ofc_match) |>
+  gt() |>
+  cols_label(
+    trt ~ "Treatment",
+    po_ofc_foods ~ "OFC positive foods",
+    po_ofc_match ~ "Foods with positive SPT"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(75))
+```
+
+```{r}
+#| label: tbl-listing-ana-matched-foods
+#| tbl-cap: Listing of infants with anaphylaxis outcome by 18 months of age and corresponding SPT positive allergens.
+#| tbl-pos: "H"
+dat_po_ana |>
+  select(record_id, trt, po_ana_foods, po_ana_match) |>
+  gt() |>
+  cols_label(
+    trt ~ "Treatment",
+    po_ana_foods ~ "Anaphylaxis foods",
+    po_ana_match ~ "Foods with positive SPT"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(75))
+```
+
+```{r}
+#| label: tbl-listing-ige-matched-foods
+#| tbl-cap: |
+#|    Listing of infants with IgE-mediated food allergy outcome by 18 months of age and corresponding
+#|    SPT positive allergens.
+#| tbl-pos: "H"
+dat_po_ige |>
+  select(record_id, trt, po_ige_foods, po_ige_match) |>
+  gt() |>
+  cols_label(
+    trt ~ "Treatment",
+    po_ige_foods ~ "IgE mediated foods",
+    po_ige_match ~ "Foods with positive SPT"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(75))
+```
+
+\clearpage
+
+## Secondary outcome listings
+
+```{r}
+#| label: tbl-listing-eczema
+#| tbl-cap: Listing of infants with eczema diagnosis and positive SPT to any allergen.
+#| tbl-pos: "H"
+dat_ecz_spt |>
+  filter(!out_ecz_preexisting, ecz, any_pos_spt) |>
+  select(record_id, trt, outageval_months2) |>
+  gt() |>
+  fmt_number(decimals = 0) |>
+  cols_label(
+    trt ~ "Treatment",
+    outageval_months2 ~ "Age at first reaction (months)"
+  ) |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(60),
+    latex.use_longtable = TRUE
+  )
+```

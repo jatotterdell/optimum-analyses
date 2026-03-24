@@ -14,6 +14,7 @@ The report includes results for:
 - eczema
 - safety
 - reactogenicity
+- immunogenicity
 
 For full details of the trial processes, objectives, and outcomes refer to the protocol
 and statistical analysis plan.
@@ -22,22 +23,18 @@ and statistical analysis plan.
 
 Participants were randomised 1:1 to receive either:
 
-- Combined Diphtheria (D)-Tetanus (T)-acellular Pertussis (aP), Hepatitis B (HepB),
-Inactivated Poliovirus (IPV) and Haemophilus influenzae type b (Hib) vaccine (DTaPHepB-
-IPV-Hib) administered at approximately 2 months, together with the standard
-schedule of vaccines (referred to as 3-aP + aP or aP for short), OR
-- Combined Diphtheria (D)-Tetanus (T)-whole cell Pertussis (wP), Hepatitis B (HepB)
-and Haemophilus influenzae type b (Hib) vaccine (DTwP-HepB- Hib) in place of
-DTaP-HepB-IPV-Hib at approximately 2 months, together with the standard schedule
-of vaccines (referred to as 1-wP/2-aP + aP or wP for short).
+- Combined Diphtheria (D)-Tetanus (T)-acellular Pertussis (aP), Hepatitis B (HepB), Inactivated Poliovirus (IPV) and Haemophilus influenzae type b (Hib) vaccine (DTaPHepB-IPV-Hib) administered at approximately 2 months, together with the standard schedule of vaccines (referred to as 3-aP + aP or aP for short), OR
+- Combined Diphtheria (D)-Tetanus (T)-whole cell Pertussis (wP), Hepatitis B (HepB) and Haemophilus influenzae type b (Hib) vaccine (DTwP-HepB- Hib) in place of DTaP-HepB-IPV-Hib at approximately 2 months, together with the standard schedule of vaccines (referred to as 1-wP/2-aP + aP or wP for short).
 
 ## Trial design
 
 Originally, a sample size of 3,000 participants was planned. Under the adaptive design, as outlined in the protocol and statistical analysis plan, we estimated the trial had 85% power to detect a reduction in food allergy from 10% to 7% with type I error of 5%. If $\delta$ denotes the difference in probability of food allergy under each intervention, then trial success required that $\delta$ was very likely to be less than zero, specifically that $\Pr(\delta < 0) > 0.95$.
 
-The maximum sample size was subsequently revised down to 2,000 participants due to feasability constraints. The trial was stopped early due to logistical issues with 972 participants randomised.
+The maximum sample size was subsequently revised down to 2,000 participants due to feasibility constraints. The trial was stopped early due to logistical issues with 972 participants randomised.
 
 ## Trial outcomes
+
+A summary of trial outcomes is provided below.
 
 ### Primary outcome (1) {#sec-primary-outcome}
 
@@ -54,21 +51,34 @@ We will report on the number and proportion who satisfy this composite definitio
 
 a.  A history of parent-reported clinician-diagnosed new onset eczema by **6 months** *AND* a positive SPT to any allergen by approximately 12 months old.
 b.  A history of parent-reported clinician-diagnosed new onset eczema by **12 months** *AND* a positive SPT to any allergen by approximately 12 months old.
-c.  A SPT **\>1mm** greater than the negative control to at least one allergen by approximately 12 months of age
-d.  A SPT **≥3mm** greater than the negative control to at least one allergen by approximately 12 months of age
+c.  An SPT **\>1mm** greater than the negative control to at least one allergen by approximately 12 months of age
+d.  An SPT **≥3mm** greater than the negative control to at least one allergen by approximately 12 months of age
 
-### Further Details
+### Reactogenicity
 
-The protocol defined a panel of allergens to be tested. In addition to these, further allergens could also be tested at parental request or at discretion of the site PI. When the outcomes say "at least one allergen" [i.e. for eczema for positive SPT] we mean any allergen, including any additional allergens tested beyond the panel defined in the protocol.
+Solicited and unsolicited adverse events following immunisation were collected on diary cards in the 7 days after administration of pertussis-containing vaccines for the first 300 participants at PCH. Solicited local adverse events included injection site pain, erythema, induration and swelling; the solicited systemic adverse events recorded were fever ≥38°C (axillary), drowsiness, irritability, anorexia, vomiting, diarrhoea and restlessness.
 
-For SPT's, the specification of "by approximately 12 months old" was taken to mean "from 12 to 18-months old". Under the original protocol, SPTs were scheduled to occur at 18-months of age, but following an early revision, scheduled SPTs were revised to occur at 12-months of age. Unscheduled SPTs could still occur up to 18 months of age.
+The definition and intensity grading for fever, diarrhoea and local reactions (except for immunisation site pain) followed the Brighton Collaboration guidelines. For other solicited adverse events, intensity grading scales based on impact on daily activities were used (grade 0 or absent; grade 1 if easily tolerated; grade 2, sufficiently discomforting to interfere with normal everyday activities and grade 3, if prevents normal everyday activities or requires significant medical intervention).
+
+### Immunological outcomes
+
+Total, tetanus toxoid and food allergen-specific IgE were measured in plasma at the age of 6, 7 and 19 months (stage 1 only), using ImmunoCAP total and specific IgE assays (Thermo Fisher Scientific/Phadia, Uppsala, Sweden).
+
+Vaccine antigen-specific IgG titres were measured immediately before and 21–35 days after the 6-month (stage 1 only) and 18-month vaccine doses. These antibody levels were measured using a multiplex fluorescent bead assay. For stage 1, sera were tested for IgG against B. pertussis antigens (pertussis toxin (PT), filamentous haemagglutinin (FHA), pertactin, fimbriae agglutinogens 2–3), tetanus toxoid (TT), capsular polysaccharide of Hib (Hib-PRP) and each of the 13-valent pneumococcal vaccine serotypes (PnPs). For stage 2, sera were only tested for pertussis toxin-specific IgG in the first 300 study participants enrolled at PCH.
+
+### Additional outcome details
+
+The protocol defined allergen panel for skin prick tests included cow’s milk, hen’s egg, peanut, cashew, house dust mite (Dermatophagoides pteronyssinus), cat, rye grass (Lolium perenne), a positive control (10 mg/mL histamine) and negative control (saline). In addition to these, further allergens could also be tested at parental request or at discretion of the site PI. When the outcomes say "at least one allergen" [i.e. for eczema for positive SPT] it was meant any allergen, including any additional allergens tested beyond the standard panel.
+
+For SPT's, the specification of "by approximately 12-months old" was taken to mean "up to 18-months old". Under the original protocol, SPTs were scheduled to occur at 18-months of age, but following an early revision, scheduled SPTs were revised to occur at 12-months of age. Unscheduled SPTs could still occur up to 18 months of age.
 
 For both food allergy and eczema, sensitisation on (positive) SPT was defined to be a result more than 1mm greater than negative control by 18 months of age. For food allergy, the positive SPT needed to match the specific food allergen. 
 
-For eczema, the age requirement (by 6 or 12 months of age) was determined by the "age at which allergy first occurred" (`outageval`). To be considered "new-onset" eczema, this age at which allergy first occurred needed to be after the infants enrolment date. Infants with clinician-diagnosed eczema first occurring prior to enrolment were to be excluded as it's not possible for them to have "new-onset eczema".
-
+For eczema, the age requirement (by 6 or 12 months of age) was determined by the "age at which allergy first occurred" (`outageval`). To be considered "new-onset" eczema, this age at which allergy first occurred needed to be after the infants enrolment date. Infants with clinician-diagnosed eczema first occurring prior to enrolment were to be excluded as cases which were not "new-onset eczema".
 
 ## Analyses
+
+Unless otherwise stated, all summaries and analyses group participants according to their assigned treatment group and use all available data irrespective of protocol deviations or other intercurrent events (ITT).
 
 ### Primary outcome {#sec-primary-analysis}
 
