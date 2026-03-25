@@ -200,7 +200,7 @@ All participants received the first scheduled vaccination at the first visit.
 
 For one participant the pharmacy reportedly dispensed the alternative study vaccine to what the participant had been randomly allocated. The IMP was monitored for all participants, and this was the only documented occasion that this was reported to have occurred. This error was documented in the protocol deviations log [subject 02-333, record id 4629-184]. This participant was analysed as assigned rather than as treated. Given there was only one such case, the analyses were not repeated with their treatment group switched to as treated.
 
-### Missed visits
+### Completed visits
 
 The majority of participants attended each study visit [@tbl-stage1-visit-attendance; @tbl-stage2-visit-attendance].
 
@@ -304,6 +304,54 @@ left_join(vs_by_trt, vs_ovr) |>
   as_latex() |>
   latex_unescape() |>
   cat()
+```
+
+```{r}
+#| label: tbl-in-window-attended-st1
+#| tbl-cap: |
+#|   Amongst stage 1 participants who attended the visit, what percentage were reportedly (`windyn`) in the protocolised visit window. Cells are y/n (p%) where y is number in window, n number who attended, and p percentage of attendees in window.
+dat_grid_vs |>
+  filter(rand_stage == 1) |>
+  summarise(
+    .by = c(visage, trt),
+    attended = sum(visit_attended),
+    window = sum(windyn & visit_attended, na.rm = TRUE),
+    p = window / attended,
+    lab = sprintf("%i/%i (%.0f%%)", window, attended, 100 * p)
+  ) |>
+  select(-attended, -window, -p) |>
+  pivot_wider(names_from = trt, values_from = lab) |>
+  gt() |>
+  cols_label(
+    visage ~ md("**Visit age**"),
+    aP ~ md("**aP**"),
+    wP ~ md("**wP**"),
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50))
+```
+
+```{r}
+#| label: tbl-in-window-attended-st2
+#| tbl-cap: |
+#|   Amongst stage 2 participants who attended the visit, what percentage were reportedly (`windyn`) in the protocolised visit window. Cells are y/n (p%) where y is number in window, n number who attended, and p percentage of attendees in window.
+dat_grid_vs |>
+  filter(rand_stage == 2, visage %in% c("12-month", "18-month", "19-month")) |>
+  summarise(
+    .by = c(visage, trt),
+    attended = sum(visit_attended),
+    window = sum(windyn & visit_attended, na.rm = TRUE),
+    p = window / attended,
+    lab = sprintf("%i/%i (%.0f%%)", window, attended, 100 * p)
+  ) |>
+  select(-attended, -window, -p) |>
+  pivot_wider(names_from = trt, values_from = lab) |>
+  gt() |>
+  cols_label(
+    visage ~ md("**Visit age**"),
+    aP ~ md("**aP**"),
+    wP ~ md("**wP**"),
+  ) |>
+  tab_options(table.font.size = "10px", table.width = pct(50))
 ```
 
 \clearpage

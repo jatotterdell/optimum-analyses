@@ -1,5 +1,5 @@
 
-# Outcomes
+# Clinical and mechanistic outcomes {#sec-clinical-mechanistic-outcomes}
 
 Analyses of outcomes grouped participants according to their *assigned* treatment.
 

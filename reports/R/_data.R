@@ -70,6 +70,62 @@ dat_grid_vs <- dat_grid |>
   ) |>
   mutate(visit_attended = !is.na(visdat))
 
+# Check for obvious inconsistencies with an aim to correct them
+# dat_grid_vs |>
+#   filter(visage != "6-month + 72 hrs") |>
+#   mutate(
+#     visit_gap = case_when(
+#       visage == "4-month" ~ interval(visdat1, visdat) %/% days(1),
+#       .default = interval(lag(visdat), visdat) %/% days(1)
+#     ),
+#     .by = subjid
+#   ) |>
+#   select(record_id, subjid, rand_stage, trt, visage, age_months, visdat, visit_gap, windyn, windreas) |>
+#   mutate(visit_age_diff = age_months - as.numeric(gsub("-month", "", visage))) |>
+#   filter(visit_age_diff != 0) |>
+#   arrange(visit_age_diff) |>
+#   print(n = Inf)
+# # Wrong year entered
+# dat_grid_vs |>
+#   filter(record_id == "5785-139") |>
+#   select(birthdat, visdat1, visage, visdat)
+# dat_grid_vs |>
+#   filter(record_id == "5785-186") |>
+#   select(birthdat, visdat1, visage, visdat)
+# dat_grid_vs |>
+#   filter(record_id == "5785-354") |>
+#   select(birthdat, visdat1, visage, visdat)
+# dat_grid_vs |>
+#   filter(record_id == "5785-368") |>
+#   select(birthdat, visdat1, visage, visdat)
+# dat_grid_vs |>
+#   filter(record_id == "5785-10") |>
+#   select(subjid, birthdat, visdat1, visage, visdat)
+# dat_grid_vs |>
+#   filter(record_id == "5785-86") |>
+#   select(subjid, birthdat, visdat1, visage, visdat)
+
+# Corrections to dates
+dat_grid_vs <- dat_grid_vs |>
+  mutate(
+    visdat = replace_when(
+      visdat,
+      record_id == "5785-139" & visage == "18-month" ~ date("2024-01-17"),
+      record_id == "5785-186" & visage == "12-month" ~ date("2024-01-08"),
+      record_id == "5785-354" & visage == "18-month" ~ date("2025-01-31"),
+      record_id == "5785-368" & visage == "18-month" ~ date("2025-01-31")
+    )
+  ) |>
+  # Reacalculate
+  mutate(
+    age_weeks = interval(birthdat, visdat) %/% weeks(1),
+    age_months = interval(birthdat, visdat) %/% months(1)
+  ) |>
+  mutate(
+    visit_gap = interval(lag(visdat), visdat) %/% days(1),
+    .by = record_id
+  ) |>
+  mutate(visit_attended = !is.na(visdat))
 
 # Food and household questionnaire data -----
 dat_fhq <- select_form(dat_raw, "food_and_household_questionnaire")

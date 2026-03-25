@@ -1,17 +1,68 @@
 # Immunological Outcomes
 
-## IgE concentrations
-
-The 6 and 7 month IgE responses were previously reported. What follows additionally reports on 19-month IgE responses.
+This section reports on data relating to the immunological outcomes.
 
 ```{r}
+#| label: immunological-data
+#| include: false
 source(here("reports", "R", "functions.R"))
 
 # Blood collection data
 dat_bc <- select_form(dat_raw, "blood_collection") |>
   left_join(select(dat_base, record_id, subjid), join_by(record_id)) |>
   select(-record_id, -starts_with("lbsite___")) |>
-  filter(visage != "6-month + 72hrs")
+  filter(visage != "6-month + 72hrs") |>
+  arrange(subjid, visage)
+
+# Check for date inconsistencies
+dat_dates <- dat_grid_vs |>
+  select(record_id, subjid, birthdat, randdat, visdat1, visage, visdat, windyn) |>
+  filter(visage != "6-month + 72 hrs") |>
+  left_join(dat_bc, join_by(subjid, visage)) |>
+  mutate(
+    age_months = interval(birthdat, visdat) %/% months(1),
+    .after = visage
+  ) |>
+  mutate(
+    .by = subjid,
+    days_gap_visit = interval(lag(visdat), visdat) %/% days(1),
+    .after = visdat
+  ) |>
+  mutate(
+    .by = subjid,
+    days_gap_lbipdat = interval(lag(lbipdat), lbipdat) %/% days(1),
+    .after = lbipdat
+  )
+# dat_dates |>
+#   filter(visdat != lbipdat)
+# dat_dates |>
+#   filter(
+#     abs(age_months - as.numeric(gsub("-month", "", visage))) > 1
+#   )
+
+# Apply obvious corrections then derive gaps
+# E.g. 7-month blood collection before 6-month, but 7-month visit date after
+dat_bc <- dat_bc |>
+  mutate(
+    lbipdat = replace_when(
+      lbipdat,
+      subjid == "01-017" & visage == "7-month" ~ date("2018-12-04"),
+      subjid == "01-094" & visage == "7-month" ~ date("2020-01-10")
+    )
+  ) |>
+  mutate(
+    .by = subjid,
+    days_gap = interval(lag(lbipdat), lbipdat) %/% days(1)
+  ) |>
+  mutate(
+    bc_window = case_when(
+      !(visage %in% c("7-month", "19-month")) ~ NA,
+      !lbipvst ~ NA,
+      visage == "7-month" & between(days_gap, 21, 35) ~ TRUE,
+      visage == "19-month" & between(days_gap, 21, 35) ~ TRUE,
+      .default = FALSE
+    )
+  )
 
 # IgG data
 dat_igg <- select_form(dat_raw, "igg") |>
@@ -75,11 +126,18 @@ dat_ige <- select_form(dat_raw, "ige") |>
     comment
   ) |>
   mutate(
+    fold_rise = if_else(visit_age == "7-month", ige / lag(ige), NA_real_),
+    .by = c(subjid, allergen)
+  ) |>
+  mutate(
     any_obs_concentration = any(!is.na(ige)),
     all_obs_concentration = all(!is.na(ige)),
     .by = subjid
   )
+```
 
+```{r}
+#| label: immunological-functions
 multinorm <- cmdstan_model(here("stan", "multinorrm-cens.stan"))
 
 make_stan_data <- function(
@@ -231,8 +289,8 @@ miss_pattern_trt_tab_ige <- function(dat, var = concentration) {
     cols_merge(ends_with("_aP"), pattern = "<<{1} ({2})>>") |>
     cols_merge(ends_with("_wP"), pattern = "<<{1} ({2})>>") |>
     cols_label(
-      `n_aP` = md("aP<br>(n = 75)"),
-      `n_wP` = md("wP<br>(n = 75)")
+      `n_aP` = md("aP<br>N = 75"),
+      `n_wP` = md("wP<br>N = 75")
     ) |>
     cols_align(align = "center", columns = 2:4) |>
     tab_spanner(
@@ -246,13 +304,74 @@ miss_pattern_trt_tab_ige <- function(dat, var = concentration) {
 }
 ```
 
+## Blood collection
+
+For participants enrolled under stage 1, blood collection was to occur at visit 3 (6 to <7-months), visit 5 (21 to 35 days after visit 3, i.e. at 7-months), visit 7 (18 to <19-months), and visit 8 (21 to 35 days after visit 7, i.e. at 19-months). For those enrolled under stage 2, blood collection was at 18 to <19-months and 21 to 35 days after that collection.
+
+The number and percentage of infants with blood collected at each visit is reported in @tbl-blood-collection. Most collections occurred within the protocolised window but were late on occasion (@fig-blood-collection-gaps).
+
+```{r}
+#| label: tbl-blood-collection
+#| tbl-cap: |
+#|   Number and proportion of infants who had blood collected at the specified ages.
+#| tbl-pos: "H"
+#| results: "asis"
+dat_bc |>
+  mutate(lbipvst = if_else(is.na(lbipvst) | !lbipvst, FALSE, TRUE)) |>
+  left_join(select(dat_base, subjid, rand_stage, trt), join_by(subjid)) |>
+  summarise(
+    .by = c(rand_stage, visage, trt),
+    y = sum(lbipvst),
+    n = n(),
+    p = y / n,
+    lab = sprintf("%i/%i (%.0f%%)", y, n, 100 * p)
+  ) |>
+  arrange(rand_stage, visage) |>
+  select(-y, -n, -p) |>
+  pivot_wider(names_from = trt, values_from = lab) |>
+  mutate(rand_stage = paste("Stage ", rand_stage)) |>
+  gt(groupname_col = "rand_stage") |>
+  cols_label(
+    visage ~ "Visit age"
+  ) |>
+  cols_label(
+    aP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    wP ~ "\\makecell{\\textbf{wP} \\\\ N = 75}"
+  ) |>
+  tab_options(table.font.size = px(9), table.width = pct(35)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: fig-blood-collection-gaps
+#| fig-cap: |
+#|   Gap times (days) between blood collection and previous visit for 7-month (21-35 days after 6-month vaccination) and 19-month (21-35 days after 18-month vaccination) based on documented visit dates. The protocolised windows of 21 to 35 days are indicated by dotted lines.
+#| fig-height: 2.5
+dat_bc |>
+  filter(visage %in% c("7-month", "19-month")) |>
+  ggplot(aes(days_gap)) +
+  facet_wrap(~visage) +
+  geom_histogram(boundary = 0.5, binwidth = 1) +
+  geom_vline(xintercept = c(20.5, 35.5), linetype = 2) +
+  scale_x_continuous(breaks = c(10, 15, 21, 28, 35, 40, 45, 50, 55, 60)) +
+  labs(y = "Count", x = "Gap (days) between vaccination and blood collection")
+```
+
+\clearpage
+
+## IgE concentrations {#sec-ige}
+
 ### Missingness
+
+Even if blood collection occurred, IgE concentrations may have been missing (e.g. insufficient sample collected). The majority of participants had at least one IgE measurement and a small majority had all planned measurements (@tbl-overall-missingness-ige). Missingness varied by the specific allergen being tested (@tbl-igg-missingness-ige).
 
 ```{r}
 #| label: tbl-overall-missingness-ige
 #| tbl-cap: |
-#|    Number and proportion of participants with at least one observed IgE response,
-#|    and with all planned IgE responses observed.
+#|    Number and proportion of participants with at least one observed IgE response (from any visit or allergen),
+#|    and with all planned IgE responses observed (all visits and allergens).
 #| tbl-pos: "H"
 #| results: "asis"
 dat_ige |>
@@ -295,7 +414,7 @@ dat_ige |>
 ```{r}
 #| label: tbl-igg-missingness-ige
 #| tbl-cap:
-#|    Missingness pattern of IgG concentrations for DTaP and Hib-PRP by study stage.
+#|    Missingness pattern of IgE concentrations by allergen, "X" indicates a measurement was available and "-" means it was missing.
 #| tbl-pos: H
 miss_pattern_trt_tab_ige(filter(dat_ige), var = ige) |>
   tab_options(table.font.size = px(8), table.width = pct(50))
@@ -305,7 +424,7 @@ miss_pattern_trt_tab_ige(filter(dat_ige), var = ige) |>
 
 ### Descriptive
 
-Descriptive statistics are reported in @tbl-sample-ige-gmc.
+Descriptive summaries of IgE concentrations (kU/L) are reported in @tbl-sample-ige-gmc including the number of observations (n), the geometric mean concentration (GMC), the range of concentrations (min-max), and the proportion of concentrations exceeding either at least 0.01 or 0.1 kU/L.
 
 ```{r}
 #| label: tbl-sample-ige-gmc
@@ -388,8 +507,9 @@ gt(tab, groupname_col = "allergen", rowname_col = "visit_age") |>
 
 ### Geometric mean concentration
 
-Model estimated GMRs are reported in @tbl-gmr-gmfir-ige-total.
-For completeness, all IgE types are reported, however, in some cases the GMR may not be meaningful due to the small number of participants with measurable quantities (e.g. tetanus toxoid at 6-months).
+Model estimated geometric mean ratios (GMRs) and geometric mean fold-rise ratios (GMFRRs) are reported in @tbl-gmr-gmfir-ige-total. For completeness, all IgE types are reported, however, in some cases the GMR and GMFRR may not be meaningful due to the small number of participants with measurable quantities (e.g. tetanus toxoid at 6-months and 7-months).
+
+For total IgE, the GMFRR from 6 to 7 months was 0.94 (0.72, 1.22) and the probability of a reduction in the GMFR was 0.69.
 
 ```{r}
 #| label: model-ige-total
@@ -466,20 +586,25 @@ gmr_dat <- gmr_table_dat(gmr)
 
 ```{r}
 #| label: tbl-gmr-gmfir-ige-total
-#| tbl-cap: Geometric mean ratio (GMR) and geometric mean fold rise ratio (GMFRR) for total IgE.
+#| tbl-cap: Geometric mean ratio (GMR) and geometric mean fold rise ratio (GMFRR) for wP compared to aP by age.
 #| tbl-pos: "H"
 #| results: "asis"
 gmr_table(gmr_dat) |>
   tab_options(table.width = pct(60)) |>
+  tab_footnote(
+    "All models adjsuted for sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
+  ) |>
   as_latex()
 ```
 
 \clearpage
 
-### Sensitisation
+### Quantitation
+
+Model estimate difference in probability of concentrations exceeding ≥0·01 kU/L are reported in @tbl-quantitation-summary.
 
 ```{r}
-#| label: model-ige-sens
+#| label: model-ige-quant
 #| cache: true
 fit_ige_sens_model <- function(ige_ref, ref_val) {
   mdat <- dat_ige |>
@@ -566,6 +691,92 @@ fit_ige_sens_model <- function(ige_ref, ref_val) {
 }
 
 snk <- capture.output({
+  res_sens_tetanus <- fit_ige_sens_model("Tetanus-toxoid", 0.01)
+  res_sens_eggwhite <- fit_ige_sens_model("Egg white", 0.01)
+  res_sens_wholeegg <- fit_ige_sens_model("Whole egg", 0.01)
+})
+
+res_sens <- bind_rows(res_sens_tetanus, res_sens_eggwhite, res_sens_wholeegg) |>
+  mutate(age = fct_rev(fct_inorder(visit_age)), group = fct_inorder(group)) |>
+  relocate(group, .before = visit_age)
+```
+
+```{r}
+#| label: tbl-quantitation-summary
+#| tbl-cap: Summary of quantitation model results.
+#| tbl-pos: "H"
+out <- res_sens |>
+  transmute(
+    group,
+    age,
+    across(
+      3:7,
+      list(
+        med = ~ median(.x),
+        lo = ~ quantile(.x, 0.025)[1, ],
+        hi = ~ quantile(.x, 0.975)[1, ]
+      )
+    ),
+    across(5, list(pr = ~ Pr(.x < 0)))
+  ) |>
+  relocate(`wP - aP_pr`, .after = `wP - aP_hi`) |>
+  gt(rowname_col = "age", groupname_col = "group") |>
+  fmt_number(-(1:2), decimals = 2) |>
+  cols_merge(
+    starts_with("wP_"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    starts_with("aP_"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    c("wP - aP_med", "wP - aP_lo", "wP - aP_hi"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    starts_with("cor"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_merge(
+    starts_with("mor"),
+    pattern = "<<{1} ({2}, {3})>>"
+  ) |>
+  cols_label(
+    "aP_med" = "aP",
+    "wP_med" = "wP",
+    "wP - aP_med" = "wP \u2212 aP",
+    "wP - aP_pr" = "Pr(wP \u2212 aP < 0)",
+    "cor_med" = "Conditional",
+    "mor_med" = "Marginal"
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  tab_spanner(
+    columns = c("aP_med", "wP_med", "wP - aP_med"),
+    label = md("Standardised Pr(IgE $\\geq$ 0.1), Median (95% CrI)"),
+  ) |>
+  tab_spanner(
+    columns = c("cor_med", "mor_med"),
+    label = "Odds ratios"
+  ) |>
+  tab_footnote(
+    "All models adjsuted for sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
+  ) |>
+  tab_options(table.font.size = px(9))
+out
+```
+
+\clearpage
+
+### Sensitisation
+
+```{r}
+#| label: model-ige-sens
+#| cache: true
+snk <- capture.output({
   res_sens_tetanus <- fit_ige_sens_model("Tetanus-toxoid", 0.1)
   res_sens_eggwhite <- fit_ige_sens_model("Egg white", 0.1)
   res_sens_wholeegg <- fit_ige_sens_model("Whole egg", 0.1)
@@ -637,88 +848,8 @@ out <- res_sens |>
     columns = c("cor_med", "mor_med"),
     label = "Odds ratios"
   ) |>
-  tab_options(table.font.size = px(9))
-out
-```
-
-\clearpage
-
-### Quantitation
-
-```{r}
-#| label: model-ige-quant
-#| cache: true
-snk <- capture.output({
-  res_sens_tetanus <- fit_ige_sens_model("Tetanus-toxoid", 0.01)
-  res_sens_eggwhite <- fit_ige_sens_model("Egg white", 0.01)
-  res_sens_wholeegg <- fit_ige_sens_model("Whole egg", 0.01)
-})
-
-res_sens <- bind_rows(res_sens_tetanus, res_sens_eggwhite, res_sens_wholeegg) |>
-  mutate(age = fct_rev(fct_inorder(visit_age)), group = fct_inorder(group)) |>
-  relocate(group, .before = visit_age)
-```
-
-```{r}
-#| label: tbl-sensitisation-tetanus-summary
-#| tbl-cap: Summary of sensitisation model for tetanus toxoid IgE.
-#| tbl-pos: "H"
-out <- res_sens |>
-  transmute(
-    group,
-    age,
-    across(
-      3:7,
-      list(
-        med = ~ median(.x),
-        lo = ~ quantile(.x, 0.025)[1, ],
-        hi = ~ quantile(.x, 0.975)[1, ]
-      )
-    ),
-    across(5, list(pr = ~ Pr(.x < 0)))
-  ) |>
-  relocate(`wP - aP_pr`, .after = `wP - aP_hi`) |>
-  gt(rowname_col = "age", groupname_col = "group") |>
-  fmt_number(-(1:2), decimals = 2) |>
-  cols_merge(
-    starts_with("wP_"),
-    pattern = "<<{1} ({2}, {3})>>"
-  ) |>
-  cols_merge(
-    starts_with("aP_"),
-    pattern = "<<{1} ({2}, {3})>>"
-  ) |>
-  cols_merge(
-    c("wP - aP_med", "wP - aP_lo", "wP - aP_hi"),
-    pattern = "<<{1} ({2}, {3})>>"
-  ) |>
-  cols_merge(
-    starts_with("cor"),
-    pattern = "<<{1} ({2}, {3})>>"
-  ) |>
-  cols_merge(
-    starts_with("mor"),
-    pattern = "<<{1} ({2}, {3})>>"
-  ) |>
-  cols_label(
-    "aP_med" = "aP",
-    "wP_med" = "wP",
-    "wP - aP_med" = "wP \u2212 aP",
-    "wP - aP_pr" = "Pr(wP \u2212 aP < 0)",
-    "cor_med" = "Conditional",
-    "mor_med" = "Marginal"
-  ) |>
-  tab_stub_indent(
-    rows = everything(),
-    indent = 1
-  ) |>
-  tab_spanner(
-    columns = c("aP_med", "wP_med", "wP - aP_med"),
-    label = md("Standardised Pr(IgE $\\geq$ 0.1), Median (95% CrI)"),
-  ) |>
-  tab_spanner(
-    columns = c("cor_med", "mor_med"),
-    label = "Odds ratios"
+  tab_footnote(
+    "All models adjsuted for sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
   ) |>
   tab_options(table.font.size = px(9))
 out
@@ -726,7 +857,7 @@ out
 
 \clearpage
 
-## IgG concentrations
+## IgG concentrations {#sec-igg}
 
 ### Missingness
 
@@ -777,12 +908,12 @@ dat_igg |>
 ```{r}
 #| label: tbl-igg-missingness-dtap
 #| tbl-cap:
-#|    Missingness pattern of IgG concentrations for DTaP and Hib-PRP by study stage.
+#|    Missingness pattern of IgG concentrations by study stage.
 #| tbl-pos: H
 miss_pattern_trt_tab(filter(dat_igg, antigen == "PT")) |>
   tab_options(
     table.font.size = px(8),
-    table.width = pct(80)
+    table.width = pct(60)
   )
 ```
 
@@ -792,7 +923,7 @@ miss_pattern_trt_tab(filter(dat_igg, antigen == "PT")) |>
 
 ```{r}
 #| label: tbl-igg-summary-dtap
-#| tbl-cap: Descriptive statistics for DTaP IgG concentrations.
+#| tbl-cap: Descriptive summaries for IgG concentrations by assigned treatment group.
 #| results: "asis"
 igg_gmc_summary_tab(
   filter(dat_igg, type != "PnPs")
@@ -808,7 +939,7 @@ igg_gmc_summary_tab(
 
 ```{r}
 #| label: tbl-igg-summary-pnps
-#| tbl-cap: Descriptive statistics for PnP IgG concentrations.
+#| tbl-cap: Descriptive summaries for IgG concentrations for 13-valent pneumococcal vaccine serotypes by assigned treatment group.
 #| results: "asis"
 igg_gmc_summary_tab(
   filter(dat_igg, type == "PnPs"),

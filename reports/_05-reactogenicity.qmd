@@ -1,5 +1,5 @@
 
-# Reactogenicity
+# Reactogenicity {#sec-reactogenicity}
 
 ## Diary cards
 
@@ -918,7 +918,7 @@ plot_fever()
 
 \clearpage
 
-## Solicited Injection Site Reactions
+## Solicited injection site reactions
 
 The number and percentage of participants who experienced any severe injection site reaction over the 7 days following vaccination, and the highest reaction size by type over those 7 days are reported in @tbl-sol-intensity-any-severe, @tbl-maximum-site-reaction, and @fig-maximum-site-reaction. 
 
@@ -1070,7 +1070,7 @@ out <- gt(tdat, rowname_col = "term", groupname_col = c("vaxage", "vaccine")) |>
   ) |>
   tab_options(
     table.font.size = px(7),
-    table.width = pct(80)
+    table.width = pct(100)
   ) |>
   as_latex()
 out_new <- gsub("\\{aP\\}", r"({\\makecell{aP\\\\(n = 152)}})", out)

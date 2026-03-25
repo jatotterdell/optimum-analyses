@@ -88,7 +88,7 @@ The primary analysis was to assume independent Binomial models for occurrence of
 
 ## Primary model
 
-Let $\theta_{\text{wP}}$ and $\theta_{\text{aP}}$ denote the probability of the outcome amongst infants who are assigned to the respective strategy and $\delta = \theta_{\text{wP}} - \theta_{\text{aP}}$ the difference in probablity. If $n_{\text{wP}}$ and $n_{\text{aP}}$ infants were assigned to each respective strategy, with $y_{\text{wP}}$ and $y_{\text{aP}}$ events observed, than from our assumed model we estimate that $\theta_j \sim \text{Beta}(1 + y_j, 1 + n_j - y_j)$ represents our uncertainty and $\delta$ the difference between these.
+Let $\theta_{\text{wP}}$ and $\theta_{\text{aP}}$ denote the probability of the outcome amongst infants who are assigned to the respective strategy and $\delta = \theta_{\text{wP}} - \theta_{\text{aP}}$ the difference in probablity. If $n_{\text{wP}}$ and $n_{\text{aP}}$ infants were assigned to each respective strategy, with $y_{\text{wP}}$ and $y_{\text{aP}}$ events observed, than from our assumed model we estimate that $\theta_j \sim \text{Beta}(1 + y_j, 1 + n_j - y_j)$ quantifies our uncertainty and $\delta$ the difference between these.
 
 :::
 

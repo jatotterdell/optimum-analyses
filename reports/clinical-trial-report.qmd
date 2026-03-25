@@ -23,6 +23,8 @@ source(here("reports/R/_data.R"))
 
 \clearpage
 
+{{< include _00-summary.qmd >}}
+
 {{< include _01-introduction.qmd >}}
 
 {{< include _02-study-participants.qmd >}}
