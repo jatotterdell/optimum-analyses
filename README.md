@@ -82,12 +82,22 @@ The relevant elements are (see [https://doi.org/10.1136/bmjopen-2020-042838](htt
     - [x] 3mm greater than or equal to negative control
 - [x] SAE listing
 - [x] AE summaries
-- [ ] diary card data
-- [x] IgG data (in a standalone report)
+- [x] diary card data
+- [x] IgE data
+- [x] IgG data
 
 The primary report is `reports/clinical-trial-report.qmd`.
+This calls standalone files which are used to generate each section:
 
-The report which updates the previous IgG analyses to include the stage 2 data is `reports/igg-revisited.qmd`.
+- `_00-summary.qmd` - overall summary of results
+- `_01-introduction.qmd` - background to study
+- `_02-study-participants.qmd` - participant characteristics and trial participation
+- `_03-outcomes.qmd` - the main clinical and mechanistic outcomes
+- `_04-safety.qmd` - safety reporting
+
+All sections depend on first calling the two R scripts `reports/R/_setup.R` and `reports/R/_data.R`.
+
+A report which further investigates the IgG analyses is `reports/igg-revisited.qmd`.
 
 ## Notebooks
 
