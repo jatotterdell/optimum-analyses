@@ -482,6 +482,31 @@ combine_physical_exam_v1 <- function(st2_data, st1_path) {
   st
 }
 
+combine_phsyical_exam_other <- function() {
+  st2_pe <- extract_tibble(st2_data, "physical_examination") |>
+    mutate(
+      visit = gsub("visit_", "", redcap_event),
+      visage = case_when(
+        visit == 2 ~ "12-month",
+        visit == 3 ~ "18-month",
+        visit == 4 ~ "19-month"
+      ),
+      .after = record_id
+    ) |>
+    select(-redcap_event, -redcap_data_access_group, -form_status_complete)
+}
+
+combine_nonstudy_vaccination_log <- function() {
+  st2_nsv <- extract_tibble(st2_data, "nonstudy_vaccination_log") |>
+    select(-redcap_event, -redcap_data_access_group, -form_status_complete, -instvacyn) |>
+    filter(!is.na(ipvac1)) |>
+    pivot_longer(
+      ipvac1:ipnstvacdat6,
+      names_pattern = "(ipvac|vacothspec|ipnstvacdat|vacaddyn)([1-6])",
+      names_to = c(".value", "vac_num")
+    )
+}
+
 combine_vax_admin_v1 <- function() {
   st2_vaxv1 <- extract_tibble(st2_data, "vaccine_administration_v1") |>
     select(

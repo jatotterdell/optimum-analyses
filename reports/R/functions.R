@@ -171,18 +171,18 @@ igg_gmc_summary_tab <- function(
       pos_aP = md("S+"),
       pos_wP = md("S+")
     ) |>
-    # tab_stub_indent(
-    #   rows = everything(),
-    #   indent = 1
-    # ) |>
-    # tab_spanner(
-    #   label = md("**aP**<br>(n = 150)"),
-    #   columns = ends_with("_aP")
-    # ) |>
-    # tab_spanner(
-    #   label = md("**wP**<br>(n = 150)"),
-    #   columns = ends_with("_wP")
-    # ) |>
+    tab_stub_indent(
+      rows = everything(),
+      indent = 1
+    ) |>
+    tab_spanner(
+      label = md("**aP**"),
+      columns = ends_with("_aP")
+    ) |>
+    tab_spanner(
+      label = md("**wP**"),
+      columns = ends_with("_wP")
+    ) |>
     sub_missing(
       columns = everything(),
       rows = everything(),

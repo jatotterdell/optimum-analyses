@@ -7,9 +7,13 @@ The overall objectives of this study were to determine if, compared to the exist
 3. Is associated with a protective pertussis antibody response, as evidenced by no reduction in the proportion of children who have at least a 4-fold rise in anti-PT IgG antibody responses and no reduction in the mean fold-rise in anti-PT IgG, to a fourth pertussis-containing vaccine at approximately age 18 months (stage 1 and stage 2, Perth Children’s Hospital (PCH)/Telethon Kids Institute study site.)
 4. Is associated with an acceptable reactogenicity profile (stage 1 and stage 2, PCH/Telethon Kids Institute study site).
 
-*1. (@sec-clinical-mechanistic-outcomes) There was little evidence of a substantial benefit of wP compared to aP at 2 months of age on protection against the development of clinical IgE-mediated food allergy. For the primary outcome, the estimated difference [posterior median (95% CrI)] in food allergy risk for wP compared to aP was 0.1 (-0.02, 0.04). For the secondary outcome of new-onset eczema by 6 and 12 months of age the estimated difference in risk for wP compared to aP was -0.01 (-0.04, 0.02) and -0.01 (-0.04, 0.03) respectively. For the secondary outcome of skin prick test positivity at >1mm and ≥3mm relative to negative control the estimated difference in risk for wP compared to aP was 0.01 (-0.04, 0.06) and 0.01 (-0.04, 0.05) respectively.*
+*1. (@sec-clinical-mechanistic-outcomes) There was little evidence of a substantial benefit of wP compared to aP at 2 months of age on protection against the development of clinical IgE-mediated food allergy. For the primary outcome, the estimated difference [posterior median (95% CrI)] in food allergy risk for wP compared to aP was 0.01 (-0.02, 0.04), that is anywhere from a 2%pt. reduction to a 4%pt. increase was plausible given the data.*
 
-*2. (@sec-ige)*
+*For the secondary outcome of new-onset eczema by 6 and 12 months of age the estimated difference in risk for wP compared to aP was -0.01 (-0.04, 0.02) and -0.01 (-0.04, 0.03) respectively. For the secondary outcome of skin prick test positivity at >1mm and ≥3mm relative to negative control the estimated difference in risk for wP compared to aP was 0.01 (-0.04, 0.06) and 0.01 (-0.04, 0.05) respectively.*
+
+*2. (@sec-ige) For total IgE the estimated [posterior median (95% CrI)] geometric mean ratio for wP compared to aP at 6-months was 0.99 (0.64, 1.51) and at 7-months was 0.92 (0.61, 1.40) equating to a geometric mean fold-rise ratio of 0.94 (0.72, 1.22). These estimates were imprecise, but show little evidence of a reduction in geometric mean concentrations.* 
+
+*For anti-tetanus toxoid, geometric mean ratios could not be estimated precisely given a low number of detectable concentrations.*
 
 *3. (@sec-igg)*
 

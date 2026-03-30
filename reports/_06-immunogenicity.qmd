@@ -100,6 +100,11 @@ dat_igg <- select_form(dat_raw, "igg") |>
   filter(!(antigen %in% c("PnPs 11A"))) |>
   mutate(antigen = fct_inorder(antigen)) |>
   mutate(
+    fold_rise = concentration / lag(concentration),
+    .by = c(subjid, antigen),
+    .after = positive
+  ) |>
+  mutate(
     any_obs_concentration = any(!is.na(concentration)),
     all_obs_concentration = all(!is.na(concentration)),
     .by = subjid
@@ -153,17 +158,18 @@ make_stan_data <- function(
     X[, 1:2, drop = FALSE],
     scale(X[, -(1:2), drop = FALSE], scale = F)
   )
+  Y <- dd |>
+    select(subjid, visit_age, {{ var }}) |>
+    spread(visit_age, {{ var }}) |>
+    select(-subjid) |>
+    mutate(across(everything(), ~ replace_na(.x, -99))) |>
+    as.matrix()
   out <- list(
     N = nrow(tmp),
-    J = 3,
+    J = ncol(Y),
     X = X,
     P = ncol(X),
-    Y = dd |>
-      select(subjid, visit_age, {{ var }}) |>
-      spread(visit_age, {{ var }}) |>
-      select(-subjid) |>
-      mutate(across(everything(), ~ replace_na(.x, -99))) |>
-      as.matrix(),
+    Y = Y,
     R = dd |>
       mutate(
         R = case_when(
@@ -430,7 +436,7 @@ Descriptive summaries of IgE concentrations (kU/L) are reported in @tbl-sample-i
 #| label: tbl-sample-ige-gmc
 #| code-summary: Sample summaries
 #| tbl-cap: |
-#|    Sample IgE concentration summaries (kU/L) by allergen type, visit age,
+#|    Descriptive summary of IgE concentrations (kU/L) by allergen type, visit age,
 #|    and assigned vaccination schedule.
 #| tbl-pos: "H"
 #| results: "asis"
@@ -494,7 +500,86 @@ gt(tab, groupname_col = "allergen", rowname_col = "visit_age") |>
     columns = ends_with("_wP")
   ) |>
   tab_footnote(
-    footnote = "Values of 0.00 kU/L and 0.000 kU/L set to 0.005 and 0.0005 respectively for calculation of sample GMC.",
+    footnote = "Values of 0.00 kU/L and 0.000 kU/L set to 0.005 and 0.0005 respectively for calculation of GMC.",
+    locations = cells_column_labels(columns = starts_with("gmc"))
+  ) |>
+  tab_options(table.font.size = px(9)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-sample-ige-gmr
+#| code-summary: Sample summaries
+#| tbl-cap: |
+#|    Descriptive summary of geometric mean fold-rise (GMFR), geometric mean ratio (GMR), and geometric mean fold-rise ratio (GMFRR) of wP compared to aP. Number in brackets (n) indicates the number of infants contributing to the calculation.
+#| tbl-pos: "H"
+#| results: "asis"
+sample_gmr <- dat_ige |>
+  # filter(allergen %in% c("Total IgE", "Tetanus-toxoid", "Egg white", "Whole egg")) |>
+  mutate(
+    ige = if_else(ige == 0, 0.0005, ige)
+  ) |>
+  arrange(subjid, allergen, visit_age) |>
+  mutate(
+    fold_rise = ige / lag(ige),
+    .by = c(subjid, allergen)
+  ) |>
+  summarise(
+    .by = c(allergen, trt, visit_age),
+    obs_gmc = sum(!is.na(ige)),
+    gmc = gmc(ige, na.rm = TRUE),
+    obs_gmfr = sum(!is.na(fold_rise)),
+    gmfr = gmc(fold_rise, na.rm = TRUE)
+  ) |>
+  pivot_wider(names_from = trt, values_from = c(obs_gmc, gmc, obs_gmfr, gmfr)) |>
+  mutate(gmr = gmc_wP / gmc_aP, gmfrr = gmfr_wP / gmfr_aP) |>
+  mutate(
+    obs_gmfr_aP = replace_values(obs_gmfr_aP, 0 ~ NA),
+    obs_gmfr_wP = replace_values(obs_gmfr_wP, 0 ~ NA)
+  )
+
+gt(sample_gmr, groupname_col = "allergen", rowname_col = "visit_age") |>
+  fmt_integer(starts_with("obs")) |>
+  fmt_number(starts_with(c("gmc", "gmr", "gmfr")), decimals = 2) |>
+  cols_merge(
+    columns = c(gmc_aP, obs_gmc_aP),
+    pattern = "{1} ({2})"
+  ) |>
+  cols_merge(
+    columns = c(gmc_wP, obs_gmc_wP),
+    pattern = "{1} ({2})"
+  ) |>
+  cols_merge(
+    columns = c(gmfr_aP, obs_gmfr_aP),
+    pattern = "{1} ({2})"
+  ) |>
+  cols_merge(
+    columns = c(gmfr_wP, obs_gmfr_wP),
+    pattern = "{1} ({2})"
+  ) |>
+  cols_label(
+    obs_gmc_aP = "n",
+    obs_gmc_wP = "n",
+    gmc_aP = "GMC (n)",
+    gmc_wP = "GMC (n)",
+    gmfr_aP = "GMFR (n)",
+    gmfr_wP = "GMFR (n)",
+    gmr ~ "GMR",
+    gmfrr ~ "GMFRR"
+  ) |>
+  tab_spanner(
+    label = "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    columns = ends_with("_aP")
+  ) |>
+  tab_spanner(
+    label = "\\makecell{\\textbf{wP} \\\\ N = 75}",
+    columns = ends_with("_wP")
+  ) |>
+  sub_missing() |>
+  tab_footnote(
+    footnote = "Values of 0.00 kU/L and 0.000 kU/L set to 0.005 and 0.0005 respectively for calculation of GMC.",
     locations = cells_column_labels(columns = starts_with("gmc"))
   ) |>
   tab_options(table.font.size = px(9)) |>
@@ -505,11 +590,16 @@ gt(tab, groupname_col = "allergen", rowname_col = "visit_age") |>
 
 \clearpage
 
-### Geometric mean concentration
+### Geometric mean concentration and fold-rise ratio
 
-Model estimated geometric mean ratios (GMRs) and geometric mean fold-rise ratios (GMFRRs) are reported in @tbl-gmr-gmfir-ige-total. For completeness, all IgE types are reported, however, in some cases the GMR and GMFRR may not be meaningful due to the small number of participants with measurable quantities (e.g. tetanus toxoid at 6-months and 7-months).
+Model estimated geometric mean ratios (GMRs) and geometric mean fold-rise ratios (GMFRRs) are reported in @tbl-gmr-gmfir-ige-total. For completeness, all IgE types are reported, however, in some cases the GMR and GMFRR may not be meaningful due to the small number of participants with measurable quantities (e.g. tetanus toxoid at 6-months and 7-months) resulting in GMC's close to zero and GMR's which are ratios of two near zero values.
 
 For total IgE, the GMFRR from 6 to 7 months was 0.94 (0.72, 1.22) and the probability of a reduction in the GMFR was 0.69.
+
+```{r}
+dat_ige |>
+  mutate(log_ige = log10(ige))
+```
 
 ```{r}
 #| label: model-ige-total
@@ -590,7 +680,7 @@ gmr_dat <- gmr_table_dat(gmr)
 #| tbl-pos: "H"
 #| results: "asis"
 gmr_table(gmr_dat) |>
-  tab_options(table.width = pct(60)) |>
+  tab_options(table.width = pct(65)) |>
   tab_footnote(
     "All models adjsuted for sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
   ) |>
@@ -601,7 +691,497 @@ gmr_table(gmr_dat) |>
 
 ### Quantitation
 
-Model estimate difference in probability of concentrations exceeding ≥0·01 kU/L are reported in @tbl-quantitation-summary.
+Model estimate difference in probability of concentrations ≥0·01 kU/L, and conditional odds ratios, comparing wP with aP, are reported in @tbl-logistic-regression-ige-quant. Estimates had a large magnitude of uncertainty, but generally, there was only weak support for any direction of effect on probability of IgE concentration exceeding 0·01 kU/L.
+
+```{r}
+#| label: univariate-beta-binomial-ige-check
+#| include: false
+#| eval: false
+
+# For checks sake, I first run univariate Binomial models for each visit by allergen combination
+# similar to the primary outcome
+dat_summ <- dat_ige |>
+  filter(allergen != "Total IgE") |>
+  summarise(
+    .by = c(allergen, visit_age, trt),
+    y = sum(ige >= 0.01, na.rm = T),
+    n = sum(!is.na(ige)),
+    p = y / n,
+    a = 1 + y,
+    b = 1 + n - y,
+    post = dist_beta(a, b),
+  ) |>
+  arrange(allergen, visit_age, trt)
+dat_summ_diff <- dat_summ |>
+  mutate(post_drws = generate(post, 1e4)) |>
+  select(allergen, visit_age, trt, post_drws) |>
+  unnest(post_drws) |>
+  group_by(allergen, visit_age, trt) |>
+  mutate(.draw = 1:n()) |>
+  ungroup() |>
+  pivot_wider(names_from = "trt", values_from = "post_drws") |>
+  mutate(delta = wP - aP)
+
+diff_agg <- dat_summ_diff |>
+  group_by(allergen, visit_age) |>
+  nest_rvars() |>
+  ungroup() |>
+  mutate(
+    across(
+      aP:delta,
+      list(
+        med = median,
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975),
+        pr = ~ Pr(.x < 0)
+      ),
+      .names = "{.fn}_{.col}"
+    )
+  ) |>
+  select(-aP, -wP, -delta)
+
+dat_summ |>
+  select(allergen, visit_age, trt, n, y, p) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p)
+  ) |>
+  left_join(diff_agg, join_by(allergen, visit_age)) |>
+  gt(rowname_col = "visit_age", groupname_col = "allergen") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_aP, lo_aP, hi_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_wP, lo_wP, hi_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_aP, med_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
+```{r}
+#| label: univariate-logistic-regression-ige-check
+#| include: false
+#| eval: false
+
+# Similar to above, run univariate analyses, but assuming logistic regression model, should be similar.
+prior <- c(
+  prior(student_t(4, 0, 1.75), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = b)
+)
+
+mdat <- dat_ige |>
+  filter(allergen != "Total IgE", !is.na(ige)) |>
+  mutate(y = as.numeric(ige >= 0.01)) |>
+  nest(dat = -c(allergen, visit_age))
+
+mdat <- mdat |>
+  mutate(
+    fit = map(
+      dat,
+      ~ brm(
+        y ~ trt,
+        data = .x,
+        family = bernoulli,
+        backend = "cmdstanr",
+        prior = prior,
+        seed = 71235,
+        refresh = 0,
+        chains = 8,
+        iter = 625,
+        warmup = 500
+      )
+    ),
+    rd = map2(
+      dat,
+      fit,
+      ~ .x |>
+        select(trt) |>
+        distinct() |>
+        add_epred_rvars(.y)
+    )
+  )
+
+d1 <- mdat |>
+  select(visit_age, allergen, dat) |>
+  unnest(dat) |>
+  summarise(
+    .by = c(visit_age, allergen, trt),
+    y = sum(y),
+    n = n(),
+    p = y / n
+  )
+d2 <- mdat |>
+  select(visit_age, allergen, rd) |>
+  unnest(rd)
+
+td <- left_join(d1, d2, join_by(visit_age, allergen, trt)) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p, .epred)
+  ) |>
+  mutate(delta = .epred_wP - .epred_aP) |>
+  mutate(across(
+    c(.epred_aP, .epred_wP, delta),
+    list(
+      med = median,
+      lo = ~ quantile2(.x, 0.025),
+      hi = ~ quantile2(.x, 0.975),
+      pr = ~ Pr(.x < 0)
+    ),
+    .names = "{.fn}_{.col}"
+  )) |>
+  select(-pr_.epred_aP, -pr_.epred_wP, -.epred_aP, -.epred_wP, -delta)
+
+td |>
+  gt(rowname_col = "visit_age", groupname_col = "allergen") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_aP, lo_.epred_aP, hi_.epred_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_wP, lo_.epred_wP, hi_.epred_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_.epred_aP, med_.epred_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
+```{r}
+#| label: logistic-regression-ige-quant
+#| include: false
+#| cache: true
+
+# Now run the actual model that was specified to correlate outcomes of participants
+# with a random intercept term.
+prior1 <- c(
+  prior(student_t(4, 0, 1.75), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = b)
+)
+
+prior2 <- c(
+  prior(student_t(4, 0, 1.75), class = "b"),
+  prior(student_t(4, 0, 1.75), class = "Intercept"),
+  prior(exponential(1), class = "sd")
+)
+
+mdat <- dat_ige |>
+  filter(allergen != "Total IgE") |>
+  mutate(y = as.numeric(ige >= 0.01)) |>
+  nest(dat = -allergen)
+
+mdat <- mdat |>
+  mutate(
+    fit = map(
+      dat,
+      ~ if (all(.x$visit_age == "19-month")) {
+        # No subject specific random intercept
+        brm(
+          y ~ trt + gender + bfed + fborn + ces + fha + parinc_imp,
+          data = filter(
+            .x,
+            !is.na(y)
+          ),
+          family = bernoulli,
+          backend = "cmdstanr",
+          prior = prior1,
+          seed = 71235,
+          refresh = 0,
+          chains = 8,
+          iter = 1750,
+          warmup = 500
+        )
+      } else {
+        # Subject specific random intercept to correlate outcomes, and visit specific effects
+        brm(
+          y ~ visit_age * (trt + gender + bfed + fborn + ces + fha + parinc_imp) + (1 | subjid),
+          data = filter(.x, !is.na(y)),
+          family = bernoulli,
+          backend = "cmdstanr",
+          prior = prior2,
+          seed = 71235,
+          refresh = 0,
+          chains = 8,
+          iter = 1750,
+          warmup = 500
+        )
+      }
+    )
+  )
+
+# mdat <- mdat |>
+#   mutate(
+#     rd = map2(
+#       dat,
+#       fit,
+#       ~ .x |>
+#         # Super-population, so sample random effects, need new IDs
+#         mutate(subjid = gsub("01-", "", subjid)) |>
+#         add_epred_rvars(
+#           .y,
+#           allow_new_levels = TRUE,
+#           sample_new_levels = "gaussian"
+#         ) |>
+#         summarise(
+#           .by = c(visit_age, trt),
+#           .epred = rvar_mean(.epred)
+#         )
+#     )
+#   )
+
+mdat <- mdat |>
+  mutate(
+    rd2 = map2(
+      dat,
+      fit,
+      ~ {
+        if (all(.x$visit_age == "19-month")) {
+          epred <- rvar(
+            prediction(
+              .y,
+              .x,
+              summarize = FALSE,
+              posterior = TRUE,
+              raw = TRUE,
+              effects = "fixedonly",
+              k = 100,
+              seed = 123
+            )$Posterior
+          )
+        } else {
+          # Integrate out random effects for marginal predictions
+          epred <- rvar(
+            prediction(
+              .y,
+              .x,
+              summarize = FALSE,
+              posterior = TRUE,
+              raw = TRUE,
+              effects = "integrateoutRE",
+              k = 100,
+              seed = 123
+            )$Posterior
+          )
+        }
+        .x |>
+          mutate(.epred = epred) |>
+          summarise(
+            .by = c(visit_age, trt),
+            .epred = rvar_mean(.epred)
+          )
+      }
+    )
+  )
+```
+
+```{r}
+#| label: tbl-logistic-regression-ige-quant
+#| tbl-cap: |
+#|   The model estimated standardised risk, risk difference, and conditional odds ratio for IgE ≥ 0.01 kU/L comparing wP with aP.
+#| tbl-pos: "H"
+d1 <- mdat |>
+  select(allergen, dat) |>
+  unnest(dat) |>
+  summarise(
+    .by = c(visit_age, allergen, trt),
+    e = sum(y, na.rm = TRUE),
+    n = sum(!is.na(y)),
+    p = e / n
+  )
+d2 <- mdat |>
+  select(allergen, rd2) |>
+  unnest(rd2)
+
+d3 <- mdat |>
+  select(allergen, fit) |>
+  mutate(
+    b = map(
+      fit,
+      ~ {
+        rvs <- rvar(as_draws_matrix(.x))
+        bs <- rvs[grepl("trt", names(rvs))]
+        if (length(bs) == 1) {
+          tibble(
+            visit_age = "19-month",
+            bs = exp(bs)
+          )
+        } else {
+          tibble(
+            visit_age = c("6-month", "7-month", "19-month"),
+            bs = exp(c(bs[1], bs[1] + bs[2], bs[1] + bs[3]))
+          )
+        }
+      }
+    )
+  )
+
+td <- left_join(d1, d2, join_by(visit_age, allergen, trt)) |>
+  rename(y = e) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p, .epred)
+  ) |>
+  mutate(delta = .epred_wP - .epred_aP) |>
+  mutate(across(
+    c(.epred_aP, .epred_wP, delta),
+    list(
+      med = median,
+      lo = ~ quantile2(.x, 0.025),
+      hi = ~ quantile2(.x, 0.975),
+      pr = ~ Pr(.x < 0)
+    ),
+    .names = "{.fn}_{.col}"
+  )) |>
+  select(-pr_.epred_aP, -pr_.epred_wP, -.epred_aP, -.epred_wP, -delta) |>
+  left_join(
+    d3 |>
+      select(allergen, b) |>
+      unnest(b) |>
+      mutate(across(
+        bs,
+        list(
+          med = median,
+          lo = ~ quantile2(.x, 0.025),
+          hi = ~ quantile2(.x, 0.975)
+        ),
+        .names = "{.fn}_{.col}"
+      )) |>
+      select(-bs),
+    join_by(allergen, visit_age)
+  ) |>
+  mutate(visit_age = factor(visit_age, levels = c("6-month", "7-month", "19-month"))) |>
+  arrange(allergen, visit_age)
+
+td |>
+  gt(rowname_col = "visit_age", groupname_col = "allergen") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_aP, lo_.epred_aP, hi_.epred_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_wP, lo_.epred_wP, hi_.epred_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  cols_merge(
+    c(med_bs, lo_bs, hi_bs),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  tab_spanner(
+    columns = ends_with("bs"),
+    label = "Conditional odds ratio"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_.epred_aP, med_.epred_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  cols_label(
+    c(med_bs) ~ "Median (95% CrI)"
+  ) |>
+  tab_footnote(
+    "All models adjust for and standardise over sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
+  ) |>
+  tab_options(table.font.size = px(8))
+```
 
 ```{r}
 #| label: model-ige-quant
@@ -705,6 +1285,7 @@ res_sens <- bind_rows(res_sens_tetanus, res_sens_eggwhite, res_sens_wholeegg) |>
 #| label: tbl-quantitation-summary
 #| tbl-cap: Summary of quantitation model results.
 #| tbl-pos: "H"
+#| include: false
 out <- res_sens |>
   transmute(
     group,
@@ -773,6 +1354,500 @@ out
 
 ### Sensitisation
 
+Model estimate difference in probability of concentrations ≥0·1 kU/L, and conditional odds ratios, comparing wP with aP, are reported in @tbl-logistic-regression-ige-sens. Estimates had a large magnitude of uncertainty, but generally, there was only weak support for any direction of effect on probability of IgE concentration exceeding 0·1 kU/L.
+
+
+```{r}
+#| label: univariate-beta-binomial-ige-sens-check
+#| include: false
+#| eval: false
+
+# For checks sake, I first run univariate Binomial models for each visit by allergen combination
+# similar to the primary outcome
+dat_summ <- dat_ige |>
+  filter(allergen != "Total IgE") |>
+  summarise(
+    .by = c(allergen, visit_age, trt),
+    y = sum(ige >= 0.1, na.rm = T),
+    n = sum(!is.na(ige)),
+    p = y / n,
+    a = 1 + y,
+    b = 1 + n - y,
+    post = dist_beta(a, b),
+  ) |>
+  arrange(allergen, visit_age, trt)
+dat_summ_diff <- dat_summ |>
+  mutate(post_drws = generate(post, 1e4)) |>
+  select(allergen, visit_age, trt, post_drws) |>
+  unnest(post_drws) |>
+  group_by(allergen, visit_age, trt) |>
+  mutate(.draw = 1:n()) |>
+  ungroup() |>
+  pivot_wider(names_from = "trt", values_from = "post_drws") |>
+  mutate(delta = wP - aP)
+
+diff_agg <- dat_summ_diff |>
+  group_by(allergen, visit_age) |>
+  nest_rvars() |>
+  ungroup() |>
+  mutate(
+    across(
+      aP:delta,
+      list(
+        med = median,
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975),
+        pr = ~ Pr(.x < 0)
+      ),
+      .names = "{.fn}_{.col}"
+    )
+  ) |>
+  select(-aP, -wP, -delta)
+
+dat_summ |>
+  select(allergen, visit_age, trt, n, y, p) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p)
+  ) |>
+  left_join(diff_agg, join_by(allergen, visit_age)) |>
+  gt(rowname_col = "visit_age", groupname_col = "allergen") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_aP, lo_aP, hi_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_wP, lo_wP, hi_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_aP, med_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
+```{r}
+#| label: univariate-logistic-regression-ige-sens-check
+#| include: false
+#| eval: false
+
+# Similar to above, run univariate analyses, but assuming logistic regression model, should be similar.
+prior <- c(
+  prior(student_t(4, 0, 1.75), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = b)
+)
+
+mdat <- dat_ige |>
+  filter(allergen != "Total IgE", !is.na(ige)) |>
+  mutate(y = as.numeric(ige >= 0.1)) |>
+  nest(dat = -c(allergen, visit_age))
+
+mdat <- mdat |>
+  mutate(
+    fit = map(
+      dat,
+      ~ brm(
+        y ~ trt,
+        data = .x,
+        family = bernoulli,
+        backend = "cmdstanr",
+        prior = prior,
+        seed = 71235,
+        refresh = 0,
+        chains = 8,
+        iter = 625,
+        warmup = 500
+      )
+    ),
+    rd = map2(
+      dat,
+      fit,
+      ~ .x |>
+        select(trt) |>
+        distinct() |>
+        add_epred_rvars(.y)
+    )
+  )
+
+d1 <- mdat |>
+  select(visit_age, allergen, dat) |>
+  unnest(dat) |>
+  summarise(
+    .by = c(visit_age, allergen, trt),
+    y = sum(y),
+    n = n(),
+    p = y / n
+  )
+d2 <- mdat |>
+  select(visit_age, allergen, rd) |>
+  unnest(rd)
+
+td <- left_join(d1, d2, join_by(visit_age, allergen, trt)) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p, .epred)
+  ) |>
+  mutate(delta = .epred_wP - .epred_aP) |>
+  mutate(across(
+    c(.epred_aP, .epred_wP, delta),
+    list(
+      med = median,
+      lo = ~ quantile2(.x, 0.025),
+      hi = ~ quantile2(.x, 0.975),
+      pr = ~ Pr(.x < 0)
+    ),
+    .names = "{.fn}_{.col}"
+  )) |>
+  select(-pr_.epred_aP, -pr_.epred_wP, -.epred_aP, -.epred_wP, -delta)
+
+td |>
+  gt(rowname_col = "visit_age", groupname_col = "allergen") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_aP, lo_.epred_aP, hi_.epred_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_wP, lo_.epred_wP, hi_.epred_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_.epred_aP, med_.epred_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
+
+```{r}
+#| label: logistic-regression-ige-sens
+#| include: false
+#| cache: true
+
+# Now run the actual model that was specified to correlate outcomes of participants
+# with a random intercept term.
+prior1 <- c(
+  prior(student_t(4, 0, 1.75), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = b)
+)
+
+prior2 <- c(
+  prior(student_t(4, 0, 1.75), class = "b"),
+  prior(student_t(4, 0, 1.75), class = "Intercept"),
+  prior(exponential(1), class = "sd")
+)
+
+mdat <- dat_ige |>
+  filter(allergen != "Total IgE") |>
+  mutate(y = as.numeric(ige >= 0.1)) |>
+  nest(dat = -allergen)
+
+mdat <- mdat |>
+  mutate(
+    fit = map(
+      dat,
+      ~ if (all(.x$visit_age == "19-month")) {
+        # No subject specific random intercept
+        brm(
+          y ~ trt + gender + bfed + fborn + ces + fha + parinc_imp,
+          data = filter(
+            .x,
+            !is.na(y)
+          ),
+          family = bernoulli,
+          backend = "cmdstanr",
+          prior = prior1,
+          seed = 71235,
+          refresh = 0,
+          chains = 8,
+          iter = 1750,
+          warmup = 500
+        )
+      } else {
+        # Subject specific random intercept to correlate outcomes, and visit specific effects
+        brm(
+          y ~ visit_age * (trt + gender + bfed + fborn + ces + fha + parinc_imp) + (1 | subjid),
+          data = filter(.x, !is.na(y)),
+          family = bernoulli,
+          backend = "cmdstanr",
+          prior = prior2,
+          seed = 71235,
+          refresh = 0,
+          chains = 8,
+          iter = 1750,
+          warmup = 500
+        )
+      }
+    )
+  )
+
+# mdat <- mdat |>
+#   mutate(
+#     rd = map2(
+#       dat,
+#       fit,
+#       ~ .x |>
+#         # Super-population, so sample random effects, need new IDs
+#         mutate(subjid = gsub("01-", "", subjid)) |>
+#         add_epred_rvars(
+#           .y,
+#           allow_new_levels = TRUE,
+#           sample_new_levels = "gaussian"
+#         ) |>
+#         summarise(
+#           .by = c(visit_age, trt),
+#           .epred = rvar_mean(.epred)
+#         )
+#     )
+#   )
+
+mdat <- mdat |>
+  mutate(
+    rd2 = map2(
+      dat,
+      fit,
+      ~ {
+        if (all(.x$visit_age == "19-month")) {
+          epred <- rvar(
+            prediction(
+              .y,
+              .x,
+              summarize = FALSE,
+              posterior = TRUE,
+              raw = TRUE,
+              effects = "fixedonly",
+              k = 100,
+              seed = 123
+            )$Posterior
+          )
+        } else {
+          # Integrate out random effects for marginal predictions
+          epred <- rvar(
+            prediction(
+              .y,
+              .x,
+              summarize = FALSE,
+              posterior = TRUE,
+              raw = TRUE,
+              effects = "integrateoutRE",
+              k = 100,
+              seed = 123
+            )$Posterior
+          )
+        }
+        .x |>
+          mutate(.epred = epred) |>
+          summarise(
+            .by = c(visit_age, trt),
+            .epred = rvar_mean(.epred)
+          )
+      }
+    )
+  )
+```
+
+```{r}
+#| label: tbl-logistic-regression-ige-sens
+#| tbl-cap: |
+#|   The model estimated standardised risk, risk difference, and conditional odds ratio for IgE ≥ 0.1 kU/L comparing wP with aP.
+#| tbl-pos: "H"
+d1 <- mdat |>
+  select(allergen, dat) |>
+  unnest(dat) |>
+  summarise(
+    .by = c(visit_age, allergen, trt),
+    e = sum(y, na.rm = TRUE),
+    n = sum(!is.na(y)),
+    p = e / n
+  )
+d2 <- mdat |>
+  select(allergen, rd2) |>
+  unnest(rd2)
+
+d3 <- mdat |>
+  select(allergen, fit) |>
+  mutate(
+    b = map(
+      fit,
+      ~ {
+        rvs <- rvar(as_draws_matrix(.x))
+        bs <- rvs[grepl("trt", names(rvs))]
+        if (length(bs) == 1) {
+          tibble(
+            visit_age = "19-month",
+            bs = exp(bs)
+          )
+        } else {
+          tibble(
+            visit_age = c("6-month", "7-month", "19-month"),
+            bs = exp(c(bs[1], bs[1] + bs[2], bs[1] + bs[3]))
+          )
+        }
+      }
+    )
+  )
+
+td <- left_join(d1, d2, join_by(visit_age, allergen, trt)) |>
+  rename(y = e) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p, .epred)
+  ) |>
+  mutate(delta = .epred_wP - .epred_aP) |>
+  mutate(across(
+    c(.epred_aP, .epred_wP, delta),
+    list(
+      med = median,
+      lo = ~ quantile2(.x, 0.025),
+      hi = ~ quantile2(.x, 0.975),
+      pr = ~ Pr(.x < 0)
+    ),
+    .names = "{.fn}_{.col}"
+  )) |>
+  select(-pr_.epred_aP, -pr_.epred_wP, -.epred_aP, -.epred_wP, -delta) |>
+  left_join(
+    d3 |>
+      select(allergen, b) |>
+      unnest(b) |>
+      mutate(across(
+        bs,
+        list(
+          med = median,
+          lo = ~ quantile2(.x, 0.025),
+          hi = ~ quantile2(.x, 0.975)
+        ),
+        .names = "{.fn}_{.col}"
+      )) |>
+      select(-bs),
+    join_by(allergen, visit_age)
+  ) |>
+  mutate(visit_age = factor(visit_age, levels = c("6-month", "7-month", "19-month"))) |>
+  arrange(allergen, visit_age)
+
+td |>
+  gt(rowname_col = "visit_age", groupname_col = "allergen") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_aP, lo_.epred_aP, hi_.epred_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_wP, lo_.epred_wP, hi_.epred_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  cols_merge(
+    c(med_bs, lo_bs, hi_bs),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  tab_spanner(
+    columns = ends_with("bs"),
+    label = "Conditional odds ratio"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_.epred_aP, med_.epred_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  cols_label(
+    c(med_bs) ~ "Median (95% CrI)"
+  ) |>
+  tab_footnote(
+    "All models adjust for and standardise over sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
+  ) |>
+  tab_options(table.font.size = px(8))
+```
+
 ```{r}
 #| label: model-ige-sens
 #| cache: true
@@ -791,6 +1866,7 @@ res_sens <- bind_rows(res_sens_tetanus, res_sens_eggwhite, res_sens_wholeegg) |>
 #| label: tbl-sensitisation-summary
 #| tbl-cap: Summary of sensitisation model by response type.
 #| tbl-pos: "H"
+#| include: false
 out <- res_sens |>
   transmute(
     group,
@@ -868,6 +1944,10 @@ out
 #|    and with all planned responses observed.
 #| tbl-pos: "H"
 #| results: "asis"
+
+source(here("reports", "R", "functions.R"))
+multinorm <- cmdstan_model(file.path("stan", "multinorm.stan"))
+
 dat_igg |>
   select(record_id, trt, any_obs_concentration, all_obs_concentration) |>
   distinct() |>
@@ -919,11 +1999,11 @@ miss_pattern_trt_tab(filter(dat_igg, antigen == "PT")) |>
 
 \clearpage
 
-### Descriptive
+### Descriptive summaries
 
 ```{r}
 #| label: tbl-igg-summary-dtap
-#| tbl-cap: Descriptive summaries for IgG concentrations by assigned treatment group.
+#| tbl-cap: Descriptive summaries for IgG concentrations (IU/mL) by assigned treatment group.
 #| results: "asis"
 igg_gmc_summary_tab(
   filter(dat_igg, type != "PnPs")
@@ -939,7 +2019,7 @@ igg_gmc_summary_tab(
 
 ```{r}
 #| label: tbl-igg-summary-pnps
-#| tbl-cap: Descriptive summaries for IgG concentrations for 13-valent pneumococcal vaccine serotypes by assigned treatment group.
+#| tbl-cap: Descriptive summaries for IgG concentrations (µg/mL) for 13-valent pneumococcal vaccine serotypes by assigned treatment group.
 #| results: "asis"
 igg_gmc_summary_tab(
   filter(dat_igg, type == "PnPs"),
@@ -952,6 +2032,216 @@ igg_gmc_summary_tab(
   as_latex() |>
   gsub(pattern = "\\\\textendash", replacement = "\\\\textendash ") |>
   cat()
+```
+
+
+```{r}
+#| label: fig-igg-dtap
+#| fig-cap: |
+#|    IgG concentrations at 18 and 19-months of age for pertussis antigens by treatment group.
+#| fig-width: 6
+#| fig-height: 4
+cols <- palette.colors(palette = "Okabe-Ito")[1:2]
+dat_igg |>
+  filter(type == "DTaP") |>
+  ggplot(aes(interaction(trt, visage, sep = "_"), concentration)) +
+  facet_wrap(~antigen) +
+  geom_boxplot(aes(fill = trt)) +
+  geom_hline(aes(yintercept = ref), linetype = 2) +
+  scale_y_continuous(
+    "IgG concentration, log scale",
+    breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    labels = comma,
+    trans = "log10"
+  ) +
+  scale_x_discrete(
+    "Age and treatment group",
+    guide = legendry::guide_axis_nested(
+      key = key_range_auto(sep = "_"),
+      levels_text = list(element_text(), element_text(angle = 45, hjust = 0, vjust = 0.25))
+    )
+  ) +
+  scale_fill_manual(values = c("aP" = cols[1], "wP" = cols[2])) +
+  guides(fill = "none", colour = "none") +
+  theme(axis.title = element_text(size = rel(0.9)))
+```
+
+```{r}
+#| label: fig-igg-pnps
+#| fig-cap: |
+#|    IgG concentrations at 18-months of age for pneumococcal antigens by treatment group.
+#| fig-width: 6
+#| fig-height: 8
+cols <- palette.colors(palette = "Okabe-Ito")[1:2]
+dat_igg |>
+  filter(type == "PnPs") |>
+  ggplot(aes(interaction(trt, visage, sep = "_"), concentration)) +
+  facet_wrap(~antigen, ncol = 3) +
+  geom_boxplot(aes(fill = trt)) +
+  geom_hline(aes(yintercept = ref), linetype = 2) +
+  scale_y_continuous(
+    "IgG concentration, log scale",
+    breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    labels = comma,
+    trans = "log10"
+  ) +
+  scale_x_discrete(
+    "Age and treatment group",
+    guide = legendry::guide_axis_nested(
+      key = key_range_auto(sep = "_"),
+      levels_text = list(element_text(), element_text(angle = 45, hjust = 0, vjust = 0.25))
+    )
+  ) +
+  scale_fill_manual(values = c("aP" = cols[1], "wP" = cols[2])) +
+  guides(fill = "none", colour = "none") +
+  theme(axis.title = element_text(size = rel(0.9)))
+```
+
+\clearpage
+
+### Geometric mean ratio and fold-rise
+
+```{r}
+#| label: fit-igg-all
+#| cache: true
+#| cache-lazy: false
+frm <- ~ trt + gender + ces + bfed + fborn + fha + parinc_imp
+mdat <- dat_igg |>
+  select(
+    antigen,
+    subjid,
+    stage,
+    visage,
+    concentration,
+    log_concentration,
+    trt,
+    gender,
+    ces,
+    bfed,
+    fborn,
+    fha,
+    parinc_imp
+  ) |>
+  mutate(
+    antigen = droplevels(antigen),
+    visage = droplevels(visage)
+  ) |>
+  complete(
+    antigen,
+    nesting(subjid, trt, gender, ces, bfed, fborn, fha, parinc_imp),
+    visage,
+    fill = list(concentration = NA, log_concentration = NA)
+  ) |>
+  nest(dat = -antigen)
+mdat <- mdat |>
+  mutate(
+    sdat = map(dat, ~ make_stan_data(.x, frm)),
+    sfit = map(
+      sdat,
+      ~ {
+        multinorm$sample(
+          data = .x,
+          seed = 71033,
+          chains = 8,
+          iter_sampling = 625,
+          iter_warmup = 500,
+          refresh = 0,
+          show_messages = FALSE,
+          show_exceptions = FALSE
+        )
+      }
+    ),
+    sdrw = map2(
+      sfit,
+      sdat,
+      ~ {
+        tmp <- as_draws_rvars(.x)
+        rownames(tmp$beta) <- colnames(.y$Y)
+        colnames(tmp$beta) <- colnames(.y$X)
+        return(tmp)
+      }
+    ),
+    gmr = map(
+      sdrw,
+      ~ {
+        out <- 10^.x$beta[, 2]
+        as_tibble(rbind(out), rownames = "age")
+      }
+    ),
+    gmfrr = map(
+      sdrw,
+      ~ {
+        out <- 10^rbind(.x$beta[2, 2] - .x$b[1, 2], .x$beta[4, 2] - .x$b[3, 2])
+        rownames(out) <- c("7/6-month (GMFR)", "19/18-month (GMFR)")
+        as_tibble(rbind(out), rownames = "age")
+      }
+    )
+  )
+gmr <- mdat |>
+  select(antigen, gmr) |>
+  unnest(gmr) |>
+  mutate(group = "GMR") |>
+  mutate(age = fct_inorder(age))
+gmfrr <- mdat |>
+  select(antigen, gmfrr) |>
+  unnest(gmfrr) |>
+  mutate(group = "GMFFR")
+```
+
+```{r}
+#| label: tbl-igg-gmr
+#| tbl-cap: |
+#|    Adjusted IgG GMR posterior summaries by serotype/antigen and age.
+posterior_gmr_table(filter(bind_rows(gmr, gmfrr), !grepl("PnP", antigen))) |>
+  tab_options(
+    latex.use_longtable = TRUE,
+    table.font.size = px(9),
+    table.width = pct(60)
+  )
+```
+
+```{r}
+#| label: tbl-igg-gmr-pnp
+#| tbl-cap: |
+#|    Adjusted IgG GMR posterior summaries by serotype/antigen and age.
+posterior_gmr_table(filter(bind_rows(gmr, gmfrr), grepl("PnP", antigen))) |>
+  tab_options(
+    latex.use_longtable = TRUE,
+    table.font.size = px(9),
+    table.width = pct(60)
+  )
+```
+
+```{r}
+#| label: fig-gmr-igg-full-model
+#| fig-cap: Posterior GMR (median and 95% CrI) for wP vs. aP by age and antigen.
+#| fig-width: 8
+#| fig-height: 10
+des <- "
+IA
+JB
+KC
+LD
+ME
+NF
+OG
+PH
+Q#
+R#
+S#
+T#
+U#
+"
+p <- gmr |>
+  ggplot(aes(y = age, xdist = trtwP)) +
+  ggh4x::facet_manual(vars(antigen), design = des, strip.position = "left") +
+  stat_pointinterval(.width = 0.95) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  labs(x = "Geometric mean ratio", y = "Age") +
+  scale_x_log10(breaks = c(0.4, 0.6, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 4)) +
+  scale_y_discrete(limits = rev)
+p
 ```
 
 \clearpage
