@@ -144,7 +144,7 @@ dat_spt |>
 #|   Number and percentage of infants with a positive SPT by 18 months of age.
 #|   Infants with no SPT records counted as missing.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 dat_spt |>
   summarise(
     across(
@@ -246,7 +246,7 @@ dat_spt |>
 #|   by 18 months of age by tested allergen (for those included in the standard panel).
 #|   Each cell gives positive/tested (%) [missing result%].
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 std_allergens <- c(
   "D.pteronyssinus",
   "cat dander",
@@ -320,7 +320,7 @@ dat_spt |>
 #|   Each cell gives positive/tested (%). Totals restricted to only those infants with at least one
 #|   additional allergen tested
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 std_allergens <- c(
   "D.pteronyssinus",
   "cat dander",
@@ -972,7 +972,7 @@ Overall `r sprintf("%i/%i (%.0f%%)", sum(dat_po$po), nrow(dat_po), 100 * mean(da
 #| tbl-cap: |
 #|   Number and percentage of infants who met each primary outcome condition and treatment group.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 dat_po |>
   tbl_summary(
     by = trt,
@@ -1007,7 +1007,7 @@ dat_po |>
 #| tbl-cap: |
 #|   Number and percentage of infants who met the primary outcome by primary reason and treatment group.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 dat_po |>
   tbl_summary(
     by = trt,
@@ -1290,7 +1290,7 @@ The number and percentage of infants with any clinician-diagnosed eczema is repo
 #| tbl-cap: |
 #|   Number and percentage of infants with any clinician-diagnosed eczema.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 
 # dat_ecz |>
 #   filter(out_ecz_preexisting) |>
@@ -1346,7 +1346,7 @@ tbl0 <- dat_ecz_spt |>
 #|   To be new-onset the first reaction date needed to be after the infants randomisation date.
 #|   Those with missing were due to eczema diagnosis being present but no SPT records being available.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 tbl1 <- dat_ecz_spt |>
   filter(!out_ecz_preexisting) |>
   mutate(

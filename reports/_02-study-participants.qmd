@@ -211,7 +211,7 @@ The majority of participants attended each study visit [@tbl-stage1-visit-attend
 #|   (based on presence of a reported "visit date").
 #|    6-month + 72 hour was optional visit.
 #| tbl-pos: "H"
-#| output: "asis"
+#| output: asis
 vs_by_trt <- dat_grid_vs |>
   filter(rand_stage == 1) |>
   summarise(

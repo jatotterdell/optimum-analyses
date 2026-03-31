@@ -176,11 +176,11 @@ igg_gmc_summary_tab <- function(
       indent = 1
     ) |>
     tab_spanner(
-      label = md("**aP**"),
+      label = "\\makecell{\\textbf{aP} \\\\ N = 150}",
       columns = ends_with("_aP")
     ) |>
     tab_spanner(
-      label = md("**wP**"),
+      label = "\\makecell{\\textbf{wP} \\\\ N = 150}",
       columns = ends_with("_wP")
     ) |>
     sub_missing(

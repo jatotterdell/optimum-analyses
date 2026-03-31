@@ -321,7 +321,7 @@ The number and percentage of infants with blood collected at each visit is repor
 #| tbl-cap: |
 #|   Number and proportion of infants who had blood collected at the specified ages.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 dat_bc |>
   mutate(lbipvst = if_else(is.na(lbipvst) | !lbipvst, FALSE, TRUE)) |>
   left_join(select(dat_base, subjid, rand_stage, trt), join_by(subjid)) |>
@@ -394,7 +394,7 @@ Even if blood collection occurred, IgE concentrations may have been missing (e.g
 #|    Number and proportion of participants with at least one observed IgE response (from any visit or allergen),
 #|    and with all planned IgE responses observed (all visits and allergens).
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 dat_ige |>
   select(record_id, trt, any_obs_concentration, all_obs_concentration) |>
   distinct() |>
@@ -454,7 +454,7 @@ Descriptive summaries of IgE concentrations (kU/L) are reported in @tbl-sample-i
 #|    Descriptive summary of IgE concentrations (kU/L) by allergen type, visit age,
 #|    and assigned vaccination schedule.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 tab <- dat_ige |>
   mutate(
     ige = if_else(ige == 0, 0.0005, ige)
@@ -530,7 +530,7 @@ gt(tab, groupname_col = "allergen", rowname_col = "visit_age") |>
 #| tbl-cap: |
 #|    Descriptive summary of geometric mean fold-rise (GMFR), geometric mean ratio (GMR), and geometric mean fold-rise ratio (GMFRR) of wP compared to aP. Number in brackets (n) indicates the number of infants contributing to the calculation.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 sample_gmr <- dat_ige |>
   # filter(allergen %in% c("Total IgE", "Tetanus-toxoid", "Egg white", "Whole egg")) |>
   mutate(
@@ -688,7 +688,7 @@ gmr_dat <- gmr_table_dat(gmr)
 #| label: tbl-gmr-gmfir-ige-total
 #| tbl-cap: Geometric mean ratio (GMR) and geometric mean fold rise ratio (GMFRR) for wP compared to aP by age.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 gmr_table(gmr_dat) |>
   tab_options(table.width = pct(65)) |>
   tab_footnote(
@@ -1061,7 +1061,7 @@ mdat <- mdat |>
 #| tbl-cap: |
 #|   The model estimated standardised risk, risk difference, and conditional odds ratio for IgE ≥ 0.01 kU/L comparing wP with aP.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 d1 <- mdat |>
   select(allergen, dat) |>
   unnest(dat) |>
@@ -1300,7 +1300,7 @@ res_sens <- bind_rows(res_sens_tetanus, res_sens_eggwhite, res_sens_wholeegg) |>
 
 ```{r}
 #| label: tbl-quantitation-summary
-#| tbl-cap: Summary of quantitation model results.
+#| tbl-cap: Summary of quantitation model estimates.
 #| tbl-pos: "H"
 #| include: false
 out <- res_sens |>
@@ -1729,7 +1729,7 @@ mdat <- mdat |>
 #| tbl-cap: |
 #|   The model estimated standardised risk, risk difference, and conditional odds ratio for IgE ≥ 0.1 kU/L comparing wP with aP.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 d1 <- mdat |>
   select(allergen, dat) |>
   unnest(dat) |>
@@ -1963,7 +1963,7 @@ out
 #|    Number and proportion of participants with at least one observed response,
 #|    and with all planned responses observed.
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 
 source(here("reports", "R", "functions.R"))
 multinorm <- cmdstan_model(file.path("stan", "multinorm.stan"))
@@ -2021,12 +2021,12 @@ miss_pattern_trt_tab(filter(dat_igg, antigen == "PT")) |>
 
 ### Descriptive summaries
 
-Descriptive summaries of 13vPCV serotype-specific IgG concentrations are reported in @tbl-igg-summary-pnps.
+Descriptive summaries of 13vPCV serotype-specific IgG concentrations are reported in @tbl-igg-summary-pnps. Summaries of fold-rises and ratios are reported in @tbl-sample-igg-gmr-dtap.
 
 ```{r}
 #| label: tbl-igg-summary-dtap
 #| tbl-cap: Descriptive summaries for IgG concentrations (IU/mL) by assigned treatment group.
-#| results: "asis"
+#| output: asis
 igg_gmc_summary_tab(
   filter(dat_igg, type != "PnPs")
 ) |>
@@ -2046,7 +2046,7 @@ igg_gmc_summary_tab(
 #| tbl-cap: |
 #|    Descriptive summary of geometric mean fold-rise (GMFR), percentage with 4-fold rise, geometric mean ratio (GMR), and geometric mean fold-rise ratio (GMFRR) of wP compared to aP. Number in brackets (n) indicates the number of infants contributing to the calculation of the quantity (GMC and GMFR).
 #| tbl-pos: "H"
-#| results: "asis"
+#| output: asis
 sample_gmr <- dat_igg |>
   filter(type != "PnPs") |>
   mutate(
@@ -2102,11 +2102,11 @@ gt(sample_gmr, groupname_col = "antigen", rowname_col = "visage") |>
     gmfrr ~ "GMFRR"
   ) |>
   tab_spanner(
-    label = "aP",
+    label = "\\makecell{\\textbf{aP} \\\\ N = 150}",
     columns = ends_with("_aP")
   ) |>
   tab_spanner(
-    label = "wP",
+    label = "\\makecell{\\textbf{wP} \\\\ N = 150}",
     columns = ends_with("_wP")
   ) |>
   sub_missing(c(fold4_aP, fold4_wP, gmfrr), missing_text = "") |>
@@ -2121,7 +2121,7 @@ gt(sample_gmr, groupname_col = "antigen", rowname_col = "visage") |>
 ```{r}
 #| label: tbl-igg-summary-pnps
 #| tbl-cap: Descriptive summaries for IgG concentrations (µg/mL) for 13-valent pneumococcal vaccine serotypes by assigned treatment group.
-#| results: "asis"
+#| output: asis
 igg_gmc_summary_tab(
   filter(dat_igg, type == "PnPs"),
   rn = "visage"
@@ -2131,7 +2131,7 @@ igg_gmc_summary_tab(
     table.font.size = px(8)
   ) |>
   as_latex() |>
-  gsub(pattern = "\\\\textendash", replacement = "\\\\textendash ") |>
+  latex_unescape() |>
   cat()
 ```
 
@@ -2295,7 +2295,7 @@ gmfrr <- mdat |>
 ```{r}
 #| label: tbl-igg-gmr
 #| tbl-cap: |
-#|    Adjusted IgG GMR posterior summaries by serotype/antigen and age.
+#|    Adjusted IgG GMR (wP versus aP) posterior summaries by serotype/antigen and age.
 posterior_gmr_table(filter(bind_rows(gmr, gmfrr))) |>
   tab_options(
     latex.use_longtable = TRUE,
@@ -2307,7 +2307,7 @@ posterior_gmr_table(filter(bind_rows(gmr, gmfrr))) |>
 ```{r}
 #| label: tbl-igg-gmr-pnp
 #| tbl-cap: |
-#|    Adjusted IgG GMR posterior summaries by serotype/antigen and age.
+#|    Adjusted IgG GMR (wP versus aP) posterior summaries by serotype/antigen and age.
 #| include: false
 posterior_gmr_table(filter(bind_rows(gmr, gmfrr), grepl("PnP", antigen))) |>
   tab_options(
@@ -2319,7 +2319,7 @@ posterior_gmr_table(filter(bind_rows(gmr, gmfrr), grepl("PnP", antigen))) |>
 
 ```{r}
 #| label: fig-gmr-igg-full-model
-#| fig-cap: Posterior GMR (median and 95% CrI) for wP vs. aP by age and antigen.
+#| fig-cap: Posterior GMR (median and 95% CrI) for wP versus aP by age and antigen.
 #| fig-width: 8
 #| fig-height: 10
 des <- "
@@ -2422,6 +2422,7 @@ mdat_igg_sero <- mdat_igg_sero |>
 #| tbl-cap: |
 #|   The model estimated standardised risk, risk difference, and conditional odds ratio for seroprotection comparing wP with aP.
 #| tbl-pos: "H"
+#| output: asis
 d1_igg_sero <- mdat_igg_sero |>
   select(antigen, dat) |>
   unnest(dat) |>
@@ -2518,11 +2519,11 @@ td |>
   ) |>
   tab_spanner(
     columns = ends_with("aP"),
-    label = "aP"
+    label = "\\makecell{\\textbf{aP} \\\\ N = 150}"
   ) |>
   tab_spanner(
     columns = ends_with("wP"),
-    label = "wP"
+    label = "\\makecell{\\textbf{wP} \\\\ N = 150}"
   ) |>
   tab_spanner(
     columns = ends_with("delta"),
@@ -2547,7 +2548,10 @@ td |>
   tab_footnote(
     "All models adjust for and standardise over sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
   ) |>
-  tab_options(table.font.size = px(8), latex.use_longtable = TRUE)
+  tab_options(table.font.size = px(8), latex.use_longtable = TRUE) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
 ```
 
 ```{r}
