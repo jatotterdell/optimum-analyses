@@ -60,8 +60,8 @@ miss_pattern_trt_tab <- function(dat, var = concentration) {
     cols_merge(ends_with("_aP"), pattern = "<<{1} ({2})>>") |>
     cols_merge(ends_with("_wP"), pattern = "<<{1} ({2})>>") |>
     cols_label(
-      `n_aP` = md("aP<br>(n = 150)"),
-      `n_wP` = md("wP<br>(n = 150)")
+      `n_aP` = md("aP<br>N = 150"),
+      `n_wP` = md("wP<br>N = 150")
     ) |>
     cols_align(align = "center", columns = 1:4) |>
     tab_spanner(
@@ -266,4 +266,122 @@ posterior_gmr_table <- function(gmr) {
       locations = cells_column_labels(columns = everything())
     )
   return(out_tab)
+}
+
+fit_positive_model <- function(dd) {
+  make_ate <- function(dat, fit) {
+    nd <- filter(dat, visage == "6-month")
+    ndat <- expand_grid(visage = c("6-month", "7-month", "18-month", "19-month"), treatment = c("aP", "wP"))
+    tmp <- brmsmargins(
+      fit,
+      newdata = nd,
+      at = ndat,
+      effects = "integrateoutRE",
+      CI = 0.95,
+      k = 100L,
+      seed = 123,
+      contrasts = cbind(
+        "6-month_wP - aP" = c(-1, 1, 0, 0, 0, 0, 0, 0),
+        "7-month_wP - aP" = c(0, 0, -1, 1, 0, 0, 0, 0),
+        "18-month_wP - aP" = c(0, 0, 0, 0, -1, 1, 0, 0),
+        "19-month_wP - aP" = c(0, 0, 0, 0, 0, 0, -1, 1)
+      )
+    )
+    r <- rvar(cbind(tmp$Posterior, tmp$Contrasts))
+    names(r)[seq_len(nrow(ndat))] <- apply(ndat, 1, paste, collapse = "_")
+    out <- as_tibble(t(r)) |>
+      pivot_longer(everything(), names_to = c("age", "treatment"), names_sep = "_", values_to = "posterior") |>
+      mutate(measure = "RD")
+    return(out)
+  }
+
+  make_ors <- function(fit) {
+    drws <- rvar(as_draws_matrix(fit))
+    nms <- names(drws)[grepl("^b_", names(drws))]
+    beta <- drws[names(drws) %in% nms]
+    tmp <- t(marginalcoef(fit, posterior = TRUE, k = 200L)$Posterior)
+    bad_drw <- rowSums(is.na(tmp)) != 0 # Hack to deal with one NaN draw due to overflow
+    beta_marg <- rvar(tmp[!bad_drw, ])
+    names(beta_marg) <- names(beta)
+    beta <- subset_draws(beta, iteration = setdiff(seq_len(niterations(beta)), which(bad_drw)))
+    or <- tibble(
+      age = c("6-month", "7-month", "18-month", "19-month", "6-month", "7-month", "18-month", "19-month"),
+      treatment = "wP - aP",
+      measure = c("cOR", "cOR", "cOR", "cOR", "mOR", "mOR", "mOR", "mOR"),
+      posterior = exp(c(
+        beta["b_treatmentwP"],
+        beta["b_treatmentwP"] + beta["b_age7Mmonth:treatmentwP"],
+        beta["b_treatmentwP"] + beta["b_age18Mmonth:treatmentwP"],
+        beta["b_treatmentwP"] + beta["b_age19Mmonth:treatmentwP"],
+        beta_marg["b_treatmentwP"],
+        beta_marg["b_treatmentwP"] + beta_marg["b_age7Mmonth:treatmentwP"],
+        beta_marg["b_treatmentwP"] + beta_marg["b_age18Mmonth:treatmentwP"],
+        beta_marg["b_treatmentwP"] + beta_marg["b_age19Mmonth:treatmentwP"]
+      ))
+    )
+    return(or)
+  }
+
+  glmm_prior <- c(
+    prior(student_t(4, 0, 1.75), class = "b"),
+    prior(student_t(4, 0, 1.75), class = "Intercept"),
+    prior(exponential(1), class = "sd")
+  )
+  mdat <- dd |>
+    to_factor(drop_unused_labels = TRUE) |>
+    select(antigen, subjid, positive, visage, trt, gender, bfed, fborn, ces, fha, parinc_imp) |>
+    mutate(subjid = fct_inorder(subjid), id = as.numeric(subjid))
+  # X <- model.matrix(~ gender + bfed + fborn + caes + fha + inc, data = mdat)[, -1]
+  # XX <- scale(X, scale = FALSE)
+  # mdat <- bind_cols(mdat, as_tibble(XX))
+  # mdat_ac <- filter(mdat, !is.na(positive))
+  mfit <- mdat |>
+    nest(data_all = -antigen) |>
+    mutate(
+      data = map(data_all, ~ filter(.x, !is.na(positive))),
+      # fit1 = map(data, ~ brm(
+      #   positive ~ age * treatment + (1 | id),
+      #   data = .x,
+      #   family = bernoulli(),
+      #   backend = "cmdstanr",
+      #   prior = glmm_prior,
+      #   seed = 71235,
+      #   refresh = 0,
+      #   chains = 8,
+      #   iter = 1750,
+      #   warmup = 500,
+      #   adapt_delta = 0.98
+      # )),
+      fit2 = map(
+        data,
+        ~ brm(
+          positive ~ visage * (trt + gender + bfed + fborn + ces + fha + parinc_imp) + (1 | subjid),
+          data = .x,
+          family = bernoulli(),
+          backend = "cmdstanr",
+          prior = glmm_prior,
+          seed = 71235,
+          refresh = 0,
+          chains = 8,
+          iter = 1750,
+          warmup = 500,
+          adapt_delta = 0.98
+        )
+      ),
+      # fit2 = map2(fit1, data, ~ update(
+      #   .x,
+      #   formula = ~ . + age * (
+      #     genderMale + bfedPartial + bfedNone + fbornYes + caesCaesarean + fhaYes + inc87001to180000 + inclt87001
+      #   ),
+      #   newdata = .y
+      # ))
+    )
+  mfit2 <- mfit |>
+    mutate(
+      # ate1 = map2(data_all, fit1, make_ate),
+      ate2 = map2(data_all, fit2, make_ate),
+      # beta1 = map(fit1, make_ors),
+      beta2 = map(fit2, make_ors)
+    )
+  return(mfit2)
 }

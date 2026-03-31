@@ -314,7 +314,7 @@ miss_pattern_trt_tab_ige <- function(dat, var = concentration) {
 
 For participants enrolled under stage 1, blood collection was to occur at visit 3 (6 to <7-months), visit 5 (21 to 35 days after visit 3, i.e. at 7-months), visit 7 (18 to <19-months), and visit 8 (21 to 35 days after visit 7, i.e. at 19-months). For those enrolled under stage 2, blood collection was at 18 to <19-months and 21 to 35 days after that collection.
 
-The number and percentage of infants with blood collected at each visit is reported in @tbl-blood-collection. Most collections occurred within the protocolised window but were late on occasion (@fig-blood-collection-gaps).
+The number and percentage of infants with blood collected at each visit is reported in @tbl-blood-collection. Most collections occurred at the scheduled ages (@fig-blood-collection-age) and within the protocolised window (@fig-blood-collection-gaps) but some collections did occur outside the windows.
 
 ```{r}
 #| label: tbl-blood-collection
@@ -348,6 +348,21 @@ dat_bc |>
   as_latex() |>
   latex_unescape() |>
   cat()
+```
+
+```{r}
+#| label: fig-blood-collection-age
+#| fig-cap: |
+#|   Age (months) at blood collection by scheduled visit based on date of birth and documented visit dates.
+#| fig-height: 2.5
+dat_bc |>
+  left_join(select(dat_base, subjid, birthdat)) |>
+  mutate(bc_age = interval(birthdat, lbipdat) %/% months(1)) |>
+  ggplot(aes(bc_age)) +
+  facet_wrap(~visage, scales = "free_x") +
+  geom_histogram(boundary = 0.5, binwidth = 1) +
+  scale_x_continuous(breaks = seq(5, 20, 1)) +
+  labs(y = "Count", x = "Age (months) at blood collection")
 ```
 
 ```{r}
@@ -597,11 +612,6 @@ Model estimated geometric mean ratios (GMRs) and geometric mean fold-rise ratios
 For total IgE, the GMFRR from 6 to 7 months was 0.94 (0.72, 1.22) and the probability of a reduction in the GMFR was 0.69.
 
 ```{r}
-dat_ige |>
-  mutate(log_ige = log10(ige))
-```
-
-```{r}
 #| label: model-ige-total
 #| cache: true
 fit_ige_model <- function(ige_ref) {
@@ -791,7 +801,10 @@ dat_summ |>
   cols_label(
     c(med_delta) ~ "Median (95% CrI), Pr(<0)"
   ) |>
-  tab_options(table.font.size = px(9))
+  tab_options(table.font.size = px(9)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
 ```
 
 ```{r}
@@ -1048,6 +1061,7 @@ mdat <- mdat |>
 #| tbl-cap: |
 #|   The model estimated standardised risk, risk difference, and conditional odds ratio for IgE ≥ 0.01 kU/L comparing wP with aP.
 #| tbl-pos: "H"
+#| results: "asis"
 d1 <- mdat |>
   select(allergen, dat) |>
   unnest(dat) |>
@@ -1151,11 +1165,11 @@ td |>
   ) |>
   tab_spanner(
     columns = ends_with("aP"),
-    label = "aP"
+    label = "\\makecell{\\textbf{aP} \\\\ N = 75}"
   ) |>
   tab_spanner(
     columns = ends_with("wP"),
-    label = "wP"
+    label = "\\makecell{\\textbf{wP} \\\\ N = 75}"
   ) |>
   tab_spanner(
     columns = ends_with("delta"),
@@ -1180,7 +1194,10 @@ td |>
   tab_footnote(
     "All models adjust for and standardise over sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
   ) |>
-  tab_options(table.font.size = px(8))
+  tab_options(table.font.size = px(8)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
 ```
 
 ```{r}
@@ -1355,7 +1372,6 @@ out
 ### Sensitisation
 
 Model estimate difference in probability of concentrations ≥0·1 kU/L, and conditional odds ratios, comparing wP with aP, are reported in @tbl-logistic-regression-ige-sens. Estimates had a large magnitude of uncertainty, but generally, there was only weak support for any direction of effect on probability of IgE concentration exceeding 0·1 kU/L.
-
 
 ```{r}
 #| label: univariate-beta-binomial-ige-sens-check
@@ -1713,6 +1729,7 @@ mdat <- mdat |>
 #| tbl-cap: |
 #|   The model estimated standardised risk, risk difference, and conditional odds ratio for IgE ≥ 0.1 kU/L comparing wP with aP.
 #| tbl-pos: "H"
+#| results: "asis"
 d1 <- mdat |>
   select(allergen, dat) |>
   unnest(dat) |>
@@ -1816,11 +1833,11 @@ td |>
   ) |>
   tab_spanner(
     columns = ends_with("aP"),
-    label = "aP"
+    label = "\\makecell{\\textbf{aP} \\\\ N = 75}"
   ) |>
   tab_spanner(
     columns = ends_with("wP"),
-    label = "wP"
+    label = "\\makecell{\\textbf{wP} \\\\ N = 75}"
   ) |>
   tab_spanner(
     columns = ends_with("delta"),
@@ -1845,7 +1862,10 @@ td |>
   tab_footnote(
     "All models adjust for and standardise over sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
   ) |>
-  tab_options(table.font.size = px(8))
+  tab_options(table.font.size = px(8)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
 ```
 
 ```{r}
@@ -1988,7 +2008,7 @@ dat_igg |>
 ```{r}
 #| label: tbl-igg-missingness-dtap
 #| tbl-cap:
-#|    Missingness pattern of IgG concentrations by study stage.
+#|    Missingness pattern of IgG concentrations (anti-PT) by study stage.
 #| tbl-pos: H
 miss_pattern_trt_tab(filter(dat_igg, antigen == "PT")) |>
   tab_options(
@@ -2000,6 +2020,8 @@ miss_pattern_trt_tab(filter(dat_igg, antigen == "PT")) |>
 \clearpage
 
 ### Descriptive summaries
+
+Descriptive summaries of 13vPCV serotype-specific IgG concentrations are reported in @tbl-igg-summary-pnps.
 
 ```{r}
 #| label: tbl-igg-summary-dtap
@@ -2013,9 +2035,88 @@ igg_gmc_summary_tab(
     table.font.size = px(8)
   ) |>
   as_latex() |>
-  gsub(pattern = "\\\\textendash", replacement = "\\\\textendash ") |>
+  latex_unescape() |>
   cat()
 ```
+
+
+```{r}
+#| label: tbl-sample-igg-gmr-dtap
+#| code-summary: Sample summaries
+#| tbl-cap: |
+#|    Descriptive summary of geometric mean fold-rise (GMFR), percentage with 4-fold rise, geometric mean ratio (GMR), and geometric mean fold-rise ratio (GMFRR) of wP compared to aP. Number in brackets (n) indicates the number of infants contributing to the calculation of the quantity (GMC and GMFR).
+#| tbl-pos: "H"
+#| results: "asis"
+sample_gmr <- dat_igg |>
+  filter(type != "PnPs") |>
+  mutate(
+    fold_rise = if_else(!(visage %in% c("7-month", "19-month")), NA_real_, fold_rise),
+    four_fold = as.numeric(fold_rise >= 4)
+  ) |>
+  arrange(subjid, antigen, visage) |>
+  summarise(
+    .by = c(antigen, trt, visage),
+    obs_gmc = sum(!is.na(concentration)),
+    gmc = gmc(concentration, na.rm = TRUE),
+    obs_gmfr = sum(!is.na(fold_rise)),
+    gmfr = gmc(fold_rise, na.rm = TRUE),
+    fold4 = mean(four_fold, na.rm = TRUE)
+  ) |>
+  pivot_wider(names_from = trt, values_from = c(obs_gmc, gmc, obs_gmfr, gmfr, fold4)) |>
+  mutate(gmr = gmc_wP / gmc_aP, gmfrr = gmfr_wP / gmfr_aP) |>
+  mutate(
+    obs_gmfr_aP = replace_values(obs_gmfr_aP, 0 ~ NA),
+    obs_gmfr_wP = replace_values(obs_gmfr_wP, 0 ~ NA)
+  )
+
+gt(sample_gmr, groupname_col = "antigen", rowname_col = "visage") |>
+  fmt_integer(starts_with("obs")) |>
+  fmt_number(starts_with(c("gmc", "gmr", "gmfr")), decimals = 2) |>
+  fmt_percent(starts_with("fold4"), decimals = 0) |>
+  cols_merge(
+    columns = c(gmc_aP, obs_gmc_aP),
+    pattern = "<<{1} ({2})>>"
+  ) |>
+  cols_merge(
+    columns = c(gmc_wP, obs_gmc_wP),
+    pattern = "<<{1} ({2})>>"
+  ) |>
+  cols_merge(
+    columns = c(gmfr_aP, obs_gmfr_aP),
+    pattern = "<<{1} ({2})>>"
+  ) |>
+  cols_merge(
+    columns = c(gmfr_wP, obs_gmfr_wP),
+    pattern = "<<{1} ({2})>>"
+  ) |>
+  cols_label(
+    obs_gmc_aP = "n",
+    obs_gmc_wP = "n",
+    gmc_aP = "GMC (n)",
+    gmc_wP = "GMC (n)",
+    gmfr_aP = "GMFR (n)",
+    gmfr_wP = "GMFR (n)",
+    fold4_aP = "4-fold rise",
+    fold4_wP = "4-fold rise",
+    gmr ~ "GMR",
+    gmfrr ~ "GMFRR"
+  ) |>
+  tab_spanner(
+    label = "aP",
+    columns = ends_with("_aP")
+  ) |>
+  tab_spanner(
+    label = "wP",
+    columns = ends_with("_wP")
+  ) |>
+  sub_missing(c(fold4_aP, fold4_wP, gmfrr), missing_text = "") |>
+  tab_options(table.font.size = px(9)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+\clearpage
 
 ```{r}
 #| label: tbl-igg-summary-pnps
@@ -2034,13 +2135,13 @@ igg_gmc_summary_tab(
   cat()
 ```
 
-
 ```{r}
 #| label: fig-igg-dtap
 #| fig-cap: |
 #|    IgG concentrations at 18 and 19-months of age for pertussis antigens by treatment group.
 #| fig-width: 6
 #| fig-height: 4
+#| include: false
 cols <- palette.colors(palette = "Okabe-Ito")[1:2]
 dat_igg |>
   filter(type == "DTaP") |>
@@ -2072,6 +2173,7 @@ dat_igg |>
 #|    IgG concentrations at 18-months of age for pneumococcal antigens by treatment group.
 #| fig-width: 6
 #| fig-height: 8
+#| include: false
 cols <- palette.colors(palette = "Okabe-Ito")[1:2]
 dat_igg |>
   filter(type == "PnPs") |>
@@ -2099,7 +2201,9 @@ dat_igg |>
 
 \clearpage
 
-### Geometric mean ratio and fold-rise
+### Geometric mean ratio and fold-rise ratio
+
+Model estimated geometric mean ratios and geometric mean fold-rise ratios are reported for all antigens in @tbl-igg-gmr and geometric mean ratios are displayed in @fig-gmr-igg-full-model. At 6-months, geometric mean concentrations were lower under wP compared to aP for FHA and PT. For other ages and antigens, concentrations were generally similar (GMR of at least 2/3) or higher under wP compared to aP.
 
 ```{r}
 #| label: fit-igg-all
@@ -2192,7 +2296,7 @@ gmfrr <- mdat |>
 #| label: tbl-igg-gmr
 #| tbl-cap: |
 #|    Adjusted IgG GMR posterior summaries by serotype/antigen and age.
-posterior_gmr_table(filter(bind_rows(gmr, gmfrr), !grepl("PnP", antigen))) |>
+posterior_gmr_table(filter(bind_rows(gmr, gmfrr))) |>
   tab_options(
     latex.use_longtable = TRUE,
     table.font.size = px(9),
@@ -2204,6 +2308,7 @@ posterior_gmr_table(filter(bind_rows(gmr, gmfrr), !grepl("PnP", antigen))) |>
 #| label: tbl-igg-gmr-pnp
 #| tbl-cap: |
 #|    Adjusted IgG GMR posterior summaries by serotype/antigen and age.
+#| include: false
 posterior_gmr_table(filter(bind_rows(gmr, gmfrr), grepl("PnP", antigen))) |>
   tab_options(
     latex.use_longtable = TRUE,
@@ -2242,6 +2347,419 @@ p <- gmr |>
   scale_x_log10(breaks = c(0.4, 0.6, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 4)) +
   scale_y_discrete(limits = rev)
 p
+```
+
+\clearpage
+
+### Seroprotection
+
+```{r}
+#| label: model-igg-seropos-all
+#| include: false
+#| cache: true
+#| cache-lazy: false
+prior <- c(
+  prior(student_t(4, 0, 1.75), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = b),
+  prior(exponential(1), class = "sd")
+)
+
+mdat_igg_sero <- dat_igg |>
+  # filter(type != "PnPs") |>
+  mutate(y = positive) |>
+  nest(dat = -antigen)
+
+mdat_igg_sero <- mdat_igg_sero |>
+  mutate(
+    fit = map(
+      dat,
+      ~ brm(
+        y ~ visage * (trt + gender + bfed + fborn + ces + fha + parinc_imp) + (1 | subjid),
+        data = filter(.x, !is.na(y)),
+        family = bernoulli,
+        backend = "cmdstanr",
+        prior = prior,
+        seed = 71235,
+        refresh = 0,
+        chains = 8,
+        iter = 625,
+        warmup = 500
+      )
+    )
+  )
+
+mdat_igg_sero <- mdat_igg_sero |>
+  mutate(
+    rd2 = map2(
+      dat,
+      fit,
+      ~ {
+        epred <- rvar(
+          prediction(
+            .y,
+            .x,
+            summarize = FALSE,
+            posterior = TRUE,
+            raw = TRUE,
+            effects = "integrateoutRE",
+            k = 100,
+            seed = 123
+          )$Posterior
+        )
+        .x |>
+          mutate(.epred = epred) |>
+          summarise(
+            .by = c(visage, trt),
+            .epred = rvar_mean(.epred)
+          )
+      }
+    )
+  )
+```
+
+```{r}
+#| label: tbl-logistic-regression-igg-seropos-dtap
+#| tbl-cap: |
+#|   The model estimated standardised risk, risk difference, and conditional odds ratio for seroprotection comparing wP with aP.
+#| tbl-pos: "H"
+d1_igg_sero <- mdat_igg_sero |>
+  select(antigen, dat) |>
+  unnest(dat) |>
+  summarise(
+    .by = c(visage, antigen, trt),
+    e = sum(y, na.rm = TRUE),
+    n = sum(!is.na(y)),
+    p = e / n
+  )
+d2_igg_sero <- mdat_igg_sero |>
+  select(antigen, rd2) |>
+  unnest(rd2)
+
+d3_igg_sero <- mdat_igg_sero |>
+  select(antigen, fit) |>
+  mutate(
+    b = map(
+      fit,
+      ~ {
+        rvs <- rvar(as_draws_matrix(.x))
+        bs <- rvs[grepl("trt", names(rvs))]
+        tibble(
+          visage = c("6-month", "7-month", "18-month", "19-month"),
+          bs = exp(c(bs[1], bs[1] + bs[2], bs[1] + bs[3], bs[1] + bs[4]))
+        )
+      }
+    )
+  )
+
+td <- left_join(d1_igg_sero, d2_igg_sero, join_by(visage, antigen, trt)) |>
+  rename(y = e) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p, .epred)
+  ) |>
+  mutate(delta = .epred_wP - .epred_aP) |>
+  mutate(across(
+    c(.epred_aP, .epred_wP, delta),
+    list(
+      med = median,
+      lo = ~ quantile2(.x, 0.025),
+      hi = ~ quantile2(.x, 0.975),
+      pr = ~ Pr(.x < 0)
+    ),
+    .names = "{.fn}_{.col}"
+  )) |>
+  select(-pr_.epred_aP, -pr_.epred_wP, -.epred_aP, -.epred_wP, -delta) |>
+  left_join(
+    d3_igg_sero |>
+      select(antigen, b) |>
+      unnest(b) |>
+      mutate(across(
+        bs,
+        list(
+          med = median,
+          lo = ~ quantile2(.x, 0.025),
+          hi = ~ quantile2(.x, 0.975)
+        ),
+        .names = "{.fn}_{.col}"
+      )) |>
+      select(-bs),
+    join_by(antigen, visage)
+  ) |>
+  mutate(visage = factor(visage, levels = c("6-month", "7-month", "18-month", "19-month"))) |>
+  arrange(antigen, visage)
+
+td |>
+  gt(rowname_col = "visage", groupname_col = "antigen") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_aP, lo_.epred_aP, hi_.epred_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_wP, lo_.epred_wP, hi_.epred_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  cols_merge(
+    c(med_bs, lo_bs, hi_bs),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  tab_spanner(
+    columns = ends_with("bs"),
+    label = "Conditional odds ratio"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_.epred_aP, med_.epred_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  cols_label(
+    c(med_bs) ~ "Median (95% CrI)"
+  ) |>
+  tab_footnote(
+    "All models adjust for and standardise over sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
+  ) |>
+  tab_options(table.font.size = px(8), latex.use_longtable = TRUE)
+```
+
+```{r}
+#| label: fig-gmr-igg-sero-dtap
+#| fig-cap: Posterior difference in seropositivity probability (median and 95% CrI) for wP vs. aP by age and antigen.
+#| fig-width: 8
+#| fig-height: 10
+des <- "
+IA
+JB
+KC
+LD
+ME
+NF
+OG
+PH
+Q#
+R#
+S#
+T#
+U#
+"
+p <- d2_igg_sero |>
+  pivot_wider(names_from = trt, values_from = .epred) |>
+  mutate(delta = wP - aP) |>
+  ggplot(aes(y = visage, xdist = delta)) +
+  ggh4x::facet_manual(vars(antigen), design = des, strip.position = "left") +
+  stat_pointinterval(.width = 0.95) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  labs(x = "Difference in seropositivity probability, wP versus aP", y = "Age") +
+  scale_y_discrete(limits = rev)
+p
+```
+
+\clearpage
+
+### Four-fold rise
+
+```{r}
+#| label: model-igg-four-fold
+#| include: false
+#| cache: true
+prior <- c(
+  prior(student_t(4, 0, 1.75), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = b)
+)
+
+mdat_igg_fr <- dat_igg |>
+  filter(visage == "19-month", type != "PnPs", antigen != "HBsAg") |>
+  mutate(y = as.numeric(fold_rise >= 4)) |>
+  nest(dat = -antigen) |>
+  mutate(
+    fit = map(
+      dat,
+      ~ brm(
+        y ~ trt + gender + bfed + fborn + ces + fha + parinc_imp,
+        data = filter(.x, !is.na(y)),
+        family = bernoulli,
+        backend = "cmdstanr",
+        prior = prior,
+        seed = 71235,
+        refresh = 0,
+        chains = 8,
+        iter = 625,
+        warmup = 500
+      )
+    )
+  )
+
+mdat_igg_fr <- mdat_igg_fr |>
+  mutate(
+    rd = map2(
+      dat,
+      fit,
+      ~ .x |>
+        add_epred_rvars(.y) |>
+        summarise(
+          .by = c(visage, trt),
+          .epred = rvar_mean(.epred)
+        )
+    )
+  )
+```
+
+```{r}
+d1_igg_fr <- mdat_igg_fr |>
+  select(antigen, dat) |>
+  unnest(dat) |>
+  summarise(
+    .by = c(visage, antigen, trt),
+    e = sum(y, na.rm = TRUE),
+    n = sum(!is.na(y)),
+    p = e / n
+  )
+d2_igg_fr <- mdat_igg_fr |>
+  select(antigen, rd) |>
+  unnest(rd)
+d3_igg_fr <- mdat_igg_fr |>
+  select(antigen, fit) |>
+  mutate(
+    b = map(
+      fit,
+      ~ {
+        rvs <- rvar(as_draws_matrix(.x))
+        bs <- rvs[grepl("trt", names(rvs))]
+        tibble(
+          visage = c("19-month"),
+          bs = exp(bs[1])
+        )
+      }
+    )
+  )
+
+td <- left_join(d1_igg_fr, d2_igg_fr, join_by(visage, antigen, trt)) |>
+  rename(y = e) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p, .epred)
+  ) |>
+  mutate(delta = .epred_wP - .epred_aP) |>
+  mutate(across(
+    c(.epred_aP, .epred_wP, delta),
+    list(
+      med = median,
+      lo = ~ quantile2(.x, 0.025),
+      hi = ~ quantile2(.x, 0.975),
+      pr = ~ Pr(.x < 0)
+    ),
+    .names = "{.fn}_{.col}"
+  )) |>
+  select(-pr_.epred_aP, -pr_.epred_wP, -.epred_aP, -.epred_wP, -delta) |>
+  left_join(
+    d3_igg_fr |>
+      select(antigen, b) |>
+      unnest(b) |>
+      mutate(across(
+        bs,
+        list(
+          med = median,
+          lo = ~ quantile2(.x, 0.025),
+          hi = ~ quantile2(.x, 0.975)
+        ),
+        .names = "{.fn}_{.col}"
+      )) |>
+      select(-bs),
+    join_by(antigen, visage)
+  ) |>
+  mutate(visage = factor(visage, levels = c("6-month", "7-month", "18-month", "19-month"))) |>
+  arrange(antigen, visage)
+
+td |>
+  select(-visage) |>
+  gt(rowname_col = "antigen") |>
+  fmt_percent(starts_with("p_"), decimals = 0) |>
+  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_aP, lo_.epred_aP, hi_.epred_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_.epred_wP, lo_.epred_wP, hi_.epred_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  cols_merge(
+    c(med_bs, lo_bs, hi_bs),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  tab_spanner(
+    columns = ends_with("bs"),
+    label = "Conditional odds ratio"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_.epred_aP, med_.epred_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  cols_label(
+    c(med_bs) ~ "Median (95% CrI)"
+  ) |>
+  tab_footnote(
+    "All models adjust for and standardise over sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
+  ) |>
+  tab_options(table.font.size = px(8), latex.use_longtable = TRUE)
 ```
 
 \clearpage

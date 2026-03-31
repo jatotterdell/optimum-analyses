@@ -1819,6 +1819,7 @@ combine_igg <- function() {
     arrange(subjid, group, antigen, visage) |>
     left_join(units_igg, join_by(antigen)) |>
     mutate(
+      ref = if_else(antigen == "Hib-PRP" & visage %in% c("6-month", "7-month"), 150, ref),
       positive = as.numeric(concentration > ref),
       # Hib-PRP we use age-specific threshold
       positive = case_when(

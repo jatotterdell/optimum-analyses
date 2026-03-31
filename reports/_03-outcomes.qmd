@@ -189,6 +189,7 @@ dat_spt |>
 Whole egg had a higher proportion of missingness than other allergens from the standard panel. This was usually because either egg white or egg yolk specifically was assessed and reported in the additional allergens instead of whole egg.
 
 ```{r}
+#| label: spt-check
 #| include: false
 std_allergens <- c(
   "D.pteronyssinus",

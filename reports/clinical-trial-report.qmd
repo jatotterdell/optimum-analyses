@@ -6,7 +6,7 @@ subtitle: |
 description: |
   A double-blind, randomised, controlled trial to compare allergic outcomes in children following vaccination with acellular pertussis antigen given at 2 months of age versus whole cell pertussis in the infant vaccine schedule
 date: today
-author: James Totterdell
+author: OPTIMUM study team
 ---
 
 ```{r}

@@ -106,4 +106,95 @@ A secondary analysis was to assume a logistic regression model for occurrence of
 
 Analyses of secondary outcomes are analogous to those for the primary outcome, both the primary and secondary models.
 
+### Geometric mean concentrations
+
+Both the IgE and IgG concentrations were analysed assuming multivariate normal models on the log~10~ transformed concentrations with an unstructured covariance matrix shared across all participants. Analyses were undertaken on the scale of the lab-reported units.
+
+The geometric mean ratio (GMR) of wP relative to aP on each occasion was calculated for each allergen and antigen type. Additionally, geometric mean fold rise ratios (GMFRR) of wP relative to aP are calculated for relevant sequential occasions.
+
+In the analysis of allergen specific IgE concentrations, some values were reported as 0.00 kU/L (6-month and 7-month) or 0.000 kU/L (19-month). These values were treated as left-censored at 0.005 kU/L and 0.0005 kU/L respectively to satisfy the model condition that concentrations were above 0 for all participants.
+
+All models adjusted for the same covariates as specified for the primary outcome. Effects were allowed to vary by study visit.
+
+::: {.callout-note}
+
+## Concentration model
+
+For infants $i=1,\ldots,n$ measured on occasions $j=1,\ldots,J$ (at most $J = 4$: 6-month, 7-month, 18-month, and 19-month), with model covariates $p = 1,\ldots,P$, the pre-specified model for concentration $Y_i$ was
+
+$$
+\begin{aligned}
+\log_{10}(Y_i) &\sim \text{Normal}_J(\mu_i, \Sigma) \\
+\mu_{ij} &= \alpha_j + x_{ij}^\mathsf{T}\beta_j \\
+\Sigma &= \text{diag}(\sigma)\Omega\text{diag}(\sigma) \\
+\alpha_j &\sim \text{Normal}(0, 10^2), \quad j=1,\ldots,J \\
+\beta_{jp} &\sim \text{Normal}(0, 10^2), \quad j=1,\ldots,J,\ p=1,\ldots,P \\
+\Omega &\sim \text{LKJ}(1) \\
+\sigma_j &\sim \text{Cauchy}^+(0, 10), \quad j=1,\ldots,J.
+\end{aligned}
+$$
+
+:::
+
+### Binary outcomes (quantitation, seropositivity, four-fold rise)
+
+For binary outcomes, logistic regression models were assumed. If the outcome consists of multiple responses per participant then a participant-specific random intercept was included in the model. All models adjusted for the same covariates as specified for the primary outcome. Effects were allowed to vary by study visit.
+
+::: {.callout-note}
+
+## Binary model
+
+Denote by $Y_{ij}$ the binary outcome for participant $i$ on occasion $j$, then the model was
+$$
+\begin{aligned}
+  Y_{ij} &\sim \text{Bernoulli}(\pi_{ij}) \\
+  \pi_{ij} &= \text{logit}^{-1}(\eta_{ij}) \\
+  \eta_{ij} &= \alpha + \omega_j + z_i\theta_j + \sum_{p=1}^Px_{ip}\beta_{jp} + \gamma_i \\
+  \gamma|\tau^2 &\sim \text{Normal}(0, \tau^2) \\
+  \omega_1 &= 0 \\
+  \alpha, \omega_{2:J}, \theta, \beta &\sim \text{Student-t}(4, 0, 1.75^2) \\
+  \tau &\sim \text{Exponential}(1)
+\end{aligned}
+$$
+
+:::
+
+### Quantity Definitions
+
+**Geometric mean concentration**: For concentrations $x_1,\ldots,x_n$, the geometric mean concentration (GMC) is just the geometric mean of the concentrations, i.e.
+
+$$
+\text{GMC} = \exp\left(n^{-1}\sum_{i=1}^n \ln x_i\right).
+$$
+
+Under a log-normal model, where $\ln X \sim \text{Normal}(\mu, \sigma^2)$, the geometric mean of $X$ is just $\exp(\mu)$.
+
+**Geometric standard deviation**: The geometric standard deviation (GSD) if a collection of values $x_1,\ldots,x_n$ is
+
+$$
+\text{GSD} = \exp\left(\sqrt{n^{-1}\sum_{i=1}^n \left(\ln\frac{x_i}{\text{GM}}\right)^2}\right)
+$$
+
+where $\text{GM}$ is the geometric mean of $x_1,\ldots,x_n$.
+
+Under a log-normal model, where $\ln X \sim \text{Normal}(\mu, \sigma^2)$, the geometric standard deviation of $X$ is just $\exp(\sigma)$.
+
+**Geometric mean ratio**: the geometric mean ratio (GMR) between two groups is the ratio of the geometric mean concentration in each group. For example, if $\text{GMC}_{\text{wP}}$ is the GMC under the wP schedule, and $\text{GMC}_{\text{aP}}$ under the aP schedule, then the GMR of wP compared to aP is
+
+$$
+\text{GMR} = \frac{\text{GMC}_{\text{wP}}}{\text{GMC}_{\text{aP}}}.
+$$
+
+**Geometric mean fold-rise**: the fold-rise is the ratio of a subject's pre and post-vaccination immunogenicity value. That is, if $x_{i1}$ was their pre concentration and $x_{i2}$ their post concentration, then their fold-rise was $x_{i2}/x_{i1}$. The geometric mean fold-rise (GMFR) is the geometric mean of a collection of fold-rises which also equals the ratio of the pre and post geometric mean concentrations, that is
+
+$$
+\text{GMFR} = \exp\left(n^{-1}\sum_{i=1}^n \ln \frac{x_{i2}}{x_{i1}}\right)=\frac{\text{GMC}_2}{\text{GMC}_1}.
+$$
+
+**Geometric mean fold-rise ratio**: the geometric mean fold-rise ratio (GMFRR) between two groups is the ratio of the geometric mean fold-rise in each group which also equals the ratio of the pre and post geometric mean ratios between the two groups. For example, if $\text{GMFR}_{\text{wP}}$ is the GMFR under the wP schedule, and $\text{GMFR}_{\text{aP}}$ under the aP schedule, then the GMFRR of wP compared to aP is
+
+$$
+\text{GMFRR} = \frac{\text{GMFR}_{\text{wP}}}{\text{GMFR}_{\text{aP}}} = \frac{\text{GMR}_2}{\text{GMR}_1}.
+$$
+
 \clearpage
