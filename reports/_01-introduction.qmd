@@ -88,6 +88,8 @@ For eczema, the age requirement (by 6 or 12 months of age) was determined by the
 
 Unless otherwise stated, all summaries and analyses group participants according to their assigned treatment group and use all available data irrespective of protocol deviations or other intercurrent events (ITT).
 
+Statistical analyses were conducted using Bayesian inference on assumed probabilistic models. The probabilistic model defines what observations are possible and how observations are related. Bayesian inference allocates and reallocates (in light of observed data) credibility across the possibilities. The result is a probability distribution over quantities of interest summarising uncertainty in their values where more plausible values have higher probability. These distributions are generally summarised by their median, 95% equal-tailed credible intervals (bounds for the central portion of the distribution which values contribute 95% of the probability), and probability of direction of effect.
+
 ### Primary outcome {#sec-primary-analysis}
 
 The primary analysis was to assume independent Binomial models for occurrence of food allergy under each treatment group with uniform priors on the outcome probabilities. 
@@ -142,7 +144,7 @@ For binary outcomes, logistic regression models were assumed. If the outcome con
 
 ::: {.callout-note}
 
-## Binary model
+## Binary outcome model
 
 Denote by $Y_{ij}$ the binary outcome for participant $i$ on occasion $j$, then the model was
 $$
@@ -196,5 +198,9 @@ $$
 $$
 \text{GMFRR} = \frac{\text{GMFR}_{\text{wP}}}{\text{GMFR}_{\text{aP}}} = \frac{\text{GMR}_2}{\text{GMR}_1}.
 $$
+
+### Software
+
+Summaries and analyses were performed in R (4.5.3). Where necessary, Bayesian inference was performed using Stan (2.38.0) via cmdstanr (0.9.0).
 
 \clearpage

@@ -8,9 +8,6 @@ During stage 1, diary cards were provided following 6-week, 4-month, 6-month and
 During stage 2, at PCH only, for the first 153 participants, diary cards were provided following 6-week and 18-month vaccinations.
 Given the different collection schedules for the protocol versions, the denominators for the 6-week and 18-month responses differ to those for the 4-month and 6-month responses.
 
-This report focuses on 6-week and 18-month occasions given the addition of stage 2 data. 
-The complete 4-month and 6-month data from stage 1 has been reported previously but is included here for completeness.
-
 The number and percentage of returned diary cards for stage 1 are shown in @tbl-diary-returned-stage1 and stage 2 in @tbl-diary-returned-stage2.
 
 ```{r}
@@ -794,6 +791,8 @@ plot_sys_reaction(diary_sol, "Restlessness")
 
 ### Fever
 
+@tbl-fever-max presents the highest reported temperature following each vaccination occasion by assigned treatment. @fig-fever summarises daily temprature categories in the days following vaccination.
+
 ```{r}
 #| label: diary-temp-data
 st1_temp <- read_parquet(file.path(
@@ -1070,7 +1069,7 @@ out <- gt(tdat, rowname_col = "term", groupname_col = c("vaxage", "vaccine")) |>
   ) |>
   tab_options(
     table.font.size = px(7),
-    table.width = pct(100)
+    table.width = pct(90)
   ) |>
   as_latex()
 out_new <- gsub("\\{aP\\}", r"({\\makecell{aP\\\\(n = 152)}})", out)
@@ -1404,7 +1403,7 @@ p
 ```{r}
 #| label: fig-pain-daily
 #| fig-cap: |
-#|   Pain in the 7 days following the 6-week, 4-month, 6-month, and 18-month vaccinations. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine. Above each bar (n/N), we indicate the number of infants reporting any injection site reaction (numerator; n) versus the total number of infants reporting on injection site reactions
+#|   Pain in the 7 days following the 6-week, 4-month, 6-month, and 18-month vaccinations. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine. Above each bar (n/N), we indicate the number of infants reporting any injection site reaction (numerator; n) versus the total number of infants reporting on injection site reactions  (denominator; N.*
 #| fig-width: 10
 #| fig-height: 4
 plot_isr(diary_pain, trt, pain, ref = "None", var_lab = "Pain intensity")

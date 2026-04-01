@@ -2021,7 +2021,7 @@ miss_pattern_trt_tab(filter(dat_igg, antigen == "PT")) |>
 
 ### Descriptive summaries
 
-Descriptive summaries of 13vPCV serotype-specific IgG concentrations are reported in @tbl-igg-summary-pnps. Summaries of fold-rises and ratios are reported in @tbl-sample-igg-gmr-dtap.
+Descriptive summaries of 13vPCV serotype-specific IgG concentrations are reported in @tbl-igg-summary-pnps. Summaries of fold-rises and ratios are reported in @tbl-sample-igg-gmr-dtap. The empirical distribution of IgG concentrations in each treatment group are in the appendix.
 
 ```{r}
 #| label: tbl-igg-summary-dtap
@@ -2353,6 +2353,8 @@ p
 
 ### Seroprotection
 
+Model estimated differences in seroprotection are summarised in @tbl-logistic-regression-igg-seropos-dtap and @fig-gmr-igg-sero-dtap.
+
 ```{r}
 #| label: model-igg-seropos-all
 #| include: false
@@ -2591,6 +2593,8 @@ p
 
 ### Four-fold rise
 
+Model estimated differences in the probability of a 4-fold rise from 18-month vaccination to 21--35 days after vaccination are summarised in @tbl-igg-four-fold.
+
 ```{r}
 #| label: model-igg-four-fold
 #| include: false
@@ -2638,6 +2642,9 @@ mdat_igg_fr <- mdat_igg_fr |>
 ```
 
 ```{r}
+#| label: tbl-igg-four-fold
+#| tbl-cap: Model estimated differences (wP compared to aP) in probability of 4-fold rise in IgG concentration from 18-months (pre-vaccination) to 21--35 days after vaccination by antigen.
+#| tbl-pos: "H"
 d1_igg_fr <- mdat_igg_fr |>
   select(antigen, dat) |>
   unnest(dat) |>

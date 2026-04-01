@@ -77,14 +77,14 @@ dat_ecz_spt |>
 
 \clearpage
 
-## IgG Concentrations
+## IgG concentrations
 
 ```{r}
 #| label: fig-igg-ecdf-dtap
 #| fig-cap: |
 #|    Empirical cumulative distribution of serotype-specific IgG concentrations by age and assigned schedule.
 #|    Vertical line indicates seropositivity reference value.
-#| fig-width: 6
+#| fig-width: 7
 #| fig-height: 6
 lab_fun <- function(x) {
   ifelse(x < 1, sprintf("%.2f", x), sprintf("%.0f", x))
@@ -110,7 +110,7 @@ p_fig
 #| fig-cap: |
 #|    Empirical cumulative distribution of serotype-specific IgG concentrations by age and assigned schedule.
 #|    Vertical line indicates 0.35 μg/mL.
-#| fig-width: 6
+#| fig-width: 7
 #| fig-height: 8
 lab_fun <- function(x) {
   ifelse(x < 1, sprintf("%.2f", x), sprintf("%.0f", x))
@@ -129,4 +129,95 @@ p_fig <- dat_igg |>
   paletteer::scale_colour_paletteer_d("ggsci::alternating_igv") +
   theme(legend.position = "top")
 p_fig
+```
+
+```{r}
+#| label: igg-marginal-plot-functions
+igg_progress_plot <- function(dat) {
+  dat |>
+    ggplot(aes(visage, concentration)) +
+    facet_grid(antigen ~ trt, scales = "free_y") +
+    geom_point(alpha = 0.5) +
+    geom_path(aes(group = subjid), alpha = 0.5) +
+    stat_summary(geom = "point", fun = mean, colour = "red", shape = 22) +
+    scale_y_log10()
+}
+
+igg_marginal_plots_1 <- function(dat) {
+  p <- dat |>
+    select(subjid, antigen, visage, trt, concentration) |>
+    to_factor() |>
+    arrange(antigen) |>
+    pivot_wider(names_from = visage, values_from = concentration) |>
+    filter(!(is.na(`6-month`) | is.na(`7-month`))) |>
+    ggplot(aes(`6-month`, `7-month`)) +
+    geom_point(shape = 21, size = 1, alpha = 0.7, fill = "white") +
+    geom_abline(intercept = 0, slope = 1, linetype = 2, linewidth = 0.2) +
+    geom_xsidehistogram(bins = 20) +
+    geom_ysidehistogram(bins = 20) +
+    scale_x_log10(
+      "6-month IgG (log scale)",
+      breaks = c(0, 0.01, 0.1, 1, 10, 100, 1000),
+      labels = comma
+    ) +
+    scale_y_log10(
+      "7-month IgG (log scale)",
+      breaks = c(0, 0.01, 0.1, 1, 10, 100, 1000),
+      labels = comma
+    ) +
+    scale_xsidey_continuous(n.breaks = 2, position = "left") +
+    scale_ysidex_continuous(n.breaks = 2) +
+    # coord_fixed() +
+    facet_grid(antigen ~ trt, space = "free", switch = "y") +
+    ggside(scales = "free", y.pos = "right") +
+    theme(
+      panel.grid = element_blank(),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      ggside.panel.scale.y = 0.3,
+      ggside.panel.scale.x = 0.3,
+      ggside.axis.text = element_blank(),
+      ggside.axis.ticks = element_blank(),
+      strip.placement = "outside"
+    )
+  return(p)
+}
+
+igg_marginal_plots_2 <- function(dat) {
+  p <- dat |>
+    select(subjectid, antigen, age, treatment, concentration) |>
+    to_factor() |>
+    arrange(antigen) |>
+    pivot_wider(names_from = age, values_from = concentration) |>
+    filter(!(is.na(`18-month`) | is.na(`19-month`))) |>
+    ggplot(aes(`18-month`, `19-month`)) +
+    geom_point(shape = 21, size = 1, alpha = 0.7, fill = "white") +
+    geom_abline(intercept = 0, slope = 1, linetype = 2, linewidth = 0.2) +
+    geom_xsidehistogram(bins = 20) +
+    geom_ysidehistogram(bins = 20) +
+    scale_x_log10(
+      "18-month IgG (log10 scale)",
+      breaks = c(0, 0.01, 0.1, 1, 10, 100, 1000),
+      labels = comma
+    ) +
+    scale_y_log10(
+      "19-month IgG (log10 scale)",
+      breaks = c(0, 0.01, 0.1, 1, 10, 100, 1000),
+      labels = comma
+    ) +
+    scale_xsidey_continuous(n.breaks = 2, position = "left") +
+    scale_ysidex_continuous(n.breaks = 2) +
+    # coord_fixed() +
+    facet_grid(antigen ~ treatment, space = "free", switch = "y") +
+    ggside(scales = "free", y.pos = "right") +
+    theme(
+      panel.grid = element_blank(),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      ggside.panel.scale.y = 0.3,
+      ggside.panel.scale.x = 0.3,
+      ggside.axis.text = element_blank(),
+      ggside.axis.ticks = element_blank(),
+      strip.placement = "outside"
+    )
+  return(p)
+}
 ```
