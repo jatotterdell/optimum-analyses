@@ -14,10 +14,14 @@ $endif$
 \clearpage
 $endif$
 $if(lof)$
+% \addcontentsline{toc}{section}{List of Figures}
+\phantomsection
 \listoffigures
 \clearpage
 $endif$
 $if(lot)$
+% \addcontentsline{toc}{section}{List of Tables}
+\phantomsection
 \listoftables
 \clearpage
 $endif$
