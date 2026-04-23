@@ -17,9 +17,9 @@ The overall objectives of this study were to determine if, compared to the exist
 
 *The proportion of concentrations above detection limits were similar between the groups with the largest estimated reduction being in egg white IgE with an estimated difference in quantitation of -0.09 (-0.23, 0.04) at 6-months and -0.10 (-0.26, 0.05) at 7-months of age.*
 
-*__3.__ (@sec-igg) The estimated geometric mean ratio [posterior median (95% CrI)] for anti-PT IgG at 18-months and 19-months of age were 1.19 (0.94, 1.51) and 1.69 (1.33, 2.14) respectively, indicating no meaningful reduction in IgG, and a probable increase. The corresponding geometric mean fold-rise ratio was 1.42 (1.09, 1.84).*
+*__3.__ (@sec-igg) The estimated geometric mean ratio [posterior median (95% CrI)] for PT IgG at 18-months and 19-months of age were 1.19 (0.94, 1.51) and 1.69 (1.33, 2.14) respectively, indicating no meaningful reduction in IgG, and a probable increase. The corresponding geometric mean fold-rise ratio was 1.42 (1.09, 1.84).*
 
-*There was no reduction in the probability of a 4-fold rise in anti-PT IgG from 18-months to 21-35 days after vaccination with estimated difference [posterior median (95% CrI)] of 0.02 (-0.02, 0.07).*
+*There was no reduction in the probability of a 4-fold rise in PT IgG from 18-months to 21-35 days after vaccination with estimated difference [posterior median (95% CrI)] of 0.02 (-0.02, 0.07).*
 
 *__4.__ For descriptive summaries of solicited local reactions and solicited systemic reactions see @sec-reactogenicity and for safety reporting summaries see @sec-safety.*
 
