@@ -41,6 +41,8 @@ format:
     link-citations: true
     tbl-pos: "H"
     fig-dpi: 150
+    template-partials: 
+      - tex/toc.tex
     include-in-header:
       text: |
         \usepackage[font=small,labelfont={bf,small},listformat=simple]{caption}
