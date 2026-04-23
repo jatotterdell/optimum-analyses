@@ -7,6 +7,8 @@ description: |
   A double-blind, randomised, controlled trial to compare allergic outcomes in children following vaccination with acellular pertussis antigen given at 2 months of age versus whole cell pertussis in the infant vaccine schedule
 date: today
 author: OPTIMUM study team
+bibliography: refs.bib
+csl: nature.csl
 ---
 
 ```{r}
@@ -20,6 +22,35 @@ source(here("reports/R/_setup.R"))
 #| label: data-setup
 source(here("reports/R/_data.R"))
 ```
+
+\clearpage
+
+\phantomsection
+# List of Abbreviations {.unnumbered}
+
+**aP** acellular pertussis
+
+**DT** diptheria toxoid
+
+**FHA** filamentous haemagglutinin
+
+**FIM2/3** fimbriae agglutinogens 2–3
+
+**HBsAg** hepatitis B surface antigen
+
+**Hib-PRP** capsular polysaccharide of Hib
+
+**OFC** oral food challenge
+
+**PRN** pertactin
+
+**PT** anti-pertussis toxin
+
+**SPT** skin prick test
+
+**TT** anti-tetanus toxoid
+
+**wP** whole-cell pertussis
 
 \clearpage
 
