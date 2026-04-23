@@ -45,6 +45,8 @@ format:
       - tex/toc.tex
     include-in-header:
       text: |
+        \usepackage[nottoc]{tocbibind}
+        \usepackage{chngcntr}
         \usepackage[font=small,labelfont={bf,small},listformat=simple]{caption}
         \usepackage{makecell}
         \usepackage{moresize}
