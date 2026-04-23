@@ -1,5 +1,17 @@
+# References {.unnumbered}
+
+::: {#refs}
+:::
+
+\clearpage
+
+\setcounter{section}{0}
+\renewcommand{\thesection}{\Alph{section}}
 
 # Appendix {.appendix}
+
+<!-- \counterwithin{figure}{section} -->
+<!-- \counterwithin{table}{section} -->
 
 ## Primary outcome listings {#sec-primary-outcome-listing}
   
