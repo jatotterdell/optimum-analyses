@@ -209,7 +209,7 @@ The majority of participants attended each study visit [@tbl-stage1-visit-attend
 #| tbl-cap: |
 #|   Number and proportion of infants who attended each visit in stage 1
 #|   (based on presence of a reported "visit date").
-#|    6-month + 72 hour was optional visit.
+#|    6-month + 72 hour was an optional visit.
 #| tbl-pos: "H"
 #| output: asis
 vs_by_trt <- dat_grid_vs |>
@@ -240,7 +240,7 @@ left_join(vs_by_trt, vs_ovr) |>
   cols_label(
     visage ~ md("**Visit**"),
     aP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
-    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    wP ~ "\\makecell{\\textbf{wP} \\\\ N = 75}",
     Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 150}"
   ) |>
   cols_align(align = "left", columns = visage) |>
@@ -260,7 +260,7 @@ left_join(vs_by_trt, vs_ovr) |>
 #| tbl-cap: |
 #|   Number and proportion of infants who attended each visit in stage 2
 #|   (based on presence of a reported "visit date").
-#|   19-month visit was for first 150 at PCH only so 58/75 (77%) and 46/75 (61%) attended.
+#|   19-month visit was for first 150 at PCH only so 58/75 (77%) aP and 46/75 (61%) wP attended.
 #| tbl-pos: "H"
 #| output: "asis"
 vs_by_trt <- dat_grid_vs |>
@@ -291,7 +291,7 @@ left_join(vs_by_trt, vs_ovr) |>
   cols_label(
     visage ~ md("**Visit**"),
     aP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
-    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    wP ~ "\\makecell{\\textbf{wP} \\\\ N = 411}",
     Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 822}"
   ) |>
   cols_align(align = "left", columns = visage) |>
@@ -309,7 +309,7 @@ left_join(vs_by_trt, vs_ovr) |>
 ```{r}
 #| label: tbl-in-window-attended-st1
 #| tbl-cap: |
-#|   Amongst stage 1 participants who attended the visit, what percentage were reportedly (`windyn`) in the protocolised visit window. Cells are y/n (p%) where y is number in window, n number who attended, and p percentage of attendees in window.
+#|   Amongst stage 1 participants who attended the visit, what percentage were reportedly in the protocolised visit window (`windyn`). Cells are y/n (p%) where y is number in window, n number who attended, and p percentage of attendees in window.
 dat_grid_vs |>
   filter(rand_stage == 1) |>
   summarise(
@@ -345,6 +345,7 @@ dat_grid_vs |>
   ) |>
   select(-attended, -window, -p) |>
   pivot_wider(names_from = trt, values_from = lab) |>
+  relocate(wP, .after = aP) |>
   gt() |>
   cols_label(
     visage ~ md("**Visit age**"),
@@ -394,7 +395,7 @@ left_join(fhq_by_trt, fhq_ovr) |>
   cols_label(
     visit_age ~ md("**Visit**"),
     aP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
-    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 75}",
+    wP ~ "\\makecell{\\textbf{wP} \\\\ N = 75}",
     Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 150}"
   ) |>
   cols_align(align = "left", columns = visit_age) |>
@@ -443,7 +444,7 @@ left_join(fhq_by_trt, fhq_ovr) |>
   cols_label(
     visit_age ~ md("**Visit**"),
     aP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
-    wP ~ "\\makecell{\\textbf{aP} \\\\ N = 411}",
+    wP ~ "\\makecell{\\textbf{wP} \\\\ N = 411}",
     Overall ~ "\\makecell{\\textbf{Overall} \\\\ N = 822}"
   ) |>
   cols_align(align = "left", columns = visit_age) |>
