@@ -194,7 +194,7 @@ dat_base |>
 Full deviations are documented in the site deviation log.
 The following reports only on those of particular relevance to the analyses.
 
-### Treatment administration
+### Treatment administration {#sec-treatment-admin}
 
 All participants received the first scheduled vaccination at the first visit.
 
