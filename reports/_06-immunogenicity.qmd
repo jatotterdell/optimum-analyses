@@ -138,6 +138,13 @@ dat_ige <- select_form(dat_raw, "ige") |>
     any_obs_concentration = any(!is.na(ige)),
     all_obs_concentration = all(!is.na(ige)),
     .by = subjid
+  ) |>
+  mutate(
+    allergen = fct_inorder(replace_values(
+      as.character(allergen),
+      "Dust" ~ "D. pteronyssinus",
+      "Rye" ~ "Rye grass"
+    ))
   )
 ```
 
@@ -438,6 +445,10 @@ dat_ige |>
 #|    Missingness pattern of IgE concentrations by allergen, "X" indicates a measurement was available and "-" means it was missing.
 #| tbl-pos: H
 miss_pattern_trt_tab_ige(filter(dat_ige), var = ige) |>
+  tab_style(
+    style = cell_text(style = "italic"),
+    locations = cells_row_groups(groups = "D. pteronyssinus")
+  ) |>
   tab_options(table.font.size = px(8), table.width = pct(50))
 ```
 
@@ -518,6 +529,10 @@ gt(tab, groupname_col = "allergen", rowname_col = "visit_age") |>
     footnote = "Values of 0.00 kU/L and 0.000 kU/L set to 0.005 and 0.0005 respectively for calculation of GMC.",
     locations = cells_column_labels(columns = starts_with("gmc"))
   ) |>
+  tab_style(
+    style = cell_text(style = "italic"),
+    locations = cells_row_groups(groups = "D. pteronyssinus")
+  ) |>
   tab_options(table.font.size = px(9)) |>
   as_latex() |>
   latex_unescape() |>
@@ -596,6 +611,10 @@ gt(sample_gmr, groupname_col = "allergen", rowname_col = "visit_age") |>
   tab_footnote(
     footnote = "Values of 0.00 kU/L and 0.000 kU/L set to 0.005 and 0.0005 respectively for calculation of GMC.",
     locations = cells_column_labels(columns = starts_with("gmc"))
+  ) |>
+  tab_style(
+    style = cell_text(style = "italic"),
+    locations = cells_row_groups(groups = "D. pteronyssinus")
   ) |>
   tab_options(table.font.size = px(9)) |>
   as_latex() |>
@@ -707,7 +726,6 @@ Model estimate difference in probability of concentrations ≥0·01 kU/L, and co
 #| label: univariate-beta-binomial-ige-check
 #| include: false
 #| eval: false
-
 # For checks sake, I first run univariate Binomial models for each visit by allergen combination
 # similar to the primary outcome
 dat_summ <- dat_ige |>
@@ -801,6 +819,10 @@ dat_summ |>
   cols_label(
     c(med_delta) ~ "Median (95% CrI), Pr(<0)"
   ) |>
+  tab_style(
+    style = cell_text(style = "italic"),
+    locations = cells_row_groups(groups = "D. pteronyssinus")
+  ) |>
   tab_options(table.font.size = px(9)) |>
   as_latex() |>
   latex_unescape() |>
@@ -811,7 +833,6 @@ dat_summ |>
 #| label: univariate-logistic-regression-ige-check
 #| include: false
 #| eval: false
-
 # Similar to above, run univariate analyses, but assuming logistic regression model, should be similar.
 prior <- c(
   prior(student_t(4, 0, 1.75), class = "Intercept"),
@@ -933,7 +954,6 @@ td |>
 #| label: logistic-regression-ige-quant
 #| include: false
 #| cache: true
-
 # Now run the actual model that was specified to correlate outcomes of participants
 # with a random intercept term.
 prior1 <- c(
@@ -1194,6 +1214,10 @@ td |>
   tab_footnote(
     "All models adjust for and standardise over sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
   ) |>
+  tab_style(
+    style = cell_text(style = "italic"),
+    locations = cells_row_groups(groups = "D. pteronyssinus")
+  ) |>
   tab_options(table.font.size = px(8)) |>
   as_latex() |>
   latex_unescape() |>
@@ -1377,7 +1401,6 @@ Model estimate difference in probability of concentrations ≥0·1 kU/L, and con
 #| label: univariate-beta-binomial-ige-sens-check
 #| include: false
 #| eval: false
-
 # For checks sake, I first run univariate Binomial models for each visit by allergen combination
 # similar to the primary outcome
 dat_summ <- dat_ige |>
@@ -1478,7 +1501,6 @@ dat_summ |>
 #| label: univariate-logistic-regression-ige-sens-check
 #| include: false
 #| eval: false
-
 # Similar to above, run univariate analyses, but assuming logistic regression model, should be similar.
 prior <- c(
   prior(student_t(4, 0, 1.75), class = "Intercept"),
@@ -1601,7 +1623,6 @@ td |>
 #| label: logistic-regression-ige-sens
 #| include: false
 #| cache: true
-
 # Now run the actual model that was specified to correlate outcomes of participants
 # with a random intercept term.
 prior1 <- c(
@@ -1862,6 +1883,10 @@ td |>
   tab_footnote(
     "All models adjust for and standardise over sex, birth order, breastfeeding status, delivery method, family history of atopic disease, and parental income at baseline."
   ) |>
+  tab_style(
+    style = cell_text(style = "italic"),
+    locations = cells_row_groups(groups = "D. pteronyssinus")
+  ) |>
   tab_options(table.font.size = px(8)) |>
   as_latex() |>
   latex_unescape() |>
@@ -1964,7 +1989,6 @@ out
 #|    and with all planned responses observed.
 #| tbl-pos: "H"
 #| output: asis
-
 source(here("reports", "R", "functions.R"))
 multinorm <- cmdstan_model(file.path("stan", "multinorm.stan"))
 
