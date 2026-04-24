@@ -143,7 +143,7 @@ tbl_study_termination_by(dat_base) |>
 ```{r}
 #| label: tbl-listing-early-withdrawal
 #| tbl-cap: |
-#|   Listing of infants with last contact occuring at or prior to 15 months of age.
+#|   Listing of infants with last contact occurring at or prior to 15 months of age.
 #| tbl-pos: "H"
 dat_base |>
   select(record_id, trt, stetrreas, birthdat, disc_age_mth) |>
@@ -260,7 +260,6 @@ left_join(vs_by_trt, vs_ovr) |>
 #| tbl-cap: |
 #|   Number and proportion of infants who attended each visit in stage 2
 #|   (based on presence of a reported "visit date").
-#|   19-month visit was for first 150 at PCH only so 58/75 (77%) aP and 46/75 (61%) wP attended.
 #| tbl-pos: "H"
 #| output: "asis"
 vs_by_trt <- dat_grid_vs |>
@@ -273,7 +272,8 @@ vs_by_trt <- dat_grid_vs |>
     ),
     .by = c(trt, visage)
   ) |>
-  pivot_wider(names_from = trt, values_from = lab)
+  pivot_wider(names_from = trt, values_from = lab) |>
+  relocate(wP, .after = aP)
 
 vs_ovr <- dat_grid_vs |>
   filter(rand_stage == 2, visage %in% c("12-month", "18-month", "19-month")) |>
@@ -301,6 +301,11 @@ left_join(vs_by_trt, vs_ovr) |>
     location = cells_column_labels()
   ) |>
   tab_options(table.font.size = "10px", table.width = pct(50)) |>
+  tab_footnote(
+    footnote = "19-month visit was for first 150 at PCH only: 46/75 (61%) aP and 58/75 (77%) wP of PCH attended.",
+    locations = cells_body(columns = visage, rows = visage == "19-month"),
+    placement = "right"
+  ) |>
   as_latex() |>
   latex_unescape() |>
   cat()
@@ -327,6 +332,7 @@ dat_grid_vs |>
     aP ~ md("**aP**"),
     wP ~ md("**wP**"),
   ) |>
+  cols_align(align = "left", columns = visage) |>
   tab_options(table.font.size = "10px", table.width = pct(50))
 ```
 
@@ -352,6 +358,7 @@ dat_grid_vs |>
     aP ~ md("**aP**"),
     wP ~ md("**wP**"),
   ) |>
+  cols_align(align = "left", columns = visage) |>
   tab_options(table.font.size = "10px", table.width = pct(50))
 ```
 
@@ -359,7 +366,7 @@ dat_grid_vs |>
 
 ### Food and household questionnaires
 
-The majority of food and household quesionnnaires were completed.
+The majority of food and household questionnaires were completed.
 
 ```{r}
 #| label: tbl-stage1-fhq-completion
@@ -426,7 +433,8 @@ fhq_by_trt <- dat_grid_fhq |>
     ),
     .by = c(trt, visit_age)
   ) |>
-  pivot_wider(names_from = trt, values_from = lab)
+  pivot_wider(names_from = trt, values_from = lab) |>
+  relocate(wP, .after = aP)
 
 fhq_ovr <- dat_grid_fhq |>
   filter(rand_stage == 2) |>
