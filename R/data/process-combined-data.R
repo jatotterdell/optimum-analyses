@@ -99,7 +99,7 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
       bfed = factor(
         case_match(
           fecurr,
-          "Exclusively Breastfed" ~ "exclusively",
+          "Exclusively breastfed" ~ "exclusively",
           c(
             "Both breastfed and formula-fed",
             "Both breastfed and started on solids"
