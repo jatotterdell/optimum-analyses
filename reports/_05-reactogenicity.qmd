@@ -332,9 +332,9 @@ tab_dat |>
 
 \clearpage
 
-## Parental Satisfaction
+## Parental satisfaction
 
-Following vaccination, parent's were asked whether they would be willing to have another child have the combination of immunisations at the given age. There were 3 occasions were parent disagreed or strongly disagreed.
+Following vaccination, parent's were asked whether they would be willing to have another child have the combination of vaccinations at the given age. There were 3 occasions where a parent disagreed or strongly disagreed.
 
 ```{r}
 #| label: diary-likert-data
@@ -626,7 +626,7 @@ plab <- diary_sol_max |>
 ```{r}
 #| label: tbl-sol-maximum-intensity
 #| tbl-cap: |
-#|   Highest intensity grade for systemic reactions after the 6-week and 18-month vaccine doses.
+#|   Highest intensity grade for systemic reactions after each pertussis-containing vaccine dose.
 #| tbl-pos: "H"
 tdat <- pdat |>
   select(-n, -p) |>
@@ -666,7 +666,7 @@ out
 ```{r}
 #| label: fig-sol-maximum-intensity
 #| fig-cap: |
-#|    Highest intensity grade for systemic reactions after the 6-week and 18-month vaccination doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
+#|    Highest intensity grade for systemic reactions each pertussis-containing vaccine dose. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 5
 p <- pdat |>
   filter(!is.na(intensity_max), intensity_max != "None") |>
@@ -706,7 +706,7 @@ p
 ```{r}
 #| label: fig-irritability-daily
 #| fig-cap: |
-#|   Irritability in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
+#|   Irritability in the 7 days following each pertussis-containing vaccine dose. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Irritability")
@@ -721,7 +721,7 @@ plot_sys_reaction(diary_sol, "Irritability")
 ```{r}
 #| label: fig-vomiting-daily
 #| fig-cap: |
-#|   Vomiting in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
+#|   Vomiting in the 7 days following each pertussis-containing vaccine dose. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Vomiting")
@@ -736,7 +736,7 @@ plot_sys_reaction(diary_sol, "Vomiting")
 ```{r}
 #| label: fig-diarrhoea-daily
 #| fig-cap: |
-#|   Diarrhoea in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
+#|   Diarrhoea in the 7 days following each pertussis-containing vaccine dose. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Diarrhoea")
@@ -751,7 +751,7 @@ plot_sys_reaction(diary_sol, "Diarrhoea")
 ```{r}
 #| label: fig-decreasedfeeding-daily
 #| fig-cap: |
-#|   Decreased feeding in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
+#|   Decreased feeding in the 7 days following each pertussis-containing vaccine dose. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Decreased feeding")
@@ -766,7 +766,7 @@ plot_sys_reaction(diary_sol, "Decreased feeding")
 ```{r}
 #| label: fig-drowsiness-daily
 #| fig-cap: |
-#|   Drowsiness in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
+#|   Drowsiness in the 7 days following each pertussis-containing vaccine dose. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Drowsiness")
@@ -781,7 +781,7 @@ plot_sys_reaction(diary_sol, "Drowsiness")
 ```{r}
 #| label: fig-restlessness-daily
 #| fig-cap: |
-#|   Restlessness in the 7 days following the 6-week, 4-month, 6-month, and 18-month doses. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
+#|   Restlessness in the 7 days following each pertussis-containing vaccine dose. *aP, acellular pertussis vaccine; wP, whole-cell pertussis vaccine; grade 1: easily tolerated; grade 2, interferes with normal everyday activities; grade 3, prevents normal everyday activities or requires significant medical intervention. Above each bar (n/N), we indicate the number of infants reporting systemic reactions grade 1 and above (numerator; n) versus the total number of infants reporting on systemic reactions (none, grade 1, grade 2, or grade 3; denominator; N).*
 #| fig-height: 4
 #| fig-width: 6
 plot_sys_reaction(diary_sol, "Restlessness")
@@ -932,8 +932,10 @@ st1_isr <- read_parquet(file.path(st1_pth, "diary-site-reactions.parquet")) |>
       vaccine,
       "aP/wP" = "aP or wP",
       "MMR" = "MMRV",
-      "DTPa-hepB-IPV-Hib" = "DTaP-Hib-HepB-IPV",
-      "PCV-13" = "13vPCV"
+      "DTaP-HepB-IPV-Hib" = "DTaP-Hib-HepB-IPV",
+      "DTaP-IPV" = "DTPa-IPV",
+      "PCV-13" = "13vPCV",
+      "Hib" = "HiB"
     )
   ) |>
   mutate(subjid = gsub("^01", "01-", subjectid)) |>
@@ -963,7 +965,14 @@ st2_isr <- st2_diary |>
   ) |>
   select(record_id, vaxage, term, vaccine, day, size, size_fac) |>
   left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
-  mutate(stage = 2)
+  mutate(stage = 2) |>
+  mutate(
+    vaccine = fct_recode(
+      vaccine,
+      "DTaP-IPV" = "DTPa-IPV",
+      "Hib" = "HiB"
+    )
+  )
 
 # st2_isr <- st2_diary |>
 #   filter(reaction == "isr") |>
@@ -1216,8 +1225,10 @@ st1_pain <- read_parquet(file.path(st1_pth, "diary-pain.parquet")) |>
       vaccine,
       "aP/wP" = "aP or wP",
       "MMR" = "MMRV",
-      "DTPa-hepB-IPV-Hib" = "DTaP-Hib-HepB-IPV",
-      "PCV-13" = "13vPCV"
+      "DTaP-HepB-IPV-Hib" = "DTaP-Hib-HepB-IPV",
+      "DTaP-IPV" = "DTPa-IPV",
+      "PCV-13" = "13vPCV",
+      "Hib" = "HiB"
     )
   ) |>
   mutate(subjid = gsub("^01", "01-", subjectid)) |>
@@ -1243,7 +1254,14 @@ st2_pain <- st2_diary |>
   select(record_id, vaxage, vaccine, day, pain) |>
   left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
   mutate(stage = 2) |>
-  filter(!is.na(vaccine))
+  filter(!is.na(vaccine)) |>
+  mutate(
+    vaccine = fct_recode(
+      vaccine,
+      "DTaP-IPV" = "DTPa-IPV",
+      "Hib" = "HiB"
+    )
+  )
 
 # Fill in missing records
 # ids <- st2_diary |>
