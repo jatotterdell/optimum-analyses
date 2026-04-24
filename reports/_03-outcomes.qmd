@@ -1,9 +1,9 @@
 
 # Clinical and mechanistic outcomes {#sec-clinical-mechanistic-outcomes}
 
-Analyses of outcomes grouped participants according to their *assigned* treatment.
+Analyses of outcomes grouped participants according to their *assigned* treatment (@sec-treatment-admin).
 
-All of the trial outcomes depend upon a positive SPT to either a specific allergen or to any allergen. Therefore, this section first reports on the SPT data, and outcomes 2c and 2d, followed by the primary (food allergy) and other secondary (eczema) outcomes.
+All of the trial outcomes depend upon a positive SPT to either a specific allergen or to any allergen. Therefore, this section first reports on the SPT data, and outcomes 2c and 2d, followed by the primary (IgE-mediated food allergy) and other secondary clinical (eczema) outcomes.
 
 ## Skin prick tests
 
@@ -25,6 +25,7 @@ no_spt_record |>
   select(record_id, rand_site, streas, dis_age) |>
   gt() |>
   cols_label(
+    rand_site = "Study site",
     dis_age = "Last contact age (months)"
   ) |>
   tab_options(
@@ -36,7 +37,7 @@ no_spt_record |>
 ```{r}
 #| label: tbl-spt-number
 #| tbl-cap: |
-#|   Number and percentage of infants with scheduled and unscheduled skin prick tests.
+#|   Number and percentage of infants with scheduled and unscheduled SPTs.
 #| tbl-pos: "H"
 #| output: "asis"
 spt_nums <- dat_spt |>
@@ -73,7 +74,7 @@ tbl_summary(
 
 For the outcomes, a requirement was positive SPT by 18 months of age. Age of SPT in months was derived from `birthdat` (date of birth) and `pridat` (date of skin prick test) or in some cases `univdat` (date of unscheduled visit) when `pridat` was missing. 
 
-Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age (@fig-spt-age). There were 5 infants who did have an SPT, but none by 18-months of age (record IDS: 3, 25, 34, 36, 5785-10) (@tbl-spt-listing-after-18months). 
+Most SPTs were performed by 13 months of age, although some were delayed, with a few occurring after 18-months of age (@fig-spt-age). There were 5 infants who did have an SPT, but none by 18-months of age (record ID: 3, 25, 34, 36, 5785-10) (@tbl-spt-listing-after-18months). 
 
 Participants who were enrolled under early stage 1 protocol versions had their SPT scheduled for 18 months of age rather than 12 months of age. Delays meant some of these SPT's did not occur until 19 or 20 months of age. For the outcomes, "approximately 12 months of age" was taken to mean "by 18 months of age" which then currently excludes some of these later SPTs.
 
@@ -271,6 +272,7 @@ dat_spt |>
     names_to = "size",
     values_to = "diameter"
   ) |>
+  mutate(spt_tested = str_to_sentence(spt_tested)) |>
   pivot_wider(names_from = spt_tested, values_from = diameter) |>
   mutate(
     size = factor(
@@ -287,7 +289,7 @@ dat_spt |>
     strata = size,
     .tbl_fun = ~ .x |>
       tbl_summary(
-        include = `D.pteronyssinus`:peanut,
+        include = `D.pteronyssinus`:Peanut,
         by = trt,
         statistic = all_dichotomous() ~ "{n}/{N_nonmiss} ({p}%) [{p_miss}%]",
         missing = "no"
@@ -306,6 +308,10 @@ dat_spt |>
     .combine_with = "tbl_stack"
   ) |>
   as_gt() |>
+  tab_style(
+    style = cell_text(style = "italic"),
+    locations = cells_body(columns = label, rows = label == "D.pteronyssinus")
+  ) |>
   tab_options(table.font.size = px(10), table.width = pct(80)) |>
   as_latex() |>
   latex_unescape() |>
@@ -352,9 +358,10 @@ dat_spt |>
   ) |>
   mutate(
     diameter = as.logical(diameter),
-    spt_tested = fct_infreq(spt_tested)
+    spt_tested = fct_infreq(fct_relevel(spt_tested, sort))
   ) |>
   arrange(spt_tested) |>
+  mutate(spt_tested = str_to_sentence(spt_tested)) |>
   pivot_wider(names_from = spt_tested, values_from = diameter) |>
   mutate(
     size = factor(
@@ -371,7 +378,7 @@ dat_spt |>
     strata = size,
     .tbl_fun = ~ .x |>
       tbl_summary(
-        include = `sesame`:`d. farinae`,
+        include = `Sesame`:`Whole wheat`,
         by = trt,
         type = list(everything() ~ "dichotomous"),
         value = list(everything() ~ TRUE),
@@ -392,6 +399,10 @@ dat_spt |>
     .combine_with = "tbl_stack"
   ) |>
   as_gt() |>
+  tab_style(
+    style = cell_text(style = "italic"),
+    locations = cells_body(columns = label, rows = label == "D. farinae")
+  ) |>
   tab_options(
     table.font.size = px(10),
     table.width = pct(50),
@@ -410,7 +421,6 @@ dat_spt |>
 
 ```{r}
 #| label: spt-analysis
-
 set.seed(54123)
 
 dat_outcome <- dat_spt_analysis |>
@@ -700,9 +710,9 @@ p2
 
 \clearpage
 
-## Food allergy
+## IgE-mediated food allergy
 
-The primary source of information for food allergy was the `outcome_report` form. Reported outcomes were cross checked against the food and household questionnaire form (`food_and_household_questionnaire`) and the oral food challenge form (`food_challenge`).
+The primary source of information for IgE-mediated food allergy was the `outcome_report` form. Reported outcomes were cross checked against the food and household questionnaire form (`food_and_household_questionnaire`) and the oral food challenge form (`food_challenge`).
 
 Age at first reaction was derived from `outageval`. If this was missing then `birthdat` (date of birth) and `outdiagdat` (clinician-diagnosis date) was used to derive age in months.
 
@@ -713,12 +723,11 @@ The infants with an outcome reported are line listed in the appendix (@sec-prima
 
 ### Oral food challenge
 
-There were `r nrow(filter(dat_fa, outalltp == "Oral food challenge"))` outcome records for food allergy diagnoses resulting from oral food challenge amongst `r length(unique(filter(dat_fa, outalltp == "Oral food challenge")$record_id))` infants. One reaction (record ID `8644-34`) reportedly first occurred after 18 months of age and all others were by 18 months of age. All records had a matching positive skin prick test to the reported allergen and so 22 infants met the primary outcome according to the definition (1.i).
+There were `r nrow(filter(dat_fa, outalltp == "Oral food challenge"))` outcome records for food allergy diagnoses resulting from oral food challenge amongst `r length(unique(filter(dat_fa, outalltp == "Oral food challenge")$record_id))` infants. One reaction (record ID: `8644-34`) reportedly first occurred after 18 months of age and all others were by 18 months of age. All records had a matching positive skin prick test to the reported allergen and so 22 infants met the primary outcome according to the definition (1.i).
 
 ```{r}
 #| label: check-positive-spt-ofc
 #| include: false
-
 # Total outcomes reported
 dat_fa |>
   filter(
@@ -779,7 +788,7 @@ dat_po_ofc |> count(po_ofc)
 
 ### Anaphylaxis
 
-There were `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` outcome records for food allergy diagnoses resulting from anaphylaxis amongst `r length(unique(filter(dat_fa, outalltp == "Anaphylaxis")$record_id))` infants. Two of these infants (record_id: `68, 5785-283`) were diagnosed after 18 months of age with first reported reaction occuring after 18 months of age. One infant (record_id = `8644-34`) had no skin prick test for the reported allergens. So of the `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` infants with analphylaxis reported, 3 did not meet the criteria for the primary outcome according to the definition (1.ii) leacving `r nrow(filter(dat_fa, outalltp == "Anaphylaxis")) - 3` who met the condition.
+There were `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` outcome records for food allergy diagnoses resulting from anaphylaxis amongst `r length(unique(filter(dat_fa, outalltp == "Anaphylaxis")$record_id))` infants. Two of these infants (record ID: `68, 5785-283`) were diagnosed after 18 months of age with first reported reaction occuring after 18 months of age. One infant (record ID: `8644-34`) had no skin prick test for the reported allergens. So of the `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` infants with analphylaxis reported, 3 did not meet the criteria for the primary outcome according to the definition (1.ii) leaving `r nrow(filter(dat_fa, outalltp == "Anaphylaxis")) - 3` who met the condition.
 
 ```{r}
 #| label: check-positive-spt-ana
@@ -827,14 +836,13 @@ dat_po_ana <- dat_fa |>
   )
 ```
 
-### Highly probable IgE mediated food allergy
+### Highly probable IgE-mediated food allergy
 
-There were `r nrow(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy"))` outcome records for food allergy diagnoses resulting from highly probable IgE mediated allergy amongst `r length(unique(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy")$record_id))` infants. For one infant (record_id: `68`), the age at first reaction and age at diagnosis were after 18 months of age. Four infants (record_id: `75, 5785-239, 5785-243, 5785-331`) had no positive SPT to the reported allergen. One infant (record ID `5785-7`) had no date of allergy confirmation of clinician and did not meet the outcome due to a negative food challenge. Of the `r length(unique(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy")$record_id))` infants with IgE-mediated food allergy reported, 6 did not meet the primary outcome according to the definition (2.) leaving 38 infants who met the condition.
+There were `r nrow(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy"))` outcome records for food allergy diagnoses resulting from highly probable IgE-mediated allergy amongst `r length(unique(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy")$record_id))` infants. For one infant (record ID: `68`), the age at first reaction and age at diagnosis were after 18 months of age. Four infants (record ID: `75, 5785-239, 5785-243, 5785-331`) had no positive SPT to the reported allergen. One infant (record ID: `5785-7`) had no date of allergy confirmation of clinician and did not meet the outcome due to a negative food challenge. Of the `r length(unique(filter(dat_fa, outalltp == "Highly probably IgE mediated food allergy")$record_id))` infants with IgE-mediated food allergy reported, 6 did not meet the primary outcome according to the definition (2.) leaving 38 infants who met the condition.
 
 ```{r}
 #| label: check-positive-spt-ige
 #| include: false
-
 # Cross check food challenge data
 summ_fc <- dat_fc |>
   filter(ofcresult != "Not challenged") |>
@@ -925,7 +933,7 @@ dat_po_ige <- dat_po_ige_1 |>
 dat_po_ige |> filter(po_ige_match == "")
 ```
 
-### Primary outcome
+### Primary outcome (IgE-mediated food allergy)
 
 ```{r}
 #| label: primary-outcome-data
@@ -965,7 +973,7 @@ Overall `r sprintf("%i/%i (%.0f%%)", sum(dat_po$po), nrow(dat_po), 100 * mean(da
 
 @tbl-primary-outcome-criteria reports on the number of participants who met each of the primary outcome criteria (1.i, 1.ii, and 2, see @sec-primary-outcome) as outlined in the sections above by their assigned treatment group.
 
-@tbl-primary-outcome-overall reports the total number of infants who met the primary outcome, and the primary reason grouped hierarchically according to the ordering in the definition (i.e. OFC → Anaphylaxis → IgE mediated) (irrespective of the timing of those criteria).
+@tbl-primary-outcome-overall reports the total number of infants who met the primary outcome, and the primary reason grouped hierarchically according to the ordering in the definition (i.e. OFC → Anaphylaxis → IgE-mediated) (irrespective of the timing of those criteria).
 
 ```{r}
 #| label: tbl-primary-outcome-criteria
@@ -1099,7 +1107,7 @@ dat_rd_po <- dat_po |>
   )
 ```
 
-@tbl-posterior-primary summarises the estimated model parameters for the probability of food allergy under each treatment group, and their difference. The posterior densities for the difference in risk of food allergy (wP vs aP) are shown in @fig-posterior-difference-primary-unadjusted-adjusted).
+@tbl-posterior-primary summarises the estimated model parameters for the probability of IgE-mediated food allergy under each treatment group, and their difference. The posterior densities for the difference in risk of IgE-mediated food allergy (wP vs aP) are shown in @fig-posterior-difference-primary-unadjusted-adjusted.
 
 The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most plausible values for the difference in food allergy between wP and aP were `r do.call(sprintf, c(fmt = "%.2f (%.2f, %.2f)", as.list(c(quantile2(po_diff$delta, c(0.5, 0.025, 0.975))))))` [posterior median, (95% credible interval)]. The probability of a reduction in food allergy under wP compared to aP was `r sprintf("%.2f", mean(po_diff$delta < 0))`.
 
@@ -1108,7 +1116,6 @@ The results between the primary analysis (unadjusted) and secondary (adjusted) a
 #| tbl-cap: |
 #|   Posterior summaries for risk and difference in risk of food allergy.
 #| tbl-pos: "H"
-
 diff_agg <- po_diff |>
   nest_rvars() |>
   ungroup() |>
@@ -1281,7 +1288,7 @@ p2
 
 ## Eczema
 
-The primary source of information for eczema was the `outcome_report` form. The eczema timing was based on the documented age at which allergy first occurred. Reported outcomes were cross checked against the food and household questionnaire form and medical history forms. Infants whose first reaction date for clinician-diagnosed eczema was prior to enrolment were considered to have "pre-existing" eczema and were excluded from the analysis set. There were `r sum(dat_ecz$out_ecz_preexisting)` such infants.
+The primary source of information for eczema was the `outcome_report` form. The timing was based on the documented age at which eczema first occurred. Reported outcomes were cross checked against the food and household questionnaire form and medical history forms. Infants whose first reaction date for clinician-diagnosed eczema was prior to enrolment were considered to have "pre-existing" eczema and were excluded from the analysis set. There were `r sum(dat_ecz$out_ecz_preexisting)` such infants.
 
 The number and percentage of infants with any clinician-diagnosed eczema is reported in @tbl-eczema-trt. For the protocol defined outcomes \[2a. and 2b.\], the eczema diagnosis needed to be new-onset and accompanied by a positive SPT to at least one allergen by approximately 12 months of age. These are reported in @tbl-eczema-trt-newonset.
 
@@ -1291,7 +1298,6 @@ The number and percentage of infants with any clinician-diagnosed eczema is repo
 #|   Number and percentage of infants with any clinician-diagnosed eczema.
 #| tbl-pos: "H"
 #| output: asis
-
 # dat_ecz |>
 #   filter(out_ecz_preexisting) |>
 #   summarise(n = sum(out_ecz_preexisting), .by = trt)
@@ -1430,10 +1436,8 @@ tbl_stack(
 
 ### Eczema model
 
-
 ```{r}
 #| label: eczema-analysis
-
 set.seed(54123)
 
 dat_outcome <- dat_ecz_analysis |>
@@ -1531,7 +1535,7 @@ fit_outcome <- dat_ecz_analysis |>
   )
 ```
 
-@tbl-posterior-eczema summarises the estimated model parameters for the probability of eczema by age under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-difference-eczema-unadjusted-adjusted). The results between the analyses (unadjusted and adjusted, @sec-primary-analysis) were near identical. The most plausible values for the difference in eczema at 6 months [2.a] between wP and aP were `r do.call(sprintf, c(fmt = "%.2f (%.2f, %.2f)", as.list(c(quantile2(diff_2a$delta, c(0.5, 0.025, 0.975))))))` [posterior median, (95% credible interval)]. The probability of a reduction in sensitisation under wP compared to aP was `r sprintf("%.2f", mean(diff_2a$delta < 0))`. At 12m [2.b] they were `r do.call(sprintf, c(fmt = "%.2f (%.2f, %.2f)", as.list(c(quantile2(diff_2b$delta, c(0.5, 0.025, 0.975))))))` and `r sprintf("%.2f", mean(diff_2b$delta < 0))`.
+@tbl-posterior-eczema summarises the estimated model parameters for the probability of eczema by age under each treatment group, and their difference (the posterior densities are shown in @fig-posterior-difference-eczema-unadjusted-adjusted). The results between the analyses (unadjusted and adjusted, @sec-primary-analysis) were near identical. The most plausible values for the difference in eczema at 6 months [2.a] between wP and aP were `r do.call(sprintf, c(fmt = "%.2f (%.2f, %.2f)", as.list(c(quantile2(diff_2a$delta, c(0.5, 0.025, 0.975))))))` [posterior median, (95% credible interval)]. The probability of a reduction in new-onset eczema under wP compared to aP was `r sprintf("%.2f", mean(diff_2a$delta < 0))`. At 12m [2.b] they were `r do.call(sprintf, c(fmt = "%.2f (%.2f, %.2f)", as.list(c(quantile2(diff_2b$delta, c(0.5, 0.025, 0.975))))))` and `r sprintf("%.2f", mean(diff_2b$delta < 0))`.
 
 
 ```{r}
