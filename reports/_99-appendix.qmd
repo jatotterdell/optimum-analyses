@@ -1,3 +1,4 @@
+\phantomsection
 # References {.unnumbered}
 
 ::: {#refs}
@@ -5,10 +6,11 @@
 
 \clearpage
 
-\setcounter{section}{0}
-\renewcommand{\thesection}{\Alph{section}}
+<!-- \setcounter{section}{0}
+\renewcommand{\thesection}{\Alph{section}} -->
 
-# Appendix {.appendix}
+\phantomsection
+# Appendix {.appendix .unnumbered}
 
 <!-- \counterwithin{figure}{section} -->
 <!-- \counterwithin{table}{section} -->
@@ -18,7 +20,7 @@
 ```{r}
 #| label: tbl-listing-ofc-matched-foods
 #| tbl-cap: |
-#|    Listing of infants with oral food challenge outcome by 18 months of age and corresponding SPT positive allergens.
+#|    Listing of infants with OFC outcome by 18 months of age and corresponding SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ofc |>
   select(record_id, trt, po_ofc_foods, po_ofc_match) |>
@@ -33,14 +35,14 @@ dat_po_ofc |>
 
 ```{r}
 #| label: tbl-listing-ana-matched-foods
-#| tbl-cap: Listing of infants with anaphylaxis outcome by 18 months of age and corresponding SPT positive allergens.
+#| tbl-cap: Listing of infants with food anaphylaxis outcome by 18 months of age and corresponding SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ana |>
   select(record_id, trt, po_ana_foods, po_ana_match) |>
   gt() |>
   cols_label(
     trt ~ "Treatment",
-    po_ana_foods ~ "Anaphylaxis foods",
+    po_ana_foods ~ "Anaphylactic triggers",
     po_ana_match ~ "Foods with positive SPT"
   ) |>
   tab_options(table.font.size = px(9), table.width = pct(75))
@@ -49,7 +51,7 @@ dat_po_ana |>
 ```{r}
 #| label: tbl-listing-ige-matched-foods
 #| tbl-cap: |
-#|    Listing of infants with IgE-mediated food allergy outcome by 18 months of age and corresponding
+#|    Listing of infants with highly probable IgE-mediated food allergy outcome by 18 months of age and corresponding
 #|    SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ige |>
@@ -57,7 +59,7 @@ dat_po_ige |>
   gt() |>
   cols_label(
     trt ~ "Treatment",
-    po_ige_foods ~ "IgE mediated foods",
+    po_ige_foods ~ "Suspected food allergen",
     po_ige_match ~ "Foods with positive SPT"
   ) |>
   tab_options(table.font.size = px(9), table.width = pct(75))
@@ -73,6 +75,9 @@ dat_po_ige |>
 #| tbl-pos: "H"
 dat_ecz_spt |>
   filter(!out_ecz_preexisting, ecz, any_pos_spt) |>
+  mutate(
+    age_diag_months = interval(birthdat, outdiagdat) %/% months(1) + 1,
+  ) |>
   select(record_id, trt, outageval_months2) |>
   gt() |>
   fmt_number(decimals = 0) |>
