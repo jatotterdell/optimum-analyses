@@ -81,7 +81,7 @@ There were `r nrow(dat_ae)` adverse events documented during the trial.
 Most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`).
 Most of these events were due to the closer follow-up as part of stage 1 (@tbl-events-by-stage-and-site) and for the first 150 participants recruited as part of stage 2 (@tbl-pch-adverse-events). There were `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (listing in @tbl-listing-ae-non-pch).
 
-There was a higher number of adverse events in the wP group compared to aP. There was also a higher number of infants who experienced at least one AE (@tbl-summary-ae-pch). Some of the difference in total AEs was due to infants with mulitple events. For both groups only a few AEs were documented as related to the blinded study vaccine . A listing of the related AEs is given in @tbl-listing-ae-related-pch.
+There was a higher number of adverse events in the wP group compared to aP. There was also a higher number of infants who experienced at least one AE (@tbl-summary-ae-pch). Some of the difference in total AEs was due to infants with mulitple events. For both groups only a few AEs were documented as related to the blinded study vaccine. A listing of the related AEs is given in @tbl-listing-ae-related-pch.
 
 A summary of the number and proportion of infants randomised at PCH with any reported adverse event by the MeDRA preferred term is given in @tbl-any-event-ae.  A summary of the total number of events is given in @tbl-events-ae.
 
