@@ -115,7 +115,7 @@ dat_ecz_spt |>
 ```{r}
 #| label: fig-igg-ecdf-dtap
 #| fig-cap: |
-#|    Empirical cumulative distribution of serotype-specific IgG concentrations by age and assigned schedule.
+#|    Complementary empirical cumulative distribution of serotype-specific IgG concentrations by age and assigned schedule.
 #|    Vertical line indicates seropositivity reference value.
 #| fig-width: 7
 #| fig-height: 6
@@ -126,13 +126,13 @@ p_fig <- dat_igg |>
   filter(type != "PnPs") |>
   ggplot(aes(concentration, colour = trt)) +
   facet_grid(antigen ~ visage) +
-  stat_ecdf(aes(y = after_stat(ecdf)), geom = "step") +
+  stat_ecdf(aes(y = after_stat(1 - ecdf)), geom = "step") +
   geom_vline(aes(xintercept = ref), linetype = 2) +
   scale_x_log10(
     breaks = c(0, 0.01, 0.1, 1, 10, 100, 1000),
     labels = lab_fun
   ) +
-  labs(x = "IgG concentration", y = "Empirical cumulative distribution", colour = "") +
+  labs(x = "IgG concentration", y = "Complementary empirical cumulative distribution", colour = "") +
   paletteer::scale_colour_paletteer_d("ggsci::alternating_igv") +
   theme(legend.position = "top")
 p_fig
@@ -141,7 +141,7 @@ p_fig
 ```{r}
 #| label: fig-igg-ecdf-pneumo
 #| fig-cap: |
-#|    Empirical cumulative distribution of serotype-specific IgG concentrations by age and assigned schedule.
+#|    Complementary empirical cumulative distribution of serotype-specific IgG concentrations by age and assigned schedule.
 #|    Vertical line indicates 0.35 μg/mL.
 #| fig-width: 7
 #| fig-height: 8
@@ -152,13 +152,13 @@ p_fig <- dat_igg |>
   filter(type == "PnPs") |>
   ggplot(aes(concentration, colour = trt)) +
   facet_grid(antigen ~ visage) +
-  stat_ecdf(aes(y = after_stat(ecdf)), geom = "step") +
+  stat_ecdf(aes(y = after_stat(1 - ecdf)), geom = "step") +
   geom_vline(xintercept = 0.35, linetype = 2) +
   scale_x_log10(
     breaks = c(0, 0.01, 0.1, 1, 10, 100, 1000),
     labels = lab_fun
   ) +
-  labs(x = "IgG concentration", y = "Empirical cumulative distribution", colour = "") +
+  labs(x = "IgG concentration", y = "Complementary empirical cumulative distribution", colour = "") +
   paletteer::scale_colour_paletteer_d("ggsci::alternating_igv") +
   theme(legend.position = "top")
 p_fig
