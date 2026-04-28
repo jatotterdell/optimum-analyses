@@ -29,7 +29,7 @@ ggplot(
 
 ## Study completion
 
-The study completion status as reported in the database is summarised in @tbl-discharge-outcome and by site in @tbl-discharge-outcome-site. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who were scheduled for the additional blood collections, a number of who withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of those blood collections, and so these participants may not have been "early termination" in the sense of having withdrawn from participating in the trial. There were 17 participants where contact was lost at or before 15 months of age (based on `discdat`) (@tbl-listing-early-withdrawal).
+The study completion status as reported in the database is summarised in @tbl-discharge-outcome and by site in @tbl-discharge-outcome-site. Most of the *early termination - consent withdrawal* and *early termination - protocol violation/deviation* were due to the first 300 PCH participants who were scheduled for the additional blood collections, a number of whom withdrew consent for blood collection at the 18-month and 19-month visits (@tbl-discharge-outcome-site). Data was generally still collected for these participants with the exception of those blood collections, and so these participants may not have been "early termination" in the sense of having withdrawn from participating in the trial. There were 17 participants where contact was lost at or before 15 months of age (based on `discdat`) (@tbl-listing-early-withdrawal).
 
 ```{r}
 #| label: tbl-discharge-outcome

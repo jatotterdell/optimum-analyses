@@ -14,7 +14,7 @@ no_spt_record <- dat_spt |>
   filter(!priyn)
 ```
 
-There were `r nrow(no_spt_record)` participants with no documented SPTs (@tbl-spt-listing-no-records). In many cases this was due to early withdrawal from the study, with the remaining due to non-consent from the parent. All other participants had a record for at least the scheduled SPT, and in a few cases additional unscheduled SPT (@tbl-spt-number).
+There were `r nrow(no_spt_record)` participants with no documented SPTs (@tbl-spt-listing-no-records). In many cases this was due to early withdrawal from the study, with the remaining due to withdrawn consent from the parent. All other participants had a record for at least the scheduled SPT, and in a few cases additional unscheduled SPT (@tbl-spt-number).
 
 ```{r}
 #| label: tbl-spt-listing-no-records

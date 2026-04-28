@@ -28,7 +28,7 @@ Participants were randomised 1:1 to receive either:
 
 ## Trial design
 
-Originally, a sample size of 3,000 participants was planned. Under the adaptive design, as outlined in the protocol [@chacon2020OPTIMUMStudyProtocol] and statistical analysis plan [@totterdell2022StatisticalAnalysisPlan], we estimated the trial had 85% power to detect a reduction in IgE-mediated food allergy from 10% to 7% with type I error of 5%. If $\delta$ denotes the difference in probability of IgE-mediated food allergy under each intervention, then trial success required that $\delta$ was very likely to be less than zero, specifically that $\Pr(\delta < 0) > 0.95$.
+Originally, a maximum sample size of 3,000 participants was planned. Under the adaptive design, as outlined in the protocol [@chacon2020OPTIMUMStudyProtocol] and statistical analysis plan [@totterdell2022StatisticalAnalysisPlan], we estimated the trial had 85% power to detect a reduction in IgE-mediated food allergy from 10% to 7% with type I error of 5%. If $\delta$ denotes the difference in probability of IgE-mediated food allergy under each intervention, then trial success required that $\delta$ was very likely to be less than zero, specifically that $\Pr(\delta < 0) > 0.95$.
 
 The maximum sample size was subsequently revised down to 2,000 participants due to feasibility constraints. The trial was stopped early due to logistical issues with 972 participants randomised.
 
@@ -43,7 +43,7 @@ IgE-mediated food allergy with evidence of food sensitisation on SPT by 12 month
 1.  Unequivocal evidence of IgE-mediated food allergy, defined as:
     i.  A positive OFC with evidence of sensitisation on SPT to the food of interest *OR*
     ii. History of clinician-confirmed food anaphylaxis, with symptoms affecting at least two of the following: skin, gastrointestinal tract, respiratory tract, cardiovascular system; *AND* evidence of sensitisation on SPT to the food of interest.
-2.  Highly probable IgE-mediated food allergy defined as a history of food allergic reaction (consistent with PRACTALL criteria [@sampson2012StandardizingDoubleblindPlacebocontrolled]), with evidence of sensitisation on SPT to the food of interest.
+2.  Highly probable IgE-mediated food allergy defined as a history of food allergic reaction (consistent with PRACTALL criteria [@sampson2012StandardizingDoubleblindPlacebocontrolled]), *AND* evidence of sensitisation on SPT to the food of interest.
 
 We will report on the number and proportion who satisfy this composite definition, and the number and proportion satisfying each of the three sub-components as per a hierarchy in order of 1.i, 1.ii, 2.
 
@@ -102,7 +102,7 @@ The primary analysis was to assume independent Binomial models for occurrence of
 
 ## Primary model
 
-Let $\theta_{\text{wP}}$ and $\theta_{\text{aP}}$ denote the probability of the outcome amongst infants who are assigned to the respective strategy and $\delta = \theta_{\text{wP}} - \theta_{\text{aP}}$ the difference in probablity. If $n_{\text{wP}}$ and $n_{\text{aP}}$ infants were assigned to each respective strategy, with $y_{\text{wP}}$ and $y_{\text{aP}}$ events observed, than from our assumed model we estimate that $\theta_j \sim \text{Beta}(1 + y_j, 1 + n_j - y_j)$ quantifies our uncertainty and $\delta$ the difference between these.
+Let $\theta_{\text{wP}}$ and $\theta_{\text{aP}}$ denote the probability of the outcome amongst infants who are assigned to the respective strategy and $\delta = \theta_{\text{wP}} - \theta_{\text{aP}}$ the difference in probablity. If $n_{\text{wP}}$ and $n_{\text{aP}}$ infants were assigned to each respective strategy, with $y_{\text{wP}}$ and $y_{\text{aP}}$ events observed, then from our assumed model we estimate that $\theta_j \sim \text{Beta}(1 + y_j, 1 + n_j - y_j)$ quantifies our uncertainty and $\delta$ the difference between these.
 
 :::
 
