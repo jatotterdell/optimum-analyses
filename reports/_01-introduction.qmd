@@ -62,9 +62,7 @@ Solicited and unsolicited adverse events following immunisation were collected o
 
 The definition and intensity grading for fever, diarrhoea and local reactions (except for immunisation site pain) followed the Brighton Collaboration guidelines [@michaelmarcy2004FeverAdverseEvent; @gidudu2011DiarrheaCaseDefinition; @gidudu2008LocalReactionInjection; @kohl2007SwellingInjectionSite; @kohl2007IndurationInjectionSite]. For other solicited adverse events, intensity grading scales based on impact on daily activities were used (grade 0 or absent; grade 1 if easily tolerated; grade 2, sufficiently discomforting to interfere with normal everyday activities and grade 3, if prevents normal everyday activities or requires significant medical intervention).
 
-#### Parental acceptability
-
-...
+Parental acceptability was also measured using a 5-point Likert scale for whether the parent would be willing to have another child have the combination of vaccinations at the given age.
 
 #### Immunological outcomes
 

@@ -332,7 +332,7 @@ tab_dat |>
 
 \clearpage
 
-## Parental satisfaction
+## Parental acceptability
 
 Following vaccination, parent's were asked whether they would be willing to have another child have the combination of vaccinations at the given age. There were 3 occasions where a parent disagreed or strongly disagreed.
 
