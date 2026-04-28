@@ -15,6 +15,7 @@
 <!-- \counterwithin{figure}{section} -->
 <!-- \counterwithin{table}{section} -->
 
+\phantomsection
 ## Primary outcome listings {#sec-primary-outcome-listing}
   
 ```{r}
@@ -67,6 +68,7 @@ dat_po_ige |>
 
 \clearpage
 
+\phantomsection
 ## Secondary outcome listings
 
 ```{r}
@@ -94,6 +96,7 @@ dat_ecz_spt |>
 
 \clearpage
 
+\phantomsection
 ## IgG concentrations
 
 ```{r}
