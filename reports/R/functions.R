@@ -40,7 +40,7 @@ miss_pattern_trt_tab <- function(dat, var = concentration) {
     ) |>
     count(stage, trt, `6-month`, `7-month`, `18-month`, `19-month`) |>
     arrange(trt, desc(n)) |>
-    mutate(p = n / sum(n)) |>
+    mutate(p = n / sum(n), .by = c(trt)) |>
     pivot_wider(
       names_from = "trt",
       values_from = c("n", "p"),

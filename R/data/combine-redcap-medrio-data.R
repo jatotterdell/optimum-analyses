@@ -650,6 +650,22 @@ combine_participant_assessment <- function() {
         visdat
       )
     )
+
+  # Here "visit_1" is when the diary card was given
+  # It would have been returned agt "visit_2"
+  # Similarly for visit_3 returned at visit_4.
+  st2_dc <- extract_tibble(st2_data, "diary_card_data_page_1") |>
+    select(record_id, redcap_event, diaretyn) |>
+    mutate(
+      visit = recode_values(
+        redcap_event,
+        "visit_1" ~ '2',
+        "visit_3" ~ '4'
+      )
+    )
+
+  st2_pa <- left_join(st2_pa, st2_dc, join_by(record_id, visit))
+
   st1_pa <- read_delim(
     file.path(st1_path, "V2-5.txt"),
     show_col_types = FALSE
@@ -2125,10 +2141,7 @@ combine_diary <- function() {
     st2_dc2,
     join_by(record_id, redcap_event, redcap_data_access_group)
   ) |>
-    filter(
-      substr(record_id, 1, 4) == "4629",
-      as.numeric(gsub("4629-", "", record_id)) <= 153
-    ) |>
+    filter(record_id %in% paste0("4629-", 1:153)) |>
     mutate(
       visit = recode_values(redcap_event, "visit_1" ~ 1, "visit_3" ~ 3),
       vaxage = recode_values(visit, 1 ~ "6-week", 3 ~ "18-month"),

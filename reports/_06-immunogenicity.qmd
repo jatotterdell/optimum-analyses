@@ -285,7 +285,7 @@ miss_pattern_trt_tab_ige <- function(dat, var = concentration) {
     ) |>
     count(allergen, trt, `6-month`, `7-month`, `19-month`) |>
     arrange(trt, desc(n)) |>
-    mutate(p = n / sum(n)) |>
+    mutate(p = n / sum(n), .by = c(allergen, trt)) |>
     pivot_wider(
       names_from = "trt",
       values_from = c("n", "p"),
