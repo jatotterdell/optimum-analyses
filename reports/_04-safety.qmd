@@ -7,7 +7,10 @@
 #| label: ae-data-prep
 dat_ae <- dat_raw |>
   select_form("adverse_events") |>
-  left_join(select(dat_base, record_id, rand_site), join_by(record_id))
+  left_join(select(dat_base, record_id, rand_site), join_by(record_id)) |>
+  mutate(
+    aerel = str_to_sentence(aerel)
+  )
 dat_base_ae <- dat_base |>
   select(
     record_id,
@@ -36,9 +39,11 @@ n_aesi <- nrow(filter(dat_ae, aetype == "AESI"))
 n_sae <- nrow(filter(dat_ae, aetype == "SAE"))
 ```
 
-There were `{r} nrow(dat_ae)` adverse events (`{r} n_unsol` unsolicited, `{r} n_aesi` adverse events of special interest, and `{r} n_sae` serious adverse events) documented during the trial.
+There were `{r} nrow(dat_ae)` adverse events (`{r} n_unsol` unsolicited, `{r} n_aesi` adverse events of special interest, and `{r} n_sae` serious adverse events[^sae]) documented during the trial.
 Most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`).
 Most of these events were due to the closer follow-up as part of stage 1 (@tbl-events-by-stage-and-site) and for the first 150 participants recruited as part of stage 2 (@tbl-pch-adverse-events). There were `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (@tbl-listing-ae-non-pch). A listing of the related AEs is given in @tbl-listing-ae-related-pch.
+
+[^sae]: there were a further 3 SAEs which were documented on the SAE reporting log but were not recorded on the AE form (see next section on serious adverse events) - so `{r} n_sae + 3` SAEs.
 
 There was a higher number of adverse events in the wP group compared to aP. There was also a higher number of infants who experienced at least one AE (@tbl-summary-ae-pch). Some of the difference in total AEs was due to infants with multiple events. For both groups only a few AEs were documented as related to the blinded study vaccine.
 
