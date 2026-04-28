@@ -740,7 +740,7 @@ dat_fa |>
     outageval_months2 > 18
   )
 
-dat_po_ofc <- dat_fa |>
+dat_ofc_spt <- dat_fa |>
   filter(
     outalltp == "Oral food challenge",
     outageval_months2 <= 18,
@@ -766,7 +766,9 @@ dat_po_ofc <- dat_fa |>
     splt_foods = gsub("( |, )", "|", spt_pos_1mm),
     match_food = str_match(tolower(outfrafood), splt_foods)[1]
   ) |>
-  ungroup() |>
+  ungroup()
+
+dat_po_ofc <- dat_ofc_spt |>
   summarise(
     outfrafood = paste(unique(tolower(outfrafood)), collapse = ", "),
     any_food_match = any(!is.na(match_food) & outageval_months2 <= 18),
@@ -780,6 +782,15 @@ dat_po_ofc <- dat_fa |>
     po_ofc = any_food_match,
     po_ofc_foods = outfrafood,
     po_ofc_match = matched_foods
+  ) |>
+  # Manual fixes for reporting purposes
+  mutate(
+    po_ofc_match = gsub("egg", "whole egg", po_ofc_match),
+    po_ofc_match = gsub("milk", "cow's milk", po_ofc_match),
+    po_ofc_match = replace_when(
+      po_ofc_match,
+      po_ofc_match == "whole" ~ "whole egg",
+    )
   )
 
 # Number who met this condition
@@ -793,7 +804,7 @@ There were `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` outcome records f
 ```{r}
 #| label: check-positive-spt-ana
 #| include: false
-dat_po_ana <- dat_fa |>
+dat_ana_spt <- dat_fa |>
   filter(
     outalltp == "Anaphylaxis",
     outageval_months2 <= 18,
@@ -813,7 +824,9 @@ dat_po_ana <- dat_fa |>
       select(record_id, spt_age, spt_pos_1mm),
     join_by(record_id),
     relationship = "many-to-many"
-  ) |>
+  )
+
+dat_po_ana <- dat_ana_spt |>
   rowwise() |>
   mutate(
     splt_foods = gsub("( |, )", "|", spt_pos_1mm),
@@ -833,6 +846,14 @@ dat_po_ana <- dat_fa |>
     po_ana = any_food_match,
     po_ana_foods = outfrafood,
     po_ana_match = matched_foods
+  ) |>
+  # Manual fixes for reporting purposes
+  mutate(
+    po_ana_match = replace_when(
+      po_ana_match,
+      po_ana_match == "milk" ~ "cow's milk",
+      po_ana_match == "egg" ~ "whole egg"
+    )
   )
 ```
 
@@ -865,7 +886,7 @@ dat_fa |>
     is.na(outdiagdat)
   )
 
-dat_po_ige_1 <- dat_fa |>
+dat_ige_spt <- dat_fa |>
   filter(
     outalltp == "Highly probably IgE mediated food allergy",
     outageval_months2 <= 18,
@@ -885,7 +906,9 @@ dat_po_ige_1 <- dat_fa |>
       select(record_id, spt_age, spt_pos_1mm),
     join_by(record_id),
     relationship = "many-to-many"
-  ) |>
+  )
+
+dat_po_ige_1 <- dat_ige_spt |>
   rowwise() |>
   mutate(
     splt_foods = gsub("( |, )", "|", spt_pos_1mm),
@@ -905,6 +928,7 @@ dat_po_ige_1 <- dat_fa |>
     )
   ) |>
   ungroup()
+
 dat_po_ige <- dat_po_ige_1 |>
   summarise(
     outfrafood = paste(unique(tolower(outfrafood)), collapse = ", "),
@@ -927,6 +951,17 @@ dat_po_ige <- dat_po_ige_1 |>
     po_ige = any_food_match,
     po_ige_foods = outfrafood,
     po_ige_match = matched_foods
+  ) |>
+  # Manual fixes for reporting purposes
+  mutate(
+    po_ige_match = gsub("egg", "whole egg", po_ige_match),
+    po_ige_match = gsub("milk", "cow's milk", po_ige_match),
+    po_ige_match = replace_when(
+      po_ige_match,
+      record_id == "4629-226" ~ "peanut, egg yolk, egg white",
+      record_id == "4630-7" ~ "cow's milk, egg yolk, egg white, soy, beef",
+      record_id == "4630-17" ~ "egg yolk, egg white"
+    )
   )
 
 # No positive SPT

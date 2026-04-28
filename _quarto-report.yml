@@ -6,6 +6,7 @@ project:
 format:
   pdf:
     documentclass: scrartcl
+    classoption: [listof=totoc]
     geometry:
       - inner=1cm
       - outer=1cm
@@ -45,8 +46,6 @@ format:
       - tex/toc.tex
     include-in-header:
       text: |
-        \usepackage[nottoc]{tocbibind}
-        \usepackage{chngcntr}
         \usepackage[font=small,labelfont={bf,small},listformat=simple]{caption}
         \usepackage{makecell}
         \usepackage{moresize}

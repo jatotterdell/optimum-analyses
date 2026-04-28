@@ -25,7 +25,11 @@ source(here("reports/R/_data.R"))
 
 \clearpage
 
+```{=latex}
+% \listoftoc[List of Abbreviations]{loa}
 \phantomsection
+```
+
 # List of Abbreviations {.unnumbered}
 
 **aP** acellular pertussis

@@ -1,22 +1,6 @@
-\phantomsection
-# References {.unnumbered}
+# Additional Information
 
-::: {#refs}
-:::
-
-\clearpage
-
-<!-- \setcounter{section}{0}
-\renewcommand{\thesection}{\Alph{section}} -->
-
-\phantomsection
-# Appendix {.appendix .unnumbered}
-
-<!-- \counterwithin{figure}{section} -->
-<!-- \counterwithin{table}{section} -->
-
-\phantomsection
-## Primary outcome listings {#sec-primary-outcome-listing}
+## Primary outcome listing {#sec-primary-outcome-listing}
   
 ```{r}
 #| label: tbl-listing-ofc-matched-foods
@@ -24,6 +8,7 @@
 #|    Listing of infants with OFC outcome by 18 months of age and corresponding SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ofc |>
+  filter(po_ofc) |>
   select(record_id, trt, po_ofc_foods, po_ofc_match) |>
   gt() |>
   cols_label(
@@ -31,7 +16,12 @@ dat_po_ofc |>
     po_ofc_foods ~ "OFC positive foods",
     po_ofc_match ~ "Foods with positive SPT"
   ) |>
-  tab_options(table.font.size = px(9), table.width = pct(75))
+  tab_options(table.font.size = px(9), table.width = pct(75)) |>
+  tab_footnote(
+    footnote = "These were from free-text fields on the outcome report. Responses are reported as documented.",
+    locations = cells_column_labels(columns = po_ofc_foods),
+    placement = "right"
+  )
 ```
 
 ```{r}
@@ -39,6 +29,7 @@ dat_po_ofc |>
 #| tbl-cap: Listing of infants with food anaphylaxis outcome by 18 months of age and corresponding SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ana |>
+  filter(po_ana) |>
   select(record_id, trt, po_ana_foods, po_ana_match) |>
   gt() |>
   cols_label(
@@ -46,7 +37,12 @@ dat_po_ana |>
     po_ana_foods ~ "Anaphylactic triggers",
     po_ana_match ~ "Foods with positive SPT"
   ) |>
-  tab_options(table.font.size = px(9), table.width = pct(75))
+  tab_options(table.font.size = px(9), table.width = pct(75)) |>
+  tab_footnote(
+    footnote = "These were from free-text fields on the outcome report. Responses are reported as documented.",
+    locations = cells_column_labels(columns = po_ana_foods),
+    placement = "right"
+  )
 ```
 
 ```{r}
@@ -56,6 +52,7 @@ dat_po_ana |>
 #|    SPT positive allergens.
 #| tbl-pos: "H"
 dat_po_ige |>
+  filter(po_ige) |>
   select(record_id, trt, po_ige_foods, po_ige_match) |>
   gt() |>
   cols_label(
@@ -63,12 +60,26 @@ dat_po_ige |>
     po_ige_foods ~ "Suspected food allergen",
     po_ige_match ~ "Foods with positive SPT"
   ) |>
-  tab_options(table.font.size = px(9), table.width = pct(75))
+  tab_options(table.font.size = px(9), table.width = pct(75)) |>
+  tab_footnote(
+    footnote = "These were from free-text fields on the outcome report. Responses are reported as documented.",
+    locations = cells_column_labels(columns = po_ige_foods),
+    placement = "right"
+  ) |>
+  tab_footnote(
+    footnote = paste0(
+      "In some instances, separate SPTs for egg yolk and egg white were ",
+      "reported rather than one SPT for whole egg."
+    ),
+    locations = cells_column_labels(columns = po_ige_match),
+    placement = "right"
+  )
 ```
 
+```{=latex}
 \clearpage
+```
 
-\phantomsection
 ## Secondary outcome listings
 
 ```{r}
@@ -94,10 +105,12 @@ dat_ecz_spt |>
   )
 ```
 
+```{=latex}
 \clearpage
+```
 
-\phantomsection
-## IgG concentrations
+## Additional IgG concentration summaries
+
 
 ```{r}
 #| label: fig-igg-ecdf-dtap
@@ -241,3 +254,13 @@ igg_marginal_plots_2 <- function(dat) {
   return(p)
 }
 ```
+
+```{=latex}
+\clearpage
+\phantomsection
+```
+
+# References {.unnumbered}
+
+::: {#refs}
+:::
