@@ -551,7 +551,7 @@ The subsequent sections report on the daily reaction grades following each vacci
 ```{r}
 #| label: tbl-sol-intensity-any-severe
 #| tbl-cap: |
-#|   Experience of any severe intensity systemic reaction following vaccination (day 0 to 6) by assigned treatment.
+#|   Experience of any grade 3 intensity systemic reaction following vaccination (day 0 to 6) by assigned treatment.
 #|   Excludes participants with missing diary cards or non-response for all days.
 #| tbl-pos: "H"
 out <- diary_sol_any |>
