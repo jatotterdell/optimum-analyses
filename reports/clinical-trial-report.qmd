@@ -32,9 +32,23 @@ source(here("reports/R/_data.R"))
 
 # List of Abbreviations {.unnumbered}
 
+**AE** adverse event
+
+**AESI** adverse event of special interest
+
 **aP** acellular pertussis
 
+**CHW** The Children's Hospital at Westmead
+
 **DT** diptheria toxoid
+
+**GMC** geometric mean concentration
+
+**GMFR** geometric mean fold rise
+
+**GMR** geometric mean ratio
+
+**GSD** geometric standard deviation
 
 **FHA** filamentous haemagglutinin
 
@@ -44,11 +58,33 @@ source(here("reports/R/_data.R"))
 
 **Hib-PRP** capsular polysaccharide of Hib
 
+**IgE** immunoglobulin E
+
+**IgG** immunoglobulin G
+
+**IMP** investigational medicinal product
+
+**ITT** intention-to-treat
+
+**kU/L** kilounits per litre
+
+**MedDRA** Medical Dictionary for Regulatory Activities
+
+**MCRI** Murdoch Children's Research Institute
+
 **OFC** oral food challenge
+
+**PCH** Perth Children's Hospital
+
+**PnP** pneumococcal polysaccharide
 
 **PRN** pertactin
 
 **PT** anti-pertussis toxin
+
+**SAE** serious adverse event
+
+**SCHN** Sydney Children's Hospital Randwick
 
 **SPT** skin prick test
 
