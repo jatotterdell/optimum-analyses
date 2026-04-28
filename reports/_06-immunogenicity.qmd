@@ -2375,9 +2375,9 @@ p
 
 \clearpage
 
-### Seroprotection
+### Seroresponses and seroprotection to non-pertussis antigens
 
-Model estimated differences in seroprotection are summarised in @tbl-logistic-regression-igg-seropos-dtap and @fig-gmr-igg-sero-dtap.
+Model estimated differences in seroresponse and seroprotection (where applicable) are summarised in @tbl-logistic-regression-igg-seropos-dtap and @fig-gmr-igg-sero-dtap.
 
 ```{r}
 #| label: model-igg-seropos-all
@@ -2446,7 +2446,7 @@ mdat_igg_sero <- mdat_igg_sero |>
 ```{r}
 #| label: tbl-logistic-regression-igg-seropos-dtap
 #| tbl-cap: |
-#|   The model estimated standardised risk, risk difference, and conditional odds ratio for seroprotection comparing wP with aP.
+#|   The model estimated standardised risk, risk difference, and conditional odds ratio for seroresponses and seroprotection (where applicable) comparing recipients of wP as a first dose versus aP as a first dose.
 #| tbl-pos: "H"
 #| output: asis
 d1_igg_sero <- mdat_igg_sero |>
@@ -2582,7 +2582,7 @@ td |>
 
 ```{r}
 #| label: fig-gmr-igg-sero-dtap
-#| fig-cap: Posterior difference in seropositivity probability (median and 95% CrI) for wP vs. aP by age and antigen.
+#| fig-cap: Posterior difference in seroresponse and seroprotection (where applicable) probability (median and 95% CrI) for wP vs. aP by age and antigen.
 #| fig-width: 8
 #| fig-height: 10
 des <- "
@@ -2608,7 +2608,7 @@ p <- d2_igg_sero |>
   stat_pointinterval(.width = 0.95) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
   geom_vline(xintercept = 0, linetype = 2) +
-  labs(x = "Difference in seropositivity probability, wP versus aP", y = "Age") +
+  labs(x = "Difference in seroresponse/seroprotection probability, wP versus aP", y = "Age") +
   scale_y_discrete(limits = rev)
 p
 ```

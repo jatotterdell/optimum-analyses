@@ -30,7 +30,7 @@ Participants were randomised 1:1 to receive either:
 
 Originally, a maximum sample size of 3,000 participants was planned. Under the adaptive design, as outlined in the protocol [@chacon2020OPTIMUMStudyProtocol] and statistical analysis plan [@totterdell2022StatisticalAnalysisPlan], we estimated the trial had 85% power to detect a reduction in IgE-mediated food allergy from 10% to 7% with type I error of 5%. If $\delta$ denotes the difference in probability of IgE-mediated food allergy under each intervention, then trial success required that $\delta$ was very likely to be less than zero, specifically that $\Pr(\delta < 0) > 0.95$.
 
-The maximum sample size was subsequently revised down to 2,000 participants due to feasibility constraints. The trial was stopped early due to logistical issues with 972 participants randomised.
+The maximum sample size was subsequently revised down to 2,000 participants due to feasibility constraints. The trial was stopped early due to an inability to procure investigational medicinal product (IMP) with 972 participants randomised.
 
 ## Trial outcomes
 
