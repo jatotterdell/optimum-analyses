@@ -478,7 +478,43 @@ The baseline characteristics of all participants by their randomly assigned trea
 #| tbl-cap: Baseline characteristics of trial participants.
 #| tbl-pos: "H"
 #| output: "asis"
-dat_base |>
+tbl <- dat_base |>
+  set_variable_labels(
+    etomthr___1 = "Indigenous Australia",
+    etomthr___2 = "European Caucasian",
+    etomthr___3 = "Asian",
+    etomthr___4 = "Indian subcontinent",
+    etomthr___5 = "Middle Eastern",
+    etomthr___6 = "Pacific Islander",
+    etomthr___7 = "South American",
+    etomthr___8 = "Black African",
+    etofthr___1 = "Indigenous Australia",
+    etofthr___2 = "European Caucasian",
+    etofthr___3 = "Asian",
+    etofthr___4 = "Indian subcontinent",
+    etofthr___5 = "Middle Eastern",
+    etofthr___6 = "Pacific Islander",
+    etofthr___7 = "South American",
+    etofthr___8 = "Black African",
+    etoinf___1 = "Indigenous Australia",
+    etoinf___2 = "European Caucasian",
+    etoinf___3 = "Asian",
+    etoinf___4 = "Indian subcontinent",
+    etoinf___5 = "Middle Eastern",
+    etoinf___6 = "Pacific Islander",
+    etoinf___7 = "South American",
+    etoinf___8 = "Black African",
+  ) |>
+  mutate(
+    bcmoth = fct_lump_min(bcmoth, min = 10) |>
+      # fct_recode(Other = "OTHER") |>
+      fct_infreq() |>
+      fct_relevel("Other", after = Inf),
+    bcfath = fct_lump_min(bcfath, min = 10) |>
+      fct_recode(Other = "OTHER") |>
+      fct_infreq() |>
+      fct_relevel("Other", after = Inf)
+  ) |>
   tbl_summary(
     include = c(
       # Demographics and infant history
@@ -487,6 +523,29 @@ dat_base |>
       gender,
       v1_age_days,
       parinc,
+      bcmoth,
+      bcfath,
+      etomthr___2,
+      etomthr___3,
+      etomthr___4,
+      etomthr___7,
+      etomthr___1,
+      etomthr___6,
+      etomthr___8,
+      etofthr___2,
+      etofthr___3,
+      etofthr___4,
+      etofthr___6,
+      etofthr___7,
+      etofthr___1,
+      etofthr___8,
+      etoinf___2,
+      etoinf___3,
+      etoinf___4,
+      etoinf___7,
+      etoinf___6,
+      etoinf___1,
+      etoinf___8,
       fborn,
       fecurr,
       fecat,
@@ -514,6 +573,8 @@ dat_base |>
     label = list(
       rand_stage ~ "Protocol stage",
       rand_site ~ "Participating site",
+      bcmoth ~ "Birth country of mother",
+      bcfath ~ "Birth country of father",
       v1_age_days ~ "Age at enrolment (days)",
       fborn ~ "First born",
       mgrav_fac ~ "Maternal gravidity",
@@ -523,7 +584,8 @@ dat_base |>
       prevpert ~ "Other maternal pertussis vaccination (last 5 years)",
       fha ~ "Family history of atopy",
       fecat ~ "Cat ownership",
-      fedog ~ "Dog ownership"
+      fedog ~ "Dog ownership",
+      fecurr ~ "Feeding status"
     ),
     by = trt,
     missing_text = "(Missing)",
@@ -531,6 +593,9 @@ dat_base |>
   ) |>
   add_n() |>
   add_overall(last = TRUE) |>
+  add_variable_group_header(header = "Mother's ethnicity", variables = starts_with("etomthr")) |>
+  add_variable_group_header(header = "Father's ethnicity", variables = starts_with("etofthr")) |>
+  add_variable_group_header(header = "Infant's ethnicity", variables = starts_with("etoinf")) |>
   modify_column_alignment(all_stat_cols(), "right") |>
   modify_header(
     all_stat_cols() ~
@@ -539,19 +604,31 @@ dat_base |>
         "N = {formatC(n, format='d', big.mark=',')}}}"
       )
   ) |>
+  modify_table_body(
+    ~ .x |>
+      mutate(
+        n = if_else(grepl("___", variable), NA_character_, n),
+        n = if_else(row_type == "variable_group", '972', n)
+      )
+  )
+tbl |>
   as_gt() |>
   cols_width(label ~ pct(30)) |>
   tab_style(
     style = cell_text(weight = "bold"),
     locations = cells_body(
       columns = label,
-      rows = row_type == "label"
+      rows = (row_type == "label" | row_type == "variable_group") & !grepl("___", variable)
     )
   ) |>
   tab_options(
     table.width = pct(100),
     table.font.size = px(9),
     latex.use_longtable = TRUE
+  ) |>
+  tab_footnote(
+    footnote = "Multiple may apply to each participant",
+    locations = cells_body(rows = row_type == "variable_group", columns = label)
   ) |>
   as_latex() |>
   latex_unescape() |>
@@ -570,6 +647,16 @@ The baseline characteristics of this cohort of participants by their randomly as
 dat_base |>
   filter(rand_site == "PCH") |>
   filter(substr(subjid, 4, 6) %in% str_pad(1:300, 3, pad = "0")) |>
+  mutate(
+    bcmoth = fct_lump_min(bcmoth, min = 5) |>
+      fct_recode(Other = "OTHER") |>
+      fct_infreq() |>
+      fct_relevel("Other", after = Inf),
+    bcfath = fct_lump_min(bcfath, min = 5) |>
+      fct_recode(Other = "OTHER") |>
+      fct_infreq() |>
+      fct_relevel("Other", after = Inf)
+  ) |>
   tbl_summary(
     include = c(
       # Demographics and infant history
@@ -577,6 +664,8 @@ dat_base |>
       gender,
       v1_age_days,
       parinc,
+      bcmoth,
+      bcfath,
       fborn,
       fecurr,
       fecat,
@@ -603,6 +692,8 @@ dat_base |>
     ),
     label = list(
       rand_stage ~ "Protocol stage",
+      bcmoth ~ "Birth country of mother",
+      bcfath ~ "Birth country of father",
       v1_age_days ~ "Age at enrolment (days)",
       fborn ~ "First born",
       mgrav_fac ~ "Maternal gravidity",
@@ -612,7 +703,8 @@ dat_base |>
       prevpert ~ "Other maternal pertussis vaccination (last 5 years)",
       fha ~ "Family history of atopy",
       fecat ~ "Cat ownership",
-      fedog ~ "Dog ownership"
+      fedog ~ "Dog ownership",
+      fecurr ~ "Feeding status"
     ),
     by = trt,
     missing_text = "(Missing)",

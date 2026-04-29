@@ -163,7 +163,7 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
     left_join(dat_st, join_by(record_id)) |>
     left_join(
       select_form(dat_raw, "demographics") |>
-        select(-ptinit, -calcagem, -starts_with("eto")) |>
+        select(-ptinit, -calcagem) |>
         mutate(
           # Impute 1 missing case as most common level
           parinc_imp = factor(
