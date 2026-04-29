@@ -636,6 +636,10 @@ tbl |>
   cat()
 ```
 
+```{=latex}
+\clearpage
+```
+
 Reactogenicity and immunogenicity data was only collected for the first 300 participants at PCH.
 The baseline characteristics of this cohort of participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics-pch-300.
 
@@ -644,9 +648,35 @@ The baseline characteristics of this cohort of participants by their randomly as
 #| tbl-cap: Baseline characteristics of trial participants.
 #| tbl-pos: "H"
 #| output: "asis"
-dat_base |>
+tbl <- dat_base |>
   filter(rand_site == "PCH") |>
   filter(substr(subjid, 4, 6) %in% str_pad(1:300, 3, pad = "0")) |>
+  set_variable_labels(
+    etomthr___1 = "Indigenous Australia",
+    etomthr___2 = "European Caucasian",
+    etomthr___3 = "Asian",
+    etomthr___4 = "Indian subcontinent",
+    etomthr___5 = "Middle Eastern",
+    etomthr___6 = "Pacific Islander",
+    etomthr___7 = "South American",
+    etomthr___8 = "Black African",
+    etofthr___1 = "Indigenous Australia",
+    etofthr___2 = "European Caucasian",
+    etofthr___3 = "Asian",
+    etofthr___4 = "Indian subcontinent",
+    etofthr___5 = "Middle Eastern",
+    etofthr___6 = "Pacific Islander",
+    etofthr___7 = "South American",
+    etofthr___8 = "Black African",
+    etoinf___1 = "Indigenous Australia",
+    etoinf___2 = "European Caucasian",
+    etoinf___3 = "Asian",
+    etoinf___4 = "Indian subcontinent",
+    etoinf___5 = "Middle Eastern",
+    etoinf___6 = "Pacific Islander",
+    etoinf___7 = "South American",
+    etoinf___8 = "Black African",
+  ) |>
   mutate(
     bcmoth = fct_lump_min(bcmoth, min = 5) |>
       fct_recode(Other = "OTHER") |>
@@ -666,6 +696,27 @@ dat_base |>
       parinc,
       bcmoth,
       bcfath,
+      etomthr___2,
+      etomthr___3,
+      etomthr___4,
+      etomthr___7,
+      etomthr___6,
+      etomthr___8,
+      etomthr___1,
+      etofthr___2,
+      etofthr___3,
+      etofthr___4,
+      etofthr___1,
+      etofthr___8,
+      etofthr___6,
+      etofthr___7,
+      etoinf___2,
+      etoinf___3,
+      etoinf___4,
+      etoinf___7,
+      etoinf___1,
+      etoinf___8,
+      etoinf___6,
       fborn,
       fecurr,
       fecat,
@@ -712,6 +763,9 @@ dat_base |>
   ) |>
   add_n() |>
   add_overall(last = TRUE) |>
+  add_variable_group_header(header = "Mother's ethnicity", variables = starts_with("etomthr")) |>
+  add_variable_group_header(header = "Father's ethnicity", variables = starts_with("etofthr")) |>
+  add_variable_group_header(header = "Infant's ethnicity", variables = starts_with("etoinf")) |>
   modify_column_alignment(all_stat_cols(), "right") |>
   modify_header(
     all_stat_cols() ~
@@ -720,19 +774,31 @@ dat_base |>
         "N = {formatC(n, format='d', big.mark=',')}}}"
       )
   ) |>
+  modify_table_body(
+    ~ .x |>
+      mutate(
+        n = if_else(grepl("___", variable), NA_character_, n),
+        n = if_else(row_type == "variable_group", '300', n)
+      )
+  )
+tbl |>
   as_gt() |>
   cols_width(label ~ pct(30)) |>
   tab_style(
     style = cell_text(weight = "bold"),
     locations = cells_body(
       columns = label,
-      rows = row_type == "label"
+      rows = (row_type == "label" | row_type == "variable_group") & !grepl("___", variable)
     )
   ) |>
   tab_options(
     table.width = pct(100),
     table.font.size = px(9),
     latex.use_longtable = TRUE
+  ) |>
+  tab_footnote(
+    footnote = "Multiple may apply to each participant",
+    locations = cells_body(rows = row_type == "variable_group", columns = label)
   ) |>
   as_latex() |>
   latex_unescape() |>
