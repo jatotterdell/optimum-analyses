@@ -87,6 +87,7 @@ combine_demographics <- function() {
       -redcap_data_access_group,
       -deemail
     )
+
   st1_demo <- read_delim(
     file.path(st1_path, "DEMO.txt"),
     show_col_types = FALSE,
@@ -135,7 +136,35 @@ combine_demographics <- function() {
       bcfath = cobfther,
       parinc = income,
       gpinfyn = gpinf
-    )
+    ) |>
+    mutate(
+      etomthr___1 = grepl("Indigenous Australia (Aboriginal, Torres Strait Islander)", etomthr),
+      etomthr___2 = grepl("European Caucasian", etomthr),
+      etomthr___3 = grepl("Asian", etomthr),
+      etomthr___4 = grepl("Indian subcontinent ", etomthr),
+      etomthr___5 = grepl("Middle Eastern", etomthr),
+      etomthr___6 = grepl("Pacific Islander ", etomthr),
+      etomthr___7 = grepl("South American", etomthr),
+      etomthr___8 = grepl("Black African", etomthr),
+      etofthr___1 = grepl("Indigenous Australia (Aboriginal, Torres Strait Islander)", etofthr),
+      etofthr___2 = grepl("European Caucasian", etofthr),
+      etofthr___3 = grepl("Asian", etofthr),
+      etofthr___4 = grepl("Indian subcontinent ", etofthr),
+      etofthr___5 = grepl("Middle Eastern", etofthr),
+      etofthr___6 = grepl("Pacific Islander ", etofthr),
+      etofthr___7 = grepl("South American", etofthr),
+      etofthr___8 = grepl("Black African", etofthr),
+      etoinf___1 = grepl("Indigenous Australia (Aboriginal, Torres Strait Islander)", etoinf),
+      etoinf___2 = grepl("European Caucasian", etoinf),
+      etoinf___3 = grepl("Asian", etoinf),
+      etoinf___4 = grepl("Indian subcontinent ", etoinf),
+      etoinf___5 = grepl("Middle Eastern", etoinf),
+      etoinf___6 = grepl("Pacific Islander ", etoinf),
+      etoinf___7 = grepl("South American", etoinf),
+      etoinf___8 = grepl("Black African", etoinf),
+      .after = bcfath
+    ) |>
+    select(-etomthr, -etofthr, -etoinf)
 
   parinc_levels <- c(
     "< $18,000",
