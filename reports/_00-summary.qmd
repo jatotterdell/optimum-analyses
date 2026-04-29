@@ -2,12 +2,12 @@
 
 The overall objectives of this study were to determine if, compared to the existing pertussis vaccine schedule of three priming doses of acellular pertussis (aP) vaccine, a single dose of whole-cell pertussis (wP) vaccine at approximately 2 months of age, followed by two doses of aP vaccine at approximately 4 and 6 months of age:
 
-1. Protects against the development of clinical IgE-mediated food allergy.
+1. Protects against the development of IgE-mediated food allergy.
 2. Protects against the development of an atopic immunophenotype, as evidenced by a reduction in the proportion of titres above the assay limit of detection or a reduction in the mean fold-rise in the log titres of total IgE, anti-tetanus toxoid (TT) IgE, and food-associated IgE in response to the third pertussis-containing vaccine at approximately age 6 months (stage 1).
 3. Is associated with a protective pertussis antibody response, as evidenced by no reduction in the proportion of children who have at least a 4-fold rise in anti-pertussis toxin (PT) IgG antibody responses and no reduction in the mean fold-rise in PT-IgG, to a fourth pertussis-containing vaccine at approximately age 18 months (stage 1 and stage 2, Perth Children’s Hospital (PCH)/The Kids Research Institute Australia[^1] study site.)
 4. Is associated with an acceptable reactogenicity profile (stage 1 and stage 2, PCH/The Kids Research Institute Australia study site).
 
-*__1.__ (@sec-clinical-mechanistic-outcomes) There was little evidence of a substantial benefit of wP compared to aP at 2 months of age on protection against the development of clinical IgE-mediated food allergy. For the primary outcome, the estimated difference [posterior median (95% CrI)] in IgE-mediated food allergy risk for wP compared to aP was 0.01 (-0.02, 0.04), that is anywhere from a 2%pt. reduction to a 4%pt. increase were plausible differences given the data.*
+*__1.__ (@sec-clinical-mechanistic-outcomes) There was little evidence of a substantial benefit of wP compared to aP at 2 months of age on protection against the development of IgE-mediated food allergy. For the primary outcome, the estimated difference [posterior median (95% CrI)] in IgE-mediated food allergy risk for wP compared to aP was 0.01 (-0.02, 0.04), that is anywhere from a 2%pt. reduction to a 4%pt. increase were plausible differences given the data.*
 
 *For the secondary outcome of new-onset eczema by 6 and 12 months of age the estimated difference in risk for wP compared to aP was -0.01 (-0.04, 0.02) and -0.01 (-0.04, 0.03) respectively. For the secondary outcome of skin prick test positivity at >1mm and ≥3mm relative to negative control the estimated difference in risk for wP compared to aP was 0.01 (-0.04, 0.06) and 0.01 (-0.04, 0.05) respectively, both showing little evidence of reduction under the wP schedule compared to aP.*
 
