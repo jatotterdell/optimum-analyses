@@ -408,6 +408,10 @@ dat_spt |>
     table.width = pct(50),
     latex.use_longtable = TRUE
   ) |>
+  tab_footnote(
+    footnote = "As documented in free-text field",
+    location = cells_column_labels(columns = label)
+  ) |>
   as_latex() |>
   latex_unescape() |>
   gsub("NA", "-", x = _) |>
@@ -716,7 +720,7 @@ The primary source of information for IgE-mediated food allergy was the `outcome
 
 Age at first reaction was derived from `outageval`. If this was missing then `birthdat` (date of birth) and `outdiagdat` (clinician-diagnosis date) was used to derive age in months.
 
-In some cases participants may have withdrawn from the study without sufficient follow-up for food allergy to have been identified. The report makes no allowance for "missing" food allergy status, with absence of clinician diagnosed allergy (with or without adequate follow-up) counted as not meeting the primary outcome. Only 17 participants had an age of last contact 15 months or younger and may have been those most likely to have insufficient follow-up.
+In some cases participants may have withdrawn from the study without sufficient follow-up for IgE-mediated food allergy to have been identified. The report makes no allowance for "missing" IgE-mediated food allergy status, with absence of clinician diagnosed allergy (with or without adequate follow-up) counted as not meeting the primary outcome. Only 17 participants had an age of last contact 15 months or younger and may have been those most likely to have insufficient follow-up.
 
 The following sections provide a summary of the number of infants who met each criteria. 
 The infants with an outcome reported are line listed in the appendix (@sec-primary-outcome-listing) along with the reported allergens.
@@ -1144,12 +1148,12 @@ dat_rd_po <- dat_po |>
 
 @tbl-posterior-primary summarises the estimated model parameters for the probability of IgE-mediated food allergy under each treatment group, and their difference. The posterior densities for the difference in risk of IgE-mediated food allergy (wP vs aP) are shown in @fig-posterior-difference-primary-unadjusted-adjusted.
 
-The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most plausible values for the difference in food allergy between wP and aP were `r do.call(sprintf, c(fmt = "%.2f (%.2f, %.2f)", as.list(c(quantile2(po_diff$delta, c(0.5, 0.025, 0.975))))))` [posterior median, (95% credible interval)]. The probability of a reduction in food allergy under wP compared to aP was `r sprintf("%.2f", mean(po_diff$delta < 0))`.
+The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most plausible values for the difference in IgE-mediated food allergy between wP and aP were `r do.call(sprintf, c(fmt = "%.2f (%.2f, %.2f)", as.list(c(quantile2(po_diff$delta, c(0.5, 0.025, 0.975))))))` [posterior median, (95% credible interval)]. The probability of a reduction in IgE-medidated food allergy under wP compared to aP was `r sprintf("%.2f", mean(po_diff$delta < 0))`.
 
 ```{r}
 #| label: tbl-posterior-primary
 #| tbl-cap: |
-#|   Posterior summaries for risk and difference in risk of food allergy.
+#|   Posterior summaries for risk and difference in risk of IgE-mediated food allergy.
 #| tbl-pos: "H"
 diff_agg <- po_diff |>
   nest_rvars() |>
@@ -1265,7 +1269,7 @@ p1 <- po_diff |>
   scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
-    x = "Difference in food allergy risk, wP - aP",
+    x = "Difference in IgE-mediated food allergy risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -1275,7 +1279,7 @@ p1
 
 ```{r}
 #| label: fig-posterior-difference-adjusted
-#| fig-cap: Posterior difference in risk of food allergy for wP compared to aP, adjusted model.
+#| fig-cap: Posterior difference in risk of IgE-mediated food allergy for wP compared to aP, adjusted model.
 #| fig-height: 2
 #| fig-width: 5
 #| include: false
@@ -1294,7 +1298,7 @@ p2 <- ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
   scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
-    x = "Difference in food allergy risk, wP - aP",
+    x = "Difference in IgE-mediated food allergy risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -1304,7 +1308,7 @@ p2
 ```{r}
 #| label: fig-posterior-difference-primary-unadjusted-adjusted
 #| fig-cap: |
-#|   Posterior density for difference in risk of food allergy by model.
+#|   Posterior density for difference in risk of IgE-mediated food allergy by model.
 #|   Values in regions with high density are those most plausible given the data and model assumptions.
 #| fig-height: 2
 #| fig-width: 6
