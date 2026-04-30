@@ -148,6 +148,18 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
   dat_fha <- select_form(dat_raw, "family_history_of_atopy") |>
     select(record_id, fha)
   dat_st <- get_study_termination(dat_raw)
+  # Here we re-classify one participant as "Early termination" for protocol deviation
+  dat_st <- dat_st |>
+    mutate(
+      streas = replace_when(
+        streas,
+        record_id == "8644-22" ~ "Early termination"
+      ),
+      stetrreas = replace_when(
+        stetrreas,
+        record_id == "8644-22" ~ "Lost to follow-up"
+      )
+    )
   rnd |>
     mutate(randdat = date(randdattim)) |>
     select(
