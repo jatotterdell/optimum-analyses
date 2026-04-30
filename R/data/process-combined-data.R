@@ -19,6 +19,19 @@ get_study_termination <- function(dat_raw) {
     select(record_id, birthdat)
   dat_st <- select_form(dat_raw, "study_termination") |>
     mutate(streas = str_to_sentence(streas))
+  # Here we re-classify one participant as "Early termination" for protocol deviation
+  dat_st <- dat_st |>
+    mutate(
+      streas = replace_when(
+        streas,
+        record_id == "8644-22" ~ "Early termination"
+      ),
+      stetrreas = replace_when(
+        stetrreas,
+        record_id == "8644-22" ~ "Lost to follow-up"
+      )
+    )
+
   dat_vs <- select_form(dat_raw, "participant_assessment") |>
     select(record_id, visdat, windyn, windreas, windothspec, visit, visage)
 
@@ -148,18 +161,6 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
   dat_fha <- select_form(dat_raw, "family_history_of_atopy") |>
     select(record_id, fha)
   dat_st <- get_study_termination(dat_raw)
-  # Here we re-classify one participant as "Early termination" for protocol deviation
-  dat_st <- dat_st |>
-    mutate(
-      streas = replace_when(
-        streas,
-        record_id == "8644-22" ~ "Early termination"
-      ),
-      stetrreas = replace_when(
-        stetrreas,
-        record_id == "8644-22" ~ "Lost to follow-up"
-      )
-    )
   rnd |>
     mutate(randdat = date(randdattim)) |>
     select(
@@ -209,7 +210,18 @@ get_skin_prick_long <- function(dat_raw) {
   dat_rand <- select_form(dat_raw, "randomisation")
   dat_allo <- select_form(dat_raw, "allocations")
   dat_base <- select_form(dat_raw, "demographics")
-  dat_st <- select_form(dat_raw, "study_termination")
+  dat_st <- select_form(dat_raw, "study_termination") |>
+    mutate(streas = str_to_sentence(streas)) |>
+    mutate(
+      streas = replace_when(
+        streas,
+        record_id == "8644-22" ~ "Early termination"
+      ),
+      stetrreas = replace_when(
+        stetrreas,
+        record_id == "8644-22" ~ "Lost to follow-up"
+      )
+    )
   c_allergens <- c(
     "D.pteronyssinus",
     "cat dander",
