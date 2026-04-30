@@ -80,6 +80,10 @@ tbl_study_termination <- function(dat) {
 }
 
 tbl_study_termination(dat_base) |>
+  tab_footnote(
+    footnote = "In most cases, this was due to no blood collection at visit 3 resulting in no visit 4. Only applicable at PCH.",
+    location = cells_body(columns = stetrreas, rows = stetrreas == "Protocol violation/deviation")
+  ) |>
   as_latex() |>
   latex_unescape() |>
   cat()
@@ -135,6 +139,10 @@ tbl_study_termination_by <- function(dat, by = rand_site) {
 }
 
 tbl_study_termination_by(dat_base) |>
+  tab_footnote(
+    footnote = "In most cases, this was due to no blood collection at visit 3 resulting in no visit 4",
+    location = cells_body(columns = stetrreas, rows = stetrreas == "Protocol violation/deviation")
+  ) |>
   as_latex() |>
   latex_unescape() |>
   cat()
