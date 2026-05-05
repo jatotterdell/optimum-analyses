@@ -327,7 +327,7 @@ get_skin_prick_long <- function(dat_raw) {
     mutate(spt_tested = tolower(spt_tested)) |>
     mutate(
       # Fix some issues/typos
-      spt_tested = recode_values(
+      spt_tested = replace_values(
         spt_tested,
         "0.0" ~ NA_character_,
         "egg ehite" ~ "egg white"
