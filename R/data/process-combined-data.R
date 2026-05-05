@@ -110,7 +110,7 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
       fecat = factor(fecat, levels = c("No", "Inside", "Outside", "Both")),
       fedog = factor(fedog, levels = c("No", "Inside", "Outside", "Both")),
       bfed = factor(
-        case_match(
+        recode_values(
           fecurr,
           "Exclusively breastfed" ~ "exclusively",
           c(
@@ -327,7 +327,7 @@ get_skin_prick_long <- function(dat_raw) {
     mutate(spt_tested = tolower(spt_tested)) |>
     mutate(
       # Fix some issues/typos
-      spt_tested = case_match(
+      spt_tested = recode_values(
         spt_tested,
         "0.0" ~ NA_character_,
         "egg ehite" ~ "egg white",
@@ -444,7 +444,7 @@ get_ofc_long <- function(dat_raw) {
       values_to = "ofcresult"
     ) |>
     mutate(
-      ofcfood = case_match(
+      ofcfood = recode_values(
         ofcfood,
         "ofcfoodtp1" ~ "peanut",
         "ofcfoodtp2" ~ "egg",
