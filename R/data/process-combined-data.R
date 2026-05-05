@@ -330,8 +330,7 @@ get_skin_prick_long <- function(dat_raw) {
       spt_tested = recode_values(
         spt_tested,
         "0.0" ~ NA_character_,
-        "egg ehite" ~ "egg white",
-        .default = spt_tested
+        "egg ehite" ~ "egg white"
       )
     )
 
