@@ -1037,6 +1037,8 @@ Overall `r sprintf("%i/%i (%.0f%%)", sum(dat_po$po), nrow(dat_po), 100 * mean(da
 
 @tbl-primary-outcome-overall reports the total number of infants who met the primary outcome, and the primary reason grouped hierarchically according to the ordering in the definition (i.e. OFC → Anaphylaxis → IgE-mediated) (irrespective of the timing of those criteria).
 
+@tbl-primary-outcome-foods reports the number of infants who met the primary outcome by the food allergy. Each infant may meet the primary outcome for more than one food.
+
 ```{r}
 #| label: tbl-primary-outcome-criteria
 #| tbl-cap: |
@@ -1127,6 +1129,14 @@ tbl <- dat_po |>
   add_overall(last = TRUE) |>
   remove_footnote_header() |>
   modify_header(label = "**IgE-mediated food allergy**") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  modify_column_alignment(all_stat_cols(), "right") |>
   modify_table_body(
     ~ .x |>
       mutate(
