@@ -962,14 +962,12 @@ dat_po_ige <- dat_po_ige_1 |>
     po_ige_match = gsub("milk", "cow's milk", po_ige_match),
     po_ige_match = replace_when(
       po_ige_match,
+      record_id == "5785-242" ~ "whole egg",
       record_id == "4629-226" ~ "peanut, egg yolk, egg white",
       record_id == "4630-7" ~ "cow's milk, egg yolk, egg white, soy, beef",
       record_id == "4630-17" ~ "egg yolk, egg white"
     )
   )
-
-# No positive SPT
-dat_po_ige |> filter(po_ige_match == "")
 ```
 
 ### Primary outcome (IgE-mediated food allergy)
@@ -1006,6 +1004,31 @@ dat_po <- dat_base |>
     fha,
     starts_with("po")
   )
+
+# No positive SPT
+dat_po <- dat_po |>
+  # rowwise() |>
+  mutate(
+    po_ana_match = na_if(po_ana_match, ""),
+    po_foods = pmap_chr(across(c(po_ofc_match, po_ana_match, po_ige_match)), function(...) {
+      c(...) %>%
+        str_split(", ") %>% # split each column into items
+        unlist() %>%
+        unique() %>% # drop duplicates
+        sort() %>% # alphabetical order
+        paste(collapse = ", ")
+    }),
+    po_foods = na_if(po_foods, ""),
+    po_foods_split = po_foods
+  ) |>
+  separate_longer_delim(po_foods_split, delim = ", ") |>
+  mutate(value = 1) |>
+  pivot_wider(
+    names_from = po_foods_split,
+    values_from = value,
+    values_fill = 0L
+  ) |>
+  rename(None = `NA`)
 ```
 
 Overall `r sprintf("%i/%i (%.0f%%)", sum(dat_po$po), nrow(dat_po), 100 * mean(dat_po$po))` infants met the primary outcome, `r with(dat_po, sprintf("%i/%i (%.0f%%)", sum(po[trt == "aP"]), sum(trt=="aP"), 100 * mean(po[trt == "aP"])))` who were assigned to aP and `r with(dat_po, sprintf("%i/%i (%.0f%%)", sum(po[trt == "wP"]), sum(trt=="wP"), 100 * mean(po[trt == "wP"])))` who were assigned to wP.
@@ -1080,6 +1103,43 @@ dat_po |>
       filter(label != "None")
   ) |>
   modify_column_alignment(all_stat_cols(), "right") |>
+  as_gt() |>
+  tab_options(table.font.size = px(10), table.width = pct(70)) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-primary-outcome-foods
+#| tbl-cap: |
+#|   Number and percentage of infants who met the primary outcome by the reported food.
+#|   The same infant may meet the primary outcome for more than one allergen.
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  rename_with(.cols = None:sesame, .fn = str_to_sentence) |>
+  tbl_summary(
+    by = trt,
+    include = None:Sesame,
+    missing = "no",
+  ) |>
+  add_overall(last = TRUE) |>
+  remove_footnote_header() |>
+  modify_header(label = "**IgE-mediated food allergy**") |>
+  modify_table_body(
+    ~ .x |>
+      mutate(
+        variable = fct_reorder(
+          variable,
+          as.numeric(str_remove(stat_0, "\\s*\\(.*\\)")),
+          .fun = mean,
+          .desc = TRUE
+        )
+      ) |>
+      arrange(variable)
+  )
+tbl |>
   as_gt() |>
   tab_options(table.font.size = px(10), table.width = pct(70)) |>
   as_latex() |>
