@@ -72,6 +72,59 @@ beta_ineq_sim <- function(a, b, delta = 0, sims = 10000) {
   return(p)
 }
 
+#' Draw random variates from beta-binomial distribution
+#'
+#' @param n The number of random values to sample
+#' @param m The sample size
+#' @param a First parameter
+#' @param b Second parameter
+#' @examples
+#' rbetabinom(2, 10, 2, 3)
+#' @export
+rbetabinom <- function(n, m, a = 1, b = 1) {
+  stopifnot("n must be > 0" = all(n > 0))
+  stopifnot("a and b must be > 9" = all(c(a, b) > 0))
+  return(stats::rbinom(n, m, stats::rbeta(n, a, b)))
+}
+
+
+#' Calculate the predicted probability of success
+#'
+#' @import data.table
+#' @param a First parameter of first beta random variable
+#' @param b Second parameter of first beta random variable
+#' @param c First paramter of second beta random variable
+#' @param d Second parameter of second beta random variable
+#' @param m1 Sample size to predict for first beta random variable
+#' @param m2 Sample size to predict for second beta random variable
+#' @param k_ppos The posterior probability cut-point to be assessed
+#' @param post_method The method to use for calculating posterior probabilities,
+#' one of "exact" (numerical), "approx", "sim".
+#' @param post_sim Number of posterior simulations if post_method = "sim".
+#' @return The predicted probability of success
+#' @export
+calc_ppos <- function(
+  a,
+  b,
+  m,
+  k_ppos,
+  post_method = "exact",
+  post_sim = 1e4
+) {
+  stopifnot("a, b, and m must be > 0" = all(c(a, b, m) > 0))
+  stopifnot("k_ppos must be in [0, 1]" = (k_ppos >= 0 & k_ppos <= 1))
+  calc_post <- switch(post_method, "exact" = beta_ineq, "approx" = beta_ineq_approx, "sim" = beta_ineq_sim)
+  y1pred <- rbetabinom(post_sim, m[1], a[1], b[1])
+  y2pred <- rbetabinom(post_sim, m[2], a[2], b[2])
+  ypred <- tibble(y1 = y1pred, y2 = y2pred) |>
+    count(y1, y2)
+  ypred <- ypred |>
+    rowwise() |>
+    mutate(p = calc_post(a + c(y1, y2), b + m - c(y1, y2))) |>
+    ungroup()
+  return(sum(ypred$n * (ypred$p > 0.95)) / sum(ypred$n))
+}
+
 
 select_form <- function(dat, frm) {
   filter(dat, form == frm) |>

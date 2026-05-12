@@ -1165,10 +1165,15 @@ po_sum <- dat_po |>
     p = y / n,
     a = 1 + y,
     b = 1 + n - y,
+    l = 1000 - n,
     post = dist_beta(a, b),
     .by = trt
   ) |>
-  mutate(p_sup = c(NA, beta_ineq_sim(a, b)))
+  mutate(
+    p_sup = c(NA, beta_ineq_sim(a, b)),
+    ppos1 = c(NA, calc_ppos(a, b, l, 0.95, post_method = "sim", post_sim = 2e4))
+  )
+ppos1 <- sprintf("%.3f", po_sum$ppos1[2])
 po_diff <- po_sum |>
   mutate(post_drws = generate(post, 1e6)) |>
   select(trt, post_drws) |>
@@ -1213,6 +1218,8 @@ dat_rd_po <- dat_po |>
 @tbl-posterior-primary summarises the estimated model parameters for the probability of IgE-mediated food allergy under each treatment group, and their difference. The posterior densities for the difference in risk of IgE-mediated food allergy (wP vs aP) are shown in @fig-posterior-difference-primary-unadjusted-adjusted.
 
 The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most plausible values for the difference in IgE-mediated food allergy between wP and aP were `r do.call(sprintf, c(fmt = "%.2f (%.2f, %.2f)", as.list(c(quantile2(po_diff$delta, c(0.5, 0.025, 0.975))))))` [posterior median, (95% credible interval)]. The probability of a reduction in IgE-medidated food allergy under wP compared to aP was `r sprintf("%.2f", mean(po_diff$delta < 0))`.
+
+A pre-specified stopping rule was to assess the predicted probability of success (PPoS) up to the planned maximum sample size of 2,000 infants (1,000 per arm). Success required that the probability of a reduction in IgE-mediated food allergy exceed 0.95. Calculation of PPoS used the posterior predictive distribution under each arm to impute outcomes for futuree participantts. If PPoS < 0.05 then the trial was to be stopped for  futility. At the time of stopping, 486 participants had been assigned to each arm with 514 further infants required to reach 1,000 per arm. At this stage, $\text{PPoS} \approx `{r} ppos1` < 0.05$ and would have met the futility criteria. 
 
 ```{r}
 #| label: tbl-posterior-primary
@@ -2187,6 +2194,7 @@ bind_rows(
   ) +
   theme(strip.placement = "outside")
 ```
+
 
 \clearpage
 
