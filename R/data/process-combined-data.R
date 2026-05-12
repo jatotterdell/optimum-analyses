@@ -159,7 +159,7 @@ get_baseline_data <- function(dat_raw, unblind = FALSE) {
       )
     )
   dat_fha <- select_form(dat_raw, "family_history_of_atopy") |>
-    select(record_id, fha)
+    select(record_id, fhaast, fhaecz, fhaar, fhafa, fha)
   dat_st <- get_study_termination(dat_raw)
   rnd |>
     mutate(randdat = date(randdattim)) |>

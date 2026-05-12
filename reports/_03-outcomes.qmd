@@ -991,6 +991,10 @@ dat_po <- dat_base |>
     fborn,
     bfed,
     ces,
+    fhaast,
+    fhaecz,
+    fhaar,
+    fhafa,
     fha,
     starts_with("po")
   )
@@ -1480,6 +1484,7 @@ tbl |>
 ```
 
 ```{r}
+#| label: primary-outcome-subgroup-model-site
 dat_po <- dat_po |>
   mutate(rand_site = fct_infreq(rand_site))
 # So we can specify prior in terms of deviation from overall "mean" effect
@@ -1656,6 +1661,7 @@ tbl |>
 ```
 
 ```{r}
+#| label: primary-outcome-subgroup-model-season
 contrasts(dat_po$birth_season) <- bayestestR::contr.equalprior(4)
 
 prior <- c(
@@ -1816,7 +1822,7 @@ tbl |>
 ```
 
 ```{r}
-#| label: subgroup-model-fha
+#| label: primary-outcome-subgroup-model-fha
 contrasts(dat_po$fha) <- bayestestR::contr.equalprior(2)
 
 prior <- c(
@@ -1851,7 +1857,107 @@ fit_pars_fha <- dat_po |>
 
 ::: {.landscape}
 
+#### Family history of food allergy
+
+Family history of food allergy was derived from responses on the corresponding baseline form. If an infant had any parent or sibling with a reported history of food allergy, then they were considered to have a family history of food allergy.
+
+```{r}
+#| label: tbl-primary-outcome-criteria-fhafa
+#| tbl-cap: |
+#|   Number and percentage of infants who met each primary outcome condition by treatment group and family history of atopy (yes or no).
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  mutate(fhafa = factor(fhafa, levels = c(0, 1), labels = c("No", "Yes"))) |>
+  tbl_strata2(
+    strata = fhafa,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po_ofc, po_ana, po_ige),
+        label = list(
+          po_ofc ~ "Met condition 1.i.",
+          po_ana ~ "Met condition 1.ii.",
+          po_ige ~ "Met condition 2."
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(70))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-primary-outcome-overall-fhafa
+#| tbl-cap: |
+#|   Number and percentage of infants who met the primary outcome by primary reason, treatment group, and family history of atopy (yes or no).
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  mutate(
+    fhafa = factor(fhafa, levels = c(0, 1), labels = c("No", "Yes")),
+    po_criteria = factor(po_criteria, levels = c("Criteria 1.i", "Criteria 1.ii", "Criteria 2.", "None"))
+  ) |>
+  tbl_strata(
+    strata = fhafa,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po, po_criteria),
+        label = list(
+          po ~ "Met primary outcome",
+          po_criteria ~ "Reason"
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_table_body(
+        ~ .x |>
+          filter(label != "None")
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(70))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+:::
+
+\clearpage
+
+::: {.landscape}
+
 #### Parental country of birth
+
+Whether an infant had one or more parent born in Asia was derived from the mother's country of birth (`bcmoth`) and the father's country of birth (`bcfath`). If either of these was unknown (being missing or reported as "other") than the infant's status was considered "unknown".
 
 ```{r}
 #| label: subgroup-asia-derive
@@ -2008,7 +2114,7 @@ tbl |>
 ```
 
 ```{r}
-#| label: subgroup-model-asia
+#| label: primary-outcome-subgroup-model-asia
 contrasts(dat_po$any_asia) <- bayestestR::contr.equalprior(3)
 
 prior <- c(
