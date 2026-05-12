@@ -9,6 +9,17 @@ All of the trial outcomes depend upon a positive SPT to either a specific allerg
 
 ```{r}
 #| label: spt-no-records
+std_allergens <- c(
+  "D.pteronyssinus",
+  "cat dander",
+  "perennial ryegrass",
+  "whole egg",
+  "cashew",
+  "cow's milk",
+  "peanut",
+  "seasme"
+)
+
 no_spt_record <- dat_spt |>
   filter(row_number() == 1, .by = record_id) |>
   filter(!priyn)
@@ -137,6 +148,10 @@ dat_spt |>
   tab_options(table.font.size = px(10), table.width = pct(50))
 ```
 
+\clearpage
+
+### Skin prick test sensitisation
+
 @tbl-spt-positive reports on the number and percentage of infants who had a SPT result of \>1mm and ≥3mm relative to negative control for at least one tested allergen (outcomes 2c and 2d) and also the number with any SPT result >0mm. Any infants with no SPT records by 18 months of age are reported as missing.
 
 ```{r}
@@ -192,16 +207,6 @@ Whole egg had a higher proportion of missingness than other allergens from the s
 ```{r}
 #| label: spt-check
 #| include: false
-std_allergens <- c(
-  "D.pteronyssinus",
-  "cat dander",
-  "perennial ryegrass",
-  "whole egg",
-  "cashew",
-  "cow's milk",
-  "peanut",
-  "seasme"
-)
 dat_spt |>
   select(
     record_id,
@@ -248,15 +253,6 @@ dat_spt |>
 #|   Each cell gives positive/tested (%) [missing result%].
 #| tbl-pos: "H"
 #| output: asis
-std_allergens <- c(
-  "D.pteronyssinus",
-  "cat dander",
-  "perennial ryegrass",
-  "whole egg",
-  "cashew",
-  "cow's milk",
-  "peanut"
-)
 dat_spt |>
   filter(spt_tested %in% std_allergens) |>
   filter(spt_occasion == "scheduled") |>
@@ -327,15 +323,6 @@ dat_spt |>
 #|   additional allergen tested
 #| tbl-pos: "H"
 #| output: asis
-std_allergens <- c(
-  "D.pteronyssinus",
-  "cat dander",
-  "perennial ryegrass",
-  "whole egg",
-  "cashew",
-  "cow's milk",
-  "peanut"
-)
 dat_spt |>
   unique() |>
   filter(
@@ -994,6 +981,9 @@ dat_po <- dat_base |>
     record_id,
     rand_site,
     trt,
+    birthdat,
+    bcmoth,
+    bcfath,
     gender,
     parinc_imp,
     delt,
@@ -1391,6 +1381,705 @@ p2
     plot.title = element_text(size = rel(1)),
     text = element_text(size = 9)
   )
+```
+
+\clearpage
+
+::: {.landscape}
+
+### Subgroup analyses
+
+#### Site
+
+```{r}
+#| label: tbl-primary-outcome-criteria-site
+#| tbl-cap: |
+#|   Number and percentage of infants who met each primary outcome condition by treatment group and participating site.
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  mutate(rand_site = fct_infreq(rand_site)) |>
+  tbl_strata2(
+    strata = rand_site,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po_ofc, po_ana, po_ige),
+        label = list(
+          po_ofc ~ "Met condition 1.i.",
+          po_ana ~ "Met condition 1.ii.",
+          po_ige ~ "Met condition 2."
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(100))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-primary-outcome-overall-site
+#| tbl-cap: |
+#|   Number and percentage of infants who met the primary outcome by primary reason, treatment group, and participating site.
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  mutate(
+    rand_site = fct_infreq(rand_site),
+    po_criteria = factor(po_criteria, levels = c("Criteria 1.i", "Criteria 1.ii", "Criteria 2.", "None"))
+  ) |>
+  tbl_strata(
+    strata = rand_site,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po, po_criteria),
+        label = list(
+          po ~ "Met primary outcome",
+          po_criteria ~ "Reason"
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_table_body(
+        ~ .x |>
+          filter(label != "None")
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(100))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+dat_po <- dat_po |>
+  mutate(rand_site = fct_infreq(rand_site))
+# So we can specify prior in terms of deviation from overall "mean" effect
+contrasts(dat_po$rand_site) <- bayestestR::contr.equalprior(4)
+
+trt_prior <- prior(normal(0, 2.5), coef = "trtwP")
+dev_prior <- "normal(0, 2)"
+
+prior <- c(
+  trt_prior,
+  prior_string(dev_prior, coef = "rand_site1:trtwP"),
+  prior_string(dev_prior, coef = "rand_site2:trtwP"),
+  prior_string(dev_prior, coef = "rand_site3:trtwP")
+)
+
+fit <- brm(
+  po ~ 0 + rand_site + trt + trt:rand_site,
+  data = dat_po,
+  family = bernoulli(),
+  prior = prior,
+  warmup = 500,
+  iter = 5500,
+  refresh = 0,
+  silent = 2,
+  seed = 54123
+)
+
+fit_pars_site <- dat_po |>
+  distinct(trt, rand_site) |>
+  arrange(rand_site) |>
+  add_linpred_rvars(fit) |>
+  add_epred_rvars(fit) |>
+  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
+  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
+
+# fit_pars_site |>
+#   select(rand_site, or) |>
+#   # add_row(rand_site = "Average", or = exp(rvar_mean(log(fit_pars_site$or))), .before = 1) |>
+#   # mutate(rand_site = fct_inorder(rand_site)) |>
+#   ggplot(aes(y = rand_site, xdist = or)) +
+#   stat_pointinterval(
+#     .width = c(0.5, 0.8, 0.95),
+#     point_size = 1.5
+#   ) +
+#   geom_vline(xintercept = 1, linetype = 2) +
+#   scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 10)) +
+#   scale_y_discrete(limits = rev) +
+#   labs(
+#     x = "Odds ratio for IgE-mediated food allergy, wP versus aP",
+#     y = "Density"
+#   )
+
+# fit_pars_site |>
+#   select(rand_site, rd) |>
+#   ggplot(aes(y = rand_site, xdist = rd)) +
+#   # facet_wrap(~name, scales = "free") +
+#   stat_pointinterval(
+#     .width = c(0.5, 0.8, 0.95),
+#     point_size = 1.5
+#   ) +
+#   geom_vline(xintercept = 0, linetype = 2) +
+#   scale_x_continuous(breaks = seq(-0.2, 0.2, 0.02)) +
+#   scale_y_discrete(limits = rev) +
+#   labs(
+#     x = "Difference in IgE-mediated food allergy risk, wP - aP",
+#     y = "Density"
+#   )
+```
+
+:::
+
+\clearpage
+
+::: {.landscape}
+
+#### Season of birth
+
+```{r}
+#| label: tbl-primary-outcome-criteria-season
+#| tbl-cap: |
+#|   Number and percentage of infants who met each primary outcome condition by treatment group and season of birth.
+#| tbl-pos: "H"
+#| output: asis
+dat_po <- dat_po |>
+  mutate(
+    birth_season = factor(
+      case_when(
+        month(birthdat) %in% c(12, 1, 2) ~ "Summer",
+        month(birthdat) %in% 3:5 ~ "Autumn",
+        month(birthdat) %in% 6:8 ~ "Winter",
+        month(birthdat) %in% 9:11 ~ "Spring"
+      ),
+      levels = c("Autumn", "Winter", "Spring", "Summer")
+    )
+  )
+tbl <- dat_po |>
+  tbl_strata2(
+    strata = birth_season,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po_ofc, po_ana, po_ige),
+        label = list(
+          po_ofc ~ "Met condition 1.i.",
+          po_ana ~ "Met condition 1.ii.",
+          po_ige ~ "Met condition 2."
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(100))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-primary-outcome-overall-season
+#| tbl-cap: |
+#|   Number and percentage of infants who met the primary outcome by primary reason, treatment group, and season of birth.
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  mutate(
+    po_criteria = factor(po_criteria, levels = c("Criteria 1.i", "Criteria 1.ii", "Criteria 2.", "None"))
+  ) |>
+  tbl_strata(
+    strata = birth_season,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po, po_criteria),
+        label = list(
+          po ~ "Met primary outcome",
+          po_criteria ~ "Reason"
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_table_body(
+        ~ .x |>
+          filter(label != "None")
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(100))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+contrasts(dat_po$birth_season) <- bayestestR::contr.equalprior(4)
+
+prior <- c(
+  trt_prior,
+  prior_string(dev_prior, coef = "birth_season1:trtwP"),
+  prior_string(dev_prior, coef = "birth_season2:trtwP"),
+  prior_string(dev_prior, coef = "birth_season3:trtwP")
+)
+
+fit <- brm(
+  po ~ 0 + birth_season + trt + trt:birth_season,
+  data = dat_po,
+  family = bernoulli(),
+  # prior = prior,
+  warmup = 500,
+  iter = 5500,
+  refresh = 0,
+  silent = 2,
+  seed = 54123
+)
+
+fit_pars_season <- dat_po |>
+  distinct(trt, birth_season) |>
+  arrange(birth_season) |>
+  add_linpred_rvars(fit) |>
+  add_epred_rvars(fit) |>
+  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
+  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
+
+# fit_pars_season |>
+#   select(birth_season, or) |>
+#   # add_row(rand_site = "Average", or = exp(rvar_mean(log(fit_pars_site$or))), .before = 1) |>
+#   # mutate(rand_site = fct_inorder(rand_site)) |>
+#   ggplot(aes(y = birth_season, xdist = or)) +
+#   stat_pointinterval(
+#     .width = c(0.5, 0.8, 0.95),
+#     point_size = 1.5
+#   ) +
+#   geom_vline(xintercept = 1, linetype = 2) +
+#   scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 10)) +
+#   scale_y_discrete(limits = rev) +
+#   labs(
+#     x = "Odds ratio for IgE-mediated food allergy, wP versus aP",
+#     y = "Density"
+#   )
+
+# fit_pars_season |>
+#   select(birth_season, rd) |>
+#   ggplot(aes(y = birth_season, xdist = rd)) +
+#   # facet_wrap(~name, scales = "free") +
+#   stat_pointinterval(
+#     .width = c(0.5, 0.8, 0.95),
+#     point_size = 1.5
+#   ) +
+#   geom_vline(xintercept = 0, linetype = 2) +
+#   scale_x_continuous(breaks = seq(-0.2, 0.2, 0.02)) +
+#   scale_y_discrete(limits = rev) +
+#   labs(
+#     x = "Difference in IgE-mediated food allergy risk, wP - aP",
+#     y = "Density"
+#   )
+```
+
+:::
+
+\clearpage
+
+::: {.landscape}
+
+#### Family history of atopy
+
+Family history of atopy was derived from responses on the corresponding baseline form. If an infant had any parent or sibling with a reported history of asthma, eczema, allergic rhinitis, or food allergy, then they were considered to have a family history of atopy.
+
+```{r}
+#| label: tbl-primary-outcome-criteria-fha
+#| tbl-cap: |
+#|   Number and percentage of infants who met each primary outcome condition by treatment group and family history of atopy (yes or no).
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  tbl_strata2(
+    strata = fha,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po_ofc, po_ana, po_ige),
+        label = list(
+          po_ofc ~ "Met condition 1.i.",
+          po_ana ~ "Met condition 1.ii.",
+          po_ige ~ "Met condition 2."
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(70))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-primary-outcome-overall-fha
+#| tbl-cap: |
+#|   Number and percentage of infants who met the primary outcome by primary reason, treatment group, and family history of atopy (yes or no).
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  mutate(
+    po_criteria = factor(po_criteria, levels = c("Criteria 1.i", "Criteria 1.ii", "Criteria 2.", "None"))
+  ) |>
+  tbl_strata(
+    strata = fha,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po, po_criteria),
+        label = list(
+          po ~ "Met primary outcome",
+          po_criteria ~ "Reason"
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_table_body(
+        ~ .x |>
+          filter(label != "None")
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(70))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: subgroup-model-fha
+contrasts(dat_po$fha) <- bayestestR::contr.equalprior(2)
+
+prior <- c(
+  trt_prior,
+  prior_string(dev_prior, coef = "fha1:trtwP")
+)
+
+fit <- brm(
+  po ~ 0 + fha + trt + trt:fha,
+  data = dat_po,
+  family = bernoulli(),
+  # prior = prior,
+  warmup = 500,
+  iter = 5500,
+  refresh = 0,
+  silent = 2,
+  seed = 54123
+)
+
+fit_pars_fha <- dat_po |>
+  distinct(trt, fha) |>
+  arrange(fha) |>
+  add_linpred_rvars(fit) |>
+  add_epred_rvars(fit) |>
+  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
+  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
+```
+
+:::
+
+\clearpage
+
+::: {.landscape}
+
+#### Parental country of birth
+
+```{r}
+#| label: subgroup-asia-derive
+#| include: false
+# Which countries (of those appearing) should be mapped to Asia?
+countries_asia <- c(
+  "Malaysia",
+  "China (excludes SARs and Taiwan)",
+  "India",
+  "Indonesia",
+  "Philippines",
+  "Hong Kong (SAR of China)",
+  "Singapore",
+  "Vietnam",
+  "Nepal",
+  "Sri Lanka",
+  "Maldives",
+  "Taiwan",
+  "Thailand",
+  "Korea, Republic of (South)",
+  "Brunei Darussalam",
+  "Japan",
+  "Myanmar",
+  "Pakistan"
+)
+
+country_to_region <- tribble(
+  ~country                           , ~region   ,
+  countries_asia                     , "Asia"    ,
+  c(NA, "Other", "OTHER", "Unknown") , "Unknown"
+)
+
+# Relabel country of birth
+dat_po <- dat_po |>
+  mutate(
+    bcmoth_region = recode_values(
+      bcmoth,
+      from = country_to_region$country,
+      to = country_to_region$region,
+      default = "Not Asia"
+    ),
+    bcfath_region = recode_values(
+      bcfath,
+      from = country_to_region$country,
+      to = country_to_region$region,
+      default = "Not Asia"
+    ),
+    any_asia = factor(
+      case_when(
+        bcmoth_region == "Asia" | bcfath_region == "Asia" ~ "Yes",
+        bcmoth_region == "Unknown" ~ "Unknown",
+        bcfath_region == "Unknown" ~ "Unknown",
+        bcmoth_region == "Not Asia" & bcfath_region == "Not Asia" ~ "No"
+      ),
+      levels = c("No", "Yes", "Unknown")
+    )
+  )
+
+dat_po |>
+  count(bcmoth_region, bcmoth) |>
+  print(n = Inf)
+dat_po |>
+  count(bcfath_region, bcfath) |>
+  print(n = Inf)
+dat_po |>
+  count(any_asia, bcmoth_region, bcfath_region)
+```
+
+
+```{r}
+#| label: tbl-primary-outcome-criteria-asia
+#| tbl-cap: |
+#|   Number and percentage of infants who met each primary outcome condition by treatment group and whether at least one parent was born in Asia. Unknown cases occurred where either the mother or father's country of birth was not known (either missing or reported as "other").
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  tbl_strata2(
+    strata = any_asia,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po_ofc, po_ana, po_ige),
+        label = list(
+          po_ofc ~ "Met condition 1.i.",
+          po_ana ~ "Met condition 1.ii.",
+          po_ige ~ "Met condition 2."
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(70))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-primary-outcome-overall-asia
+#| tbl-cap: |
+#|   Number and percentage of infants who met the primary outcome by primary reason, treatment group, and whether at least one parent was born in Asia. Unknown cases occurred where either the mother or father's country of birth was not known (either missing or reported as "other").
+#| tbl-pos: "H"
+#| output: asis
+tbl <- dat_po |>
+  mutate(
+    po_criteria = factor(po_criteria, levels = c("Criteria 1.i", "Criteria 1.ii", "Criteria 2.", "None"))
+  ) |>
+  tbl_strata(
+    strata = any_asia,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        by = trt,
+        include = c(po, po_criteria),
+        label = list(
+          po ~ "Met primary outcome",
+          po_criteria ~ "Reason"
+        ),
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Outcome**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_table_body(
+        ~ .x |>
+          filter(label != "None")
+      ) |>
+      modify_column_alignment(all_stat_cols(), "right")
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(9), table.width = pct(70))
+tbl |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: subgroup-model-asia
+contrasts(dat_po$any_asia) <- bayestestR::contr.equalprior(3)
+
+prior <- c(
+  trt_prior,
+  prior_string(dev_prior, coef = "any_asia1:trtwP"),
+  prior_string(dev_prior, coef = "any_asia2:trtwP")
+)
+
+fit <- brm(
+  po ~ 0 + any_asia + trt + trt:any_asia,
+  data = dat_po,
+  family = bernoulli(),
+  # prior = prior,
+  warmup = 500,
+  iter = 5500,
+  refresh = 0,
+  silent = 2,
+  seed = 54123
+)
+
+fit_pars_asia <- dat_po |>
+  distinct(trt, any_asia) |>
+  arrange(any_asia) |>
+  add_linpred_rvars(fit) |>
+  add_epred_rvars(fit) |>
+  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
+  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
+```
+
+:::
+
+\clearpage
+
+#### Subgroup forest plot
+
+For each subgroup we estimated the difference in risk of IgE-mediated food allergy for wP compared to aP within each grouping level. The estimated risk differences for each factor are reported in @fig-subgroup-plot.
+
+```{r}
+#| label: fig-subgroup-plot
+#| fig-cap: Subgroup specific estimates of difference in risk of IgE-mediated food allergy, wP versus aP.
+#| fig-width: 4
+#| fig-height: 6
+bind_rows(
+  fit_pars_site |>
+    select(rand_site, rd) |>
+    mutate(var = "Site of enrolment") |>
+    rename(level = rand_site),
+  fit_pars_season |>
+    select(birth_season, rd) |>
+    mutate(var = "Season of birth") |>
+    rename(level = birth_season),
+  fit_pars_fha |>
+    select(fha, rd) |>
+    mutate(var = "Family history\nof atopy") |>
+    rename(level = fha),
+  fit_pars_asia |>
+    select(any_asia, rd) |>
+    mutate(var = "One parent\nborn in Asia") |>
+    rename(level = any_asia)
+) |>
+  mutate(var = fct_inorder(var)) |>
+  ggplot(aes(y = level, xdist = rd)) +
+  facet_grid(var ~ ., scales = "free_y", space = "free_y", switch = "y") +
+  stat_pointinterval(.width = c(0.5, 0.8, 0.95), point_size = 1.5) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_y_discrete("", limits = rev) +
+  scale_x_continuous(
+    "Difference in risk of IgE-mediated food allergy\nwP - aP",
+    breaks = seq(-0.2, 0.2, 0.05)
+  ) +
+  theme(strip.placement = "outside")
 ```
 
 \clearpage

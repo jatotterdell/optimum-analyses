@@ -165,6 +165,17 @@ $$
 
 :::
 
+### Subgroup Analyses
+
+No subgroup analyses were pre-specified in the protocol or SAP. Exploratory post-hoc subgroup analyses were performed and summarised for the primary outcome (IgE-mediated food allergy) according to:
+
+- participating site of study enrolment
+- season of birth (Autumn, Winter, Spring, Summer)
+- family history of atopy
+- one or more parent's born in Asia
+
+For these analyses logistic regression models were estimated with terms for assigned treatment group, the grouping factor of interest (as above), and their interaction. Weakly informative priors were specified on the overall treatment effect and on the group level deviations.
+
 ### Quantity Definitions
 
 **Geometric mean concentration**: For concentrations $x_1,\ldots,x_n$, the geometric mean concentration (GMC) is just the geometric mean of the concentrations, i.e.
@@ -175,7 +186,7 @@ $$
 
 Under a log-normal model, where $\ln X \sim \text{Normal}(\mu, \sigma^2)$, the geometric mean of $X$ is just $\exp(\mu)$.
 
-**Geometric standard deviation**: The geometric standard deviation (GSD) if a collection of values $x_1,\ldots,x_n$ is
+**Geometric standard deviation**: The geometric standard deviation (GSD) of a collection of values $x_1,\ldots,x_n$ is
 
 $$
 \text{GSD} = \exp\left(\sqrt{n^{-1}\sum_{i=1}^n \left(\ln\frac{x_i}{\text{GM}}\right)^2}\right)
@@ -191,7 +202,7 @@ $$
 \text{GMR} = \frac{\text{GMC}_{\text{wP}}}{\text{GMC}_{\text{aP}}}.
 $$
 
-**Geometric mean fold-rise**: the fold-rise is the ratio of a subject's pre and post-vaccination immunogenicity value. That is, if $x_{i1}$ was their pre concentration and $x_{i2}$ their post concentration, then their fold-rise was $x_{i2}/x_{i1}$. The geometric mean fold-rise (GMFR) is the geometric mean of a collection of fold-rises which also equals the ratio of the pre and post geometric mean concentrations, that is
+**Geometric mean fold-rise**: the fold-rise is the ratio of a subject's pre and post-vaccination immunogenicity value. That is, if $x_{i1}$ was their pre-vaccination concentration and $x_{i2}$ their post-vaccination concentration, then their fold-rise was $x_{i2}/x_{i1}$. The geometric mean fold-rise (GMFR) is the geometric mean of a collection of fold-rises which also equals the ratio of the pre and post geometric mean concentrations, that is
 
 $$
 \text{GMFR} = \exp\left(n^{-1}\sum_{i=1}^n \ln \frac{x_{i2}}{x_{i1}}\right)=\frac{\text{GMC}_2}{\text{GMC}_1}.
