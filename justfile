@@ -26,6 +26,9 @@ render-report-igg:
 render-report-prn:
   quarto render --profile report reports/stage1-vs-stage2.qmd
 
+render-report-opa:
+  quarto render --profile report reports/opa-data.qmd
+
 # Render clinical trial report
 render-report-ctr:
   quarto render --profile report reports/clinical-trial-report.qmd

@@ -1,0 +1,299 @@
+---
+title: OPTIMUM Stage 1 OPA Results
+subtitle: Report
+---
+
+```{r}
+#| label: packages-and-setup
+suppressPackageStartupMessages({
+  # Data
+  library(qs)
+  library(dplyr)
+  library(tidyr)
+  library(forcats)
+  library(lubridate)
+  library(labelled)
+
+  # Figures
+  library(ragg)
+  library(ggplot2)
+  library(scales)
+  library(legendry)
+  library(ggbeeswarm)
+
+  # Tables
+  library(gt)
+  library(gtsummary)
+
+  # Models
+  library(mmrm)
+  library(emmeans)
+  library(brms)
+  library(cmdstanr)
+  library(posterior)
+  library(tidybayes)
+  library(ggdist)
+  library(bayesplot)
+  library(loo)
+})
+
+readRenviron(".env")
+
+source("R/util.R")
+source("reports/R/functions.R")
+
+options(
+  brms.backend = "cmdstanr",
+  mc.cores = 8
+)
+
+sysfonts::font_add(
+  family = "TeX Gyre Pagella",
+  regular = "texgyrepagella-regular.otf",
+  bold = "texgyrepagella-bold.otf",
+  italic = "texgyrepagella-italic.otf",
+  bolditalic = "texgyrepagella-bolditalic.otf"
+)
+
+theme_set(
+  theme_bw(base_size = 11, base_family = "TeX Gyre Pagella") +
+    theme(
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      axis.text = element_text(colour = "black"),
+      legend.key.size = unit(0.75, "lines")
+    )
+)
+```
+
+```{r}
+#| label: data-raw
+com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
+dat_raw <- qread(com_file)
+dat_opa <- readxl::read_excel(
+  file.path(
+    Sys.getenv("RDS_PATH"),
+    "data",
+    "raw",
+    "stage1",
+    "240326 Optimum MOPA Results.xlsx"
+  ),
+  skip = 2
+)
+```
+
+```{r}
+dat_rand <- dat_raw |>
+  select_form("randomisation") |>
+  left_join(
+    dat_raw |> select_form("allocations"),
+    join_by(rand)
+  )
+
+dat_bc <- dat_raw |>
+  select_form("blood_collection") |>
+  select(record_id, visage, lbipdat) |>
+  left_join(dat_rand, join_by(record_id))
+
+dat_igg <- dat_raw |>
+  select_form("igg") |>
+  filter(
+    grepl("01-", subjid),
+    antigen %in% c("PnPs 3", "PnPs 19F", "PnPs 23F")
+  ) |>
+  left_join(dat_bc, join_by(subjid, visage))
+
+dat_opa <- dat_opa |>
+  rename(
+    subjid = ID,
+    visit = Visit,
+    date = `Sample Date`,
+    `PnPs 3` = `Serotype 3`,
+    `PnPs 19F` = `Serotype 19F`,
+    `PnPs 23F` = `Serotype 23F`
+  ) |>
+  mutate(subjid = gsub(" V3| V7", "", subjid)) |>
+  mutate(
+    date = as_date(date),
+    visage = factor(visit, levels = c("V3", "V7"), labels = c("6-month", "18-month"))
+  ) |>
+  select(-visit) |>
+  pivot_longer(`PnPs 3`:`PnPs 23F`, names_to = "antigen", values_to = "opa")
+
+dat_com <- dat_igg |>
+  filter(subjid %in% dat_opa$subjid, visage %in% c("6-month", "18-month")) |>
+  left_join(dat_opa, join_by(subjid, visage, antigen)) |>
+  mutate(antigen = fct_inorder(antigen))
+
+n_subj <- length(unique(dat_com$subjid))
+```
+
+# Background
+
+
+- multiplexed opsonophagocytic killing assay (MOPA)
+- opsonophagocytic assay (OPA)
+- Opsonisation titers/index (OI) (?serum dilution required to kill x% of bacteria)
+
+Functional opsonophagocytosis antibody (OPA) levels may be a better predictor of protection than serum IgG.
+
+Multiplexed opsonophagocytic killing assay (MOPA) measurements were provided for `{r} n_subj` stage 1 OPTIMUM participants. Measurements were taken on blood collections from visit 3 (6-month) and visit 7 (18-month) where available for each of these participants. Measurements were available for serotypes: PnPs 3, PnPs 19F, and PnPs 23F.
+
+Aim is to:
+
+- compare OPA between assigned treatment groups
+- compare OPA to IgG
+
+\clearpage
+
+# OPA, IgG and Treatment Group
+
+```{r}
+#| label: fig-opa-antigen-visit
+#| fig-cap: OPA by visit age and serotype.
+#| fig-height: 3
+#| fig-width: 5
+dat_com |>
+  ggplot(aes(visage, opa)) +
+  facet_wrap(~antigen) +
+  geom_boxplot(width = 0.25) +
+  geom_beeswarm(shape = 21) +
+  scale_y_continuous(
+    "OPA",
+    transform = "log2",
+    breaks = scales::breaks_log(n = 10, base = 2),
+    labels = label_log(base = 2)
+  ) +
+  labs(x = "Visit age")
+```
+
+```{r}
+#| label: fig-opa-antigen-visit-trt
+#| fig-cap: OPA by visit age, serotype, and assigned treatment group.
+#| fig-height: 3
+#| fig-width: 5
+dat_com |>
+  ggplot(aes(interaction(trt, visage, sep = "!"), opa)) +
+  facet_wrap(~antigen) +
+  geom_boxplot() +
+  geom_beeswarm(shape = 21) +
+  scale_y_continuous(
+    "OPA",
+    transform = "log2",
+    breaks = scales::breaks_log(n = 10, base = 2),
+    labels = label_log(base = 2)
+  ) +
+  guides(x = legendry::guide_axis_nested(key = key_range_auto(sep = "!"))) +
+  labs(x = "Visit age | treatment")
+```
+
+```{r}
+#| label: fig-igg-antigen-visit
+#| fig-cap: IgG by visit age and serotype.
+#| fig-height: 3
+#| fig-width: 5
+dat_com |>
+  ggplot(aes(visage, concentration)) +
+  facet_wrap(~antigen) +
+  geom_boxplot(width = 0.25) +
+  geom_beeswarm(shape = 21) +
+  scale_y_continuous(
+    "IgG",
+    transform = "log2",
+    breaks = scales::breaks_log(n = 10, base = 2),
+    labels = label_log(base = 2)
+  ) +
+  labs(x = "Visit age")
+```
+
+```{r}
+#| label: fig-igg-antigen-visit-trt
+#| fig-cap: IgG by visit age, serotype, and assigned treatment group.
+#| fig-height: 3
+#| fig-width: 5
+dat_com |>
+  ggplot(aes(interaction(trt, visage, sep = "!"), concentration)) +
+  facet_wrap(~antigen) +
+  geom_boxplot() +
+  geom_beeswarm(shape = 21) +
+  scale_y_continuous(
+    "IgG",
+    transform = "log2",
+    breaks = scales::breaks_log(n = 10, base = 2),
+    labels = label_log(base = 2)
+  ) +
+  guides(x = legendry::guide_axis_nested(key = key_range_auto(sep = "!"))) +
+  labs(x = "Visit age | treatment")
+```
+
+\clearpage
+
+# OPA and IgG
+
+```{r}
+#| label: fig-igg-vs-opa-antigen
+#| fig-cap: Correlation between IgG and OPA by antigen.
+#| fig-height: 3
+#| fig-width: 6
+dat_cor <- dat_com |>
+  select(subjid, visage, antigen, concentration, opa) |>
+  nest(dat = -antigen) |>
+  mutate(
+    fit = map(dat, ~ lm(log(opa) ~ log(concentration), data = .x)),
+    cor = map_dbl(dat, ~ cor(log(.x$concentration), log(.x$opa), use = "complete.obs")),
+    rho = sprintf("Correlation = %.2f", cor)
+  )
+
+dat_com |>
+  ggplot() +
+  facet_wrap(~antigen) +
+  geom_point(aes(concentration, opa)) +
+  geom_smooth(aes(concentration, opa), method = "lm", se = FALSE) +
+  geom_label(data = dat_cor, aes(label = rho, x = 1, y = 1), size = 3) +
+  scale_x_continuous(
+    "IgG",
+    transform = "log2",
+    breaks = 2^seq(-6, 6, by = 2),
+    labels = label_log(base = 2)
+  ) +
+  scale_y_continuous(
+    "OPA",
+    transform = "log2",
+    breaks = 2^seq(0, 12, by = 2),
+    labels = label_log(base = 2)
+  )
+```
+
+```{r}
+#| label: fig-igg-vs-opa-antigen-visit-age
+#| fig-cap: Correlation between IgG and OPA by antigen and visit age.
+#| fig-height: 5
+#| fig-width: 6
+dat_cor <- dat_com |>
+  select(subjid, visage, antigen, concentration, opa) |>
+  nest(dat = -c(antigen, visage)) |>
+  mutate(
+    fit = map(dat, ~ lm(log(opa) ~ log(concentration), data = .x)),
+    cor = map_dbl(dat, ~ cor(log(.x$concentration), log(.x$opa), use = "complete.obs")),
+    rho = sprintf("Correlation = %.2f", cor)
+  )
+
+dat_com |>
+  ggplot() +
+  facet_grid(visage ~ antigen) +
+  geom_point(aes(concentration, opa)) +
+  geom_smooth(aes(concentration, opa), method = "lm", se = FALSE) +
+  geom_label(data = dat_cor, aes(label = rho, x = 1, y = 1), size = 3) +
+  scale_x_continuous(
+    "IgG",
+    transform = "log2",
+    breaks = 2^seq(-6, 6, by = 2),
+    labels = label_log(base = 2)
+  ) +
+  scale_y_continuous(
+    "OPA",
+    transform = "log2",
+    breaks = 2^seq(0, 12, by = 2),
+    labels = label_log(base = 2)
+  )
+```
