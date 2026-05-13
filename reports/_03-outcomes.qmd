@@ -7,6 +7,8 @@ All of the trial outcomes depend upon a positive SPT to either a specific allerg
 
 ## Skin prick tests
 
+### Overview
+
 ```{r}
 #| label: spt-no-records
 std_allergens <- c(
@@ -702,6 +704,8 @@ p2
 \clearpage
 
 ## IgE-mediated food allergy
+
+### Overview
 
 The primary source of information for IgE-mediated food allergy was the `outcome_report` form. Reported outcomes were cross checked against the food and household questionnaire form (`food_and_household_questionnaire`) and the oral food challenge form (`food_challenge`).
 
@@ -2199,6 +2203,8 @@ bind_rows(
 \clearpage
 
 ## Eczema
+
+### Overview
 
 The primary source of information for eczema was the `outcome_report` form. The timing was based on the documented age at which eczema first occurred. Reported outcomes were cross checked against the food and household questionnaire form and medical history forms. Infants whose first reaction date for clinician-diagnosed eczema was prior to enrolment were considered to have "pre-existing" eczema and were excluded from the analysis set. There were `r sum(dat_ecz$out_ecz_preexisting)` such infants.
 
