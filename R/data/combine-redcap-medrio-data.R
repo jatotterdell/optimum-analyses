@@ -2486,5 +2486,7 @@ optimum_data <- list(
   "diary" = dat_diary
 )
 
-qsave(enframe(optimum_data, name = "form", value = "data"), com_file)
+# qs deprecated
+# qsave(enframe(optimum_data, name = "form", value = "data"), com_file)
+qs2::qd_save(enframe(optimum_data, name = "form", value = "data"), com_file)
 writeLines("Successfully combined databases.", stdout())

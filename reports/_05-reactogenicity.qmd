@@ -1404,10 +1404,6 @@ p <- pdat |>
     family = "TeX Gyre Pagella"
   ) +
   scale_fill_viridis_d("Maximum pain") +
-  scale_x_discrete(
-    guide = legendry::guide_axis_nested("!"),
-    name = "Term and treatment"
-  ) +
   ylim(0, 1) +
   labs(y = "Cumulative proportion") +
   theme(axis.title = element_text(size = rel(0.9)), legend.position = "top")

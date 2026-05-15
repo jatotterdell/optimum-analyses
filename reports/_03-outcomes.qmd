@@ -1701,39 +1701,6 @@ fit_pars_season <- dat_po |>
   add_epred_rvars(fit) |>
   pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
   mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
-
-# fit_pars_season |>
-#   select(birth_season, or) |>
-#   # add_row(rand_site = "Average", or = exp(rvar_mean(log(fit_pars_site$or))), .before = 1) |>
-#   # mutate(rand_site = fct_inorder(rand_site)) |>
-#   ggplot(aes(y = birth_season, xdist = or)) +
-#   stat_pointinterval(
-#     .width = c(0.5, 0.8, 0.95),
-#     point_size = 1.5
-#   ) +
-#   geom_vline(xintercept = 1, linetype = 2) +
-#   scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 10)) +
-#   scale_y_discrete(limits = rev) +
-#   labs(
-#     x = "Odds ratio for IgE-mediated food allergy, wP versus aP",
-#     y = "Density"
-#   )
-
-# fit_pars_season |>
-#   select(birth_season, rd) |>
-#   ggplot(aes(y = birth_season, xdist = rd)) +
-#   # facet_wrap(~name, scales = "free") +
-#   stat_pointinterval(
-#     .width = c(0.5, 0.8, 0.95),
-#     point_size = 1.5
-#   ) +
-#   geom_vline(xintercept = 0, linetype = 2) +
-#   scale_x_continuous(breaks = seq(-0.2, 0.2, 0.02)) +
-#   scale_y_discrete(limits = rev) +
-#   labs(
-#     x = "Difference in IgE-mediated food allergy risk, wP - aP",
-#     y = "Density"
-#   )
 ```
 
 :::
@@ -1743,8 +1710,6 @@ fit_pars_season <- dat_po |>
 ::: {.landscape}
 
 #### Family history of atopy
-
-Family history of atopy was derived from responses on the corresponding baseline form. If an infant had any parent or sibling with a reported history of asthma, eczema, allergic rhinitis, or food allergy, then they were considered to have a family history of atopy.
 
 ```{r}
 #| label: tbl-primary-outcome-criteria-fha
@@ -1958,6 +1923,37 @@ tbl |>
   as_latex() |>
   latex_unescape() |>
   cat()
+```
+
+```{r}
+#| label: primary-outcome-subgroup-model-fhafa
+dat_po$fhafa <- factor(dat_po$fhafa, levels = 0:1, labels = c("No", "Yes"))
+contrasts(dat_po$fhafa) <- bayestestR::contr.equalprior(2)
+
+prior <- c(
+  trt_prior,
+  prior_string(dev_prior, coef = "fhafaYes:trtwP")
+)
+
+fit <- brm(
+  po ~ 0 + fhafa + trt + trt:fhafa,
+  data = dat_po,
+  family = bernoulli(),
+  # prior = prior,
+  warmup = 500,
+  iter = 5500,
+  refresh = 0,
+  silent = 2,
+  seed = 54123
+)
+
+fit_pars_fhafa <- dat_po |>
+  distinct(trt, fhafa) |>
+  arrange(fhafa) |>
+  add_linpred_rvars(fit) |>
+  add_epred_rvars(fit) |>
+  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
+  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
 ```
 
 :::
@@ -2177,10 +2173,10 @@ bind_rows(
     select(birth_season, rd) |>
     mutate(var = "Season of birth") |>
     rename(level = birth_season),
-  fit_pars_fha |>
-    select(fha, rd) |>
-    mutate(var = "Family history\nof atopy") |>
-    rename(level = fha),
+  fit_pars_fhafa |>
+    select(fhafa, rd) |>
+    mutate(var = "Family history\nof food allergy") |>
+    rename(level = fhafa),
   fit_pars_asia |>
     select(any_asia, rd) |>
     mutate(var = "One parent\nborn in Asia") |>

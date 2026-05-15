@@ -1,7 +1,8 @@
 suppressPackageStartupMessages({
   # Data
   library(here)
-  library(qs)
+  # library(qs)
+  library(qs2)
   library(dplyr)
   library(forcats)
   library(lubridate)

@@ -1,6 +1,6 @@
 # Raw REDCap/Medrio data ----
 com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
-dat_raw <- qread(com_file)
+dat_raw <- qs2::qd_read(com_file)
 
 
 # Baseline data ----

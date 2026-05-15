@@ -171,7 +171,7 @@ No subgroup analyses were pre-specified in the protocol or SAP. Exploratory post
 
 - participating site of study enrolment
 - season of birth (Autumn, Winter, Spring, Summer)
-- family history of atopy
+- family history of food allergy
 - one or more parent's born in Asia
 
 For these analyses logistic regression models were estimated with terms for assigned treatment group, the grouping factor of interest (as above), and their interaction. Weakly informative priors were specified on the overall treatment effect and on the group level deviations.
