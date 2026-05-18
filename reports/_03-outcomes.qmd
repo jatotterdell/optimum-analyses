@@ -1711,6 +1711,8 @@ fit_pars_season <- dat_po |>
 
 #### Family history of atopy
 
+Family history of atopy was derived from responses on the corresponding baseline form. If an infant had any parent or sibling with a reported history of asthma, eczema, allergic rhinitis, or food allergy, then they were considered to have a family history of atopy.
+
 ```{r}
 #| label: tbl-primary-outcome-criteria-fha
 #| tbl-cap: |
@@ -2163,7 +2165,7 @@ For each subgroup we estimated the difference in risk of IgE-mediated food aller
 #| label: fig-subgroup-plot
 #| fig-cap: Subgroup specific estimates of difference in risk of IgE-mediated food allergy, wP versus aP.
 #| fig-width: 4
-#| fig-height: 6
+#| fig-height: 6.5
 bind_rows(
   fit_pars_site |>
     select(rand_site, rd) |>
@@ -2173,6 +2175,10 @@ bind_rows(
     select(birth_season, rd) |>
     mutate(var = "Season of birth") |>
     rename(level = birth_season),
+  fit_pars_fha |>
+    select(fha, rd) |>
+    mutate(var = "Family history\nof atopy") |>
+    rename(level = fha),
   fit_pars_fhafa |>
     select(fhafa, rd) |>
     mutate(var = "Family history\nof food allergy") |>

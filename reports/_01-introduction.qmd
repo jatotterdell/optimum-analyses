@@ -171,6 +171,7 @@ No subgroup analyses were pre-specified in the protocol or SAP. Exploratory post
 
 - participating site of study enrolment
 - season of birth (Autumn, Winter, Spring, Summer)
+- family history of atopy
 - family history of food allergy
 - one or more parent's born in Asia
 
