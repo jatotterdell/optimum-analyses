@@ -410,7 +410,7 @@ dat_spt |>
 
 \clearpage
 
-### Skin prick test model
+### Skin prick test sensitisation model
 
 ```{r}
 #| label: spt-analysis
@@ -699,6 +699,145 @@ p2
     plot.title = element_text(size = rel(1)),
     text = element_text(size = 9)
   )
+```
+
+\clearpage
+
+### Skin prick test magnitude
+
+@tbl-spt-magnitude and @fig-spt-magnitude report on the magnitude of the SPT results (in millimetres) from scheduled SPTs, in particular, amongst infants with SPT sensitisation. There was little evidence of a difference in sensitisation and, given the small number of infants with any sensitisation, in difference in SPT magnitudes, whether overall or conditional on sensitisation.
+
+```{r}
+#| label: tbl-spt-magnitude
+#| tbl-cap: SPT sensitisation and magnitude by assigned treatment for scheduled SPTs.
+#| tbl-pos: "H"
+dat_1 <- dat_spt |>
+  select(subjid, trt, priyn, spt_num, spt_occasion, pridat, spt_age, spt_tested, spt_neg, spt_pos, spt_result) |>
+  filter(spt_age < 19, spt_occasion == "scheduled", spt_tested %in% std_allergens) |>
+  mutate(y = spt_result) |>
+  filter(!is.na(y))
+
+dat_1 |>
+  mutate(spt_tested = factor(str_to_sentence(spt_tested), levels = str_to_sentence(std_allergens))) |>
+  summarise(
+    n = sum(!is.na(y)),
+    ngt0 = sum(y > 0, na.rm = TRUE),
+    pgt0 = mean(y > 0, na.rm = TRUE),
+    m = mean(y, na.rm = TRUE),
+    mgt0 = mean(y[y > 0], na.rm = TRUE),
+    .by = c(trt, spt_tested)
+  ) |>
+  pivot_wider(names_from = trt, values_from = n:mgt0) |>
+  gt(rowname_col = "spt_tested") |>
+  tab_spanner(columns = ends_with("aP"), label = "aP") |>
+  tab_spanner(columns = ends_with("wP"), label = "wP") |>
+  fmt_percent(columns = contains("pgt0"), decimals = 1) |>
+  fmt_number(columns = contains("m_"), decimals = 2) |>
+  fmt_number(columns = contains("mgt0"), decimals = 1) |>
+  cols_merge(columns = c(n_aP, ngt0_aP, pgt0_aP), pattern = "{2}/{1} ({3})") |>
+  cols_merge(columns = c(n_wP, ngt0_wP, pgt0_wP), pattern = "{2}/{1} ({3})") |>
+  cols_label(
+    n_aP ~ "y/n (p%)",
+    m_aP ~ "E[y]",
+    mgt0_aP ~ "E[y|y>0]",
+    n_wP ~ "y/n (p%)",
+    m_wP ~ "E[y]",
+    mgt0_wP ~ "E[y|y>0]"
+  ) |>
+  cols_align(columns = spt_tested, align = "left") |>
+  tab_footnote(
+    footnote = "y: number with any sensitisation (>0mm), n: number of scheduled SPT results, p: percentage",
+    locations = cells_column_labels(starts_with("n_"))
+  ) |>
+  tab_footnote(
+    footnote = "E[y]: mean of SPT results (mm) amongst all infants",
+    locations = cells_column_labels(starts_with("m_"))
+  ) |>
+  tab_footnote(
+    footnote = "E[y|y>0]: mean of SPT results (mm) amongst infants with any sensitisation",
+    locations = cells_column_labels(starts_with("mgt0"))
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
+```{r}
+#| label: fig-spt-magnitude
+#| fig-cap: |
+#|   SPT magnitude amongst infants with any sensitisation (>0mm).
+#| fig-width: 6
+#| fig-height: 4
+dat_1 |>
+  filter(spt_result > 0) |>
+  mutate(spt_tested = factor(str_to_sentence(spt_tested), levels = str_to_sentence(std_allergens))) |>
+  arrange(spt_tested) |>
+  ggplot(aes(spt_result)) +
+  facet_wrap(~spt_tested) +
+  stat_ecdf(aes(colour = trt)) +
+  labs(colour = "Treatment group", x = "SPT result (mm)", y = "eCDF") +
+  scale_colour_manual(values = c("black", "orange")) +
+  theme(legend.position = "top")
+```
+
+As a post-hoc exploratory analysis of SPT results, hurdle log-normal models were estimated for each allergen on the standard panel for scheduled SPTs. These models conditioned on assigned treatment only. The estimate differences in mean SPT result, difference in probability of sensitisation, and difference in mean SPT result conditional on sensitisation are reported in @fig-spt-magnitude-estimates.
+
+```{r}
+#| label: spt-magnitude-models
+dat_1_fits <- dat_1 |>
+  nest(dat = -spt_tested) |>
+  mutate(
+    fit = map(
+      dat,
+      ~ brm(
+        bf(y ~ trt, hu ~ trt),
+        data = .x,
+        family = hurdle_lognormal(),
+        backend = "cmdstanr",
+        seed = 71235,
+        cores = 8,
+        chains = 8,
+        refresh = 0,
+        silent = 2
+      )
+    ),
+    params = map(
+      fit,
+      ~ do.call(c, as_draws_rvars(.x))
+    )
+  )
+```
+
+```{r}
+#| label: fig-spt-magnitude-estimates
+#| fig-cap: | 
+#|   Posterior summaries for model estimated difference in mean SPT result, sensitisation probability, and mean SPT result conditional on sensitisation, wP vs aP.
+#| fig-width: 6
+#| fig-height: 3
+dat_1_fits |>
+  unnest_wider(params) |>
+  select(spt_tested, starts_with("b_"), sigma) |>
+  mutate(
+    diff_E = (1 - rfun(plogis)(b_hu_Intercept + b_hu_trtwP)) *
+      exp(b_Intercept + b_trtwP + sigma^2 / 2) -
+      (1 - rfun(plogis)(b_hu_Intercept)) * exp(b_Intercept + sigma^2 / 2),
+    diff_Pr_gt0 = 100 * ((1 - rfun(plogis)(b_hu_Intercept + b_hu_trtwP)) - (1 - rfun(plogis)(b_hu_Intercept))),
+    diff_E_gt0 = exp(b_Intercept + b_trtwP + sigma^2 / 2) - exp(b_Intercept + sigma^2 / 2)
+  ) |>
+  select(spt_tested, starts_with("diff")) |>
+  pivot_longer(starts_with("diff")) |>
+  mutate(
+    spt_tested = fct_inorder(str_to_sentence(spt_tested)),
+    name = factor(
+      name,
+      levels = c("diff_E", "diff_Pr_gt0", "diff_E_gt0"),
+      labels = c("Difference in E[y]", "Difference in Pr(y > 0)", "Difference in E[y|y > 0]")
+    )
+  ) |>
+  ggplot(aes(y = spt_tested, xdist = value)) +
+  facet_wrap(~name, scales = "free_x") +
+  stat_pointinterval(point_size = 1.5, .width = c(0.8, 0.95)) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_y_discrete("Allergen tested", limits = rev) +
+  labs(x = "Effect size")
 ```
 
 \clearpage
@@ -1223,7 +1362,7 @@ dat_rd_po <- dat_po |>
 
 The results between the primary analysis (unadjusted) and secondary (adjusted) analyses were near identical. Given the data, under the assumed model the most plausible values for the difference in IgE-mediated food allergy between wP and aP were `r do.call(sprintf, c(fmt = "%.2f (%.2f, %.2f)", as.list(c(quantile2(po_diff$delta, c(0.5, 0.025, 0.975))))))` [posterior median, (95% credible interval)]. The probability of a reduction in IgE-medidated food allergy under wP compared to aP was `r sprintf("%.2f", mean(po_diff$delta < 0))`.
 
-A pre-specified stopping rule was to assess the predicted probability of success (PPoS) up to the planned maximum sample size of 2,000 infants (1,000 per arm). Success required that the probability of a reduction in IgE-mediated food allergy exceed 0.95. Calculation of PPoS used the posterior predictive distribution under each arm to impute outcomes for futuree participantts. If PPoS < 0.05 then the trial was to be stopped for  futility. At the time of stopping, 486 participants had been assigned to each arm with 514 further infants required to reach 1,000 per arm. At this stage, $\text{PPoS} \approx `{r} ppos1` < 0.05$ and would have met the futility criteria. 
+A pre-specified stopping rule was to assess the predicted probability of success (PPoS) up to the planned maximum sample size of 2,000 infants (1,000 per arm). Success required that the probability of a reduction in IgE-mediated food allergy exceed 0.95. Calculation of PPoS used the posterior predictive distribution under each arm to impute outcomes for future participantts. If PPoS < 0.05 then the trial was to be stopped for  futility. At the time of stopping, 486 participants had been assigned to each arm with 514 further infants required to reach 1,000 per arm. At this stage, $\text{PPoS} \approx `{r} ppos1` < 0.05$ and would have met the futility criteria. 
 
 ```{r}
 #| label: tbl-posterior-primary

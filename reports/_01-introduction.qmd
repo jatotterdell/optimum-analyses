@@ -82,7 +82,7 @@ Interest was in the geometric mean concentrations, seroresponse (13vPCV serotype
 
 The protocol defined allergen panel for skin prick tests included cow’s milk, hen’s egg, peanut, cashew, house dust mite (*Dermatophagoides pteronyssinus*), cat, rye grass (*Lolium perenne*), a positive control (10 mg/mL histamine) and negative control (saline). In addition to these, further allergens could also be tested at parental request or at discretion of the site principal investigator (PI). When the outcomes say "at least one allergen" [i.e. for eczema for positive SPT] it was meant any allergen, including any additional allergens tested beyond the standard panel.
 
-For SPT's, the specification of "by approximately 12-months old" was taken to mean "up to 18-months old". Under the original protocol, SPTs were scheduled to occur at 18-months of age, but following an early revision, scheduled SPTs were revised to occur at 12-months of age. Unscheduled SPTs could still occur up to 18 months of age.
+For SPT's, the specification of "by approximately 12-months old" was taken to mean "up to 18-months old". Under the original protocol, SPTs were scheduled to occur at 18-months of age, but following an early revision, scheduled SPTs were revised to occur at 12-months of age. Unscheduled SPTs could still occur up to 18 months of age. Exploratory analyses investigated the magnitude of SPT results in addition to sensitisation.
 
 For both IgE-mediated food allergy and eczema, sensitisation on (positive) SPT was defined to be a result more than 1mm greater than negative control by 18 months of age. For IgE-mediated food allergy, the positive SPT needed to match the specific food allergen. 
 
