@@ -26,6 +26,7 @@ render-report-igg:
 render-report-prn:
   quarto render --profile report reports/stage1-vs-stage2.qmd
 
+# Render report summarising OPA data
 render-report-opa:
   quarto render --profile report reports/opa-data.qmd
 

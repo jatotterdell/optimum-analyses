@@ -7,7 +7,7 @@ subtitle: Report
 #| label: packages-and-setup
 suppressPackageStartupMessages({
   # Data
-  library(qs)
+  library(qs2)
   library(dplyr)
   library(tidyr)
   library(forcats)
@@ -20,6 +20,7 @@ suppressPackageStartupMessages({
   library(scales)
   library(legendry)
   library(ggbeeswarm)
+  library(patchwork)
 
   # Tables
   library(gt)
@@ -41,6 +42,7 @@ readRenviron(".env")
 
 source("R/util.R")
 source("reports/R/functions.R")
+source(file.path("R", "data", "process-combined-data.R"))
 
 options(
   brms.backend = "cmdstanr",
@@ -64,12 +66,14 @@ theme_set(
       legend.key.size = unit(0.75, "lines")
     )
 )
+
+multinorm <- cmdstan_model(file.path("stan", "multinorm.stan"))
 ```
 
 ```{r}
 #| label: data-raw
 com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
-dat_raw <- qread(com_file)
+dat_raw <- qd_read(com_file)
 dat_opa <- readxl::read_excel(
   file.path(
     Sys.getenv("RDS_PATH"),
@@ -80,28 +84,6 @@ dat_opa <- readxl::read_excel(
   ),
   skip = 2
 )
-```
-
-```{r}
-dat_rand <- dat_raw |>
-  select_form("randomisation") |>
-  left_join(
-    dat_raw |> select_form("allocations"),
-    join_by(rand)
-  )
-
-dat_bc <- dat_raw |>
-  select_form("blood_collection") |>
-  select(record_id, visage, lbipdat) |>
-  left_join(dat_rand, join_by(record_id))
-
-dat_igg <- dat_raw |>
-  select_form("igg") |>
-  filter(
-    grepl("01-", subjid),
-    antigen %in% c("PnPs 3", "PnPs 19F", "PnPs 23F")
-  ) |>
-  left_join(dat_bc, join_by(subjid, visage))
 
 dat_opa <- dat_opa |>
   rename(
@@ -120,22 +102,34 @@ dat_opa <- dat_opa |>
   select(-visit) |>
   pivot_longer(`PnPs 3`:`PnPs 23F`, names_to = "antigen", values_to = "opa")
 
-dat_com <- dat_igg |>
-  filter(subjid %in% dat_opa$subjid, visage %in% c("6-month", "18-month")) |>
+opa_subj <- unique(dat_opa$subjid)
+n_subj <- length(opa_subj)
+
+dat_base <- get_baseline_data(dat_raw, TRUE) |>
+  filter(subjid %in% opa_subj)
+
+dat_bc <- dat_raw |>
+  select_form("blood_collection") |>
+  select(record_id, visage, lbipdat) |>
+  left_join(select(dat_base, record_id, subjid), join_by(record_id)) |>
+  select(-record_id)
+
+dat_igg <- dat_raw |>
+  select_form("igg") |>
+  filter(
+    grepl("01-", subjid),
+    antigen %in% c("PnPs 3", "PnPs 19F", "PnPs 23F")
+  ) |>
+  left_join(dat_bc, join_by(subjid, visage)) |>
+  filter(subjid %in% opa_subj, visage %in% c("6-month", "18-month"))
+
+dat_com <- dat_base |>
+  left_join(dat_igg, join_by(subjid)) |>
   left_join(dat_opa, join_by(subjid, visage, antigen)) |>
   mutate(antigen = fct_inorder(antigen))
-
-n_subj <- length(unique(dat_com$subjid))
 ```
 
 # Background
-
-
-- multiplexed opsonophagocytic killing assay (MOPA)
-- opsonophagocytic assay (OPA)
-- Opsonisation titers/index (OI) (?serum dilution required to kill x% of bacteria)
-
-Functional opsonophagocytosis antibody (OPA) levels may be a better predictor of protection than serum IgG.
 
 Multiplexed opsonophagocytic killing assay (MOPA) measurements were provided for `{r} n_subj` stage 1 OPTIMUM participants. Measurements were taken on blood collections from visit 3 (6-month) and visit 7 (18-month) where available for each of these participants. Measurements were available for serotypes: PnPs 3, PnPs 19F, and PnPs 23F.
 
@@ -144,20 +138,198 @@ Aim is to:
 - compare OPA between assigned treatment groups
 - compare OPA to IgG
 
-\clearpage
+@sec-characteristics summarises the baseline characteristics of the infants with available OPA. @sec-opa-trt looks at OPA measurements by visit age and treatment group, in particular, the GMR of wP relative to aP at each age. @sec-igg-trt looks at the same, but for IgG restricted to those infants with OPA available. @sec-opa-igg-trt compares these. @sec-opa-igg-cor looks at correlations between OPA and IgG values.
 
-# OPA, IgG and Treatment Group
+```{=latex}
+\clearpage
+```
+
+# Characteristics {#sec-characteristics}
+
+@tbl-baseline-characteristics summarisese the characteristics of those infants who had OPA processed.
+
+```{r}
+#| label: tbl-baseline-characteristics
+#| tbl-cap: Baseline characteristics of trial participants.
+#| tbl-pos: "H"
+#| output: "asis"
+tbl <- dat_base |>
+  set_variable_labels(
+    etomthr___1 = "Indigenous Australia",
+    etomthr___2 = "European Caucasian",
+    etomthr___3 = "Asian",
+    etomthr___4 = "Indian subcontinent",
+    etomthr___5 = "Middle Eastern",
+    etomthr___6 = "Pacific Islander",
+    etomthr___7 = "South American",
+    etomthr___8 = "Black African",
+    etofthr___1 = "Indigenous Australia",
+    etofthr___2 = "European Caucasian",
+    etofthr___3 = "Asian",
+    etofthr___4 = "Indian subcontinent",
+    etofthr___5 = "Middle Eastern",
+    etofthr___6 = "Pacific Islander",
+    etofthr___7 = "South American",
+    etofthr___8 = "Black African",
+    etoinf___1 = "Indigenous Australia",
+    etoinf___2 = "European Caucasian",
+    etoinf___3 = "Asian",
+    etoinf___4 = "Indian subcontinent",
+    etoinf___5 = "Middle Eastern",
+    etoinf___6 = "Pacific Islander",
+    etoinf___7 = "South American",
+    etoinf___8 = "Black African",
+  ) |>
+  mutate(
+    bcmoth = fct_lump_min(bcmoth, min = 3) |>
+      # fct_recode(Other = "OTHER") |>
+      fct_infreq() |>
+      fct_relevel("Other", after = Inf),
+    bcfath = fct_lump_min(bcfath, min = 3) |>
+      fct_recode(Other = "OTHER") |>
+      fct_infreq() |>
+      fct_relevel("Other", after = Inf)
+  ) |>
+  tbl_summary(
+    include = c(
+      # Demographics and infant history
+      # rand_stage,
+      # rand_site,
+      gender,
+      v1_age_days,
+      parinc,
+      bcmoth,
+      bcfath,
+      etomthr___2,
+      etomthr___3,
+      etomthr___4,
+      etomthr___7,
+      etomthr___1,
+      etomthr___6,
+      etomthr___8,
+      etofthr___2,
+      etofthr___3,
+      etofthr___4,
+      etofthr___6,
+      etofthr___7,
+      etofthr___1,
+      etofthr___8,
+      etoinf___2,
+      etoinf___3,
+      etoinf___4,
+      etoinf___7,
+      etoinf___6,
+      etoinf___1,
+      etoinf___8,
+      fborn,
+      fecurr,
+      fecat,
+      fedog,
+      # Birth history
+      mgrav_fac,
+      mpar_fac,
+      delt,
+      ipab,
+      neoab,
+      gestadelw,
+      wgt,
+      len,
+      inhc,
+      aps1_fac,
+      aps5_fac,
+      # Maternal immunisation
+      inmpertvp,
+      vacad,
+      prevpert,
+      minfvp,
+      # Family history
+      fha
+    ),
+    label = list(
+      # rand_stage ~ "Protocol stage",
+      # rand_site ~ "Participating site",
+      bcmoth ~ "Birth country of mother",
+      bcfath ~ "Birth country of father",
+      v1_age_days ~ "Age at enrolment (days)",
+      fborn ~ "First born",
+      mgrav_fac ~ "Maternal gravidity",
+      mpar_fac ~ "Maternal parity",
+      aps1_fac ~ "Apgar score (1 minute)",
+      aps5_fac ~ "Apgar score (5 minutes)",
+      prevpert ~ "Other maternal pertussis vaccination (last 5 years)",
+      fha ~ "Family history of atopy",
+      fecat ~ "Cat ownership",
+      fedog ~ "Dog ownership",
+      fecurr ~ "Feeding status"
+    ),
+    by = trt,
+    missing_text = "(Missing)",
+    digits = ~0
+  ) |>
+  add_n() |>
+  add_overall(last = TRUE) |>
+  add_variable_group_header(header = "Mother's ethnicity", variables = starts_with("etomthr")) |>
+  add_variable_group_header(header = "Father's ethnicity", variables = starts_with("etofthr")) |>
+  add_variable_group_header(header = "Infant's ethnicity", variables = starts_with("etoinf")) |>
+  modify_column_alignment(all_stat_cols(), "right") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  modify_table_body(
+    ~ .x |>
+      mutate(
+        n = if_else(grepl("___", variable), NA_character_, n),
+        n = if_else(row_type == "variable_group", '53', n)
+      )
+  )
+tbl |>
+  as_gt() |>
+  cols_width(label ~ pct(30)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = label,
+      rows = (row_type == "label" | row_type == "variable_group") & !grepl("___", variable)
+    )
+  ) |>
+  tab_options(
+    table.width = pct(100),
+    table.font.size = px(9),
+    latex.use_longtable = TRUE
+  ) |>
+  tab_footnote(
+    footnote = "Multiple may apply to each participant",
+    locations = cells_body(rows = row_type == "variable_group", columns = label)
+  ) |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
+```{=latex}
+\clearpage
+```
+
+# OPA by age and treatment group {#sec-opa-trt}
+
+A summary of the available OPA measurements visit age is shown in @fig-opa-antigen-visit.
+A summary by visit age and treatment group is shown in @fig-opa-antigen-visit-trt.
 
 ```{r}
 #| label: fig-opa-antigen-visit
-#| fig-cap: OPA by visit age and serotype.
+#| fig-cap: OPA by visit age and serotype. Y-axis is $\log_2$ transformed.
 #| fig-height: 3
 #| fig-width: 5
 dat_com |>
   ggplot(aes(visage, opa)) +
   facet_wrap(~antigen) +
   geom_boxplot(width = 0.25) +
-  geom_beeswarm(shape = 21) +
+  geom_beeswarm(shape = 21, alpha = 0.75) +
   scale_y_continuous(
     "OPA",
     transform = "log2",
@@ -169,7 +341,7 @@ dat_com |>
 
 ```{r}
 #| label: fig-opa-antigen-visit-trt
-#| fig-cap: OPA by visit age, serotype, and assigned treatment group.
+#| fig-cap: OPA by visit age, serotype, and assigned treatment group. Y-axis is $\log_2$ transformed.
 #| fig-height: 3
 #| fig-width: 5
 dat_com |>
@@ -186,6 +358,332 @@ dat_com |>
   guides(x = legendry::guide_axis_nested(key = key_range_auto(sep = "!"))) +
   labs(x = "Visit age | treatment")
 ```
+
+```{r}
+#| label: fig-opa-antigen-visit-trt-ecdf
+#| fig-cap: OPA ceCDF by visit age, serotype, and assigned treatment group. X-axis is $\log_2$ transformed.
+#| fig-height: 4
+#| fig-width: 6
+dat_com |>
+  ggplot(aes(opa)) +
+  facet_grid(visage ~ antigen) +
+  stat_ecdf(aes(colour = trt, y = after_stat(1 - ecdf))) +
+  scale_x_continuous(
+    "OPA",
+    transform = "log2",
+    breaks = scales::breaks_log(n = 10, base = 2),
+    labels = label_log(base = 2)
+  ) +
+  labs(y = "eCDF", colour = "Treatment") +
+  scale_colour_manual(values = c("black", "orange"))
+```
+
+```{r}
+#| label: tbl-opa-summaries
+#| tbl-cap: |
+#|   Descriptive summaries of OPA measurements by age and treatment group.
+#| tbl-pos: "H"
+#| results: "asis"
+var <- sym("opa")
+tab_dat <- dat_com |>
+  summarise(
+    obs = sum(!is.na({{ var }})),
+    gmc = gmc({{ var }}, na.rm = TRUE),
+    gsd = gsd({{ var }}, na.rm = TRUE),
+    q1 = quantile({{ var }}, probs = 0.25, na.rm = TRUE),
+    q3 = quantile({{ var }}, probs = 0.75, na.rm = TRUE),
+    min = min({{ var }}, na.rm = TRUE),
+    max = max({{ var }}, na.rm = TRUE),
+    .by = c(antigen, visage, trt)
+  ) |>
+  arrange(trt) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(obs, gmc, gsd, q1, q3, min, max),
+    names_vary = "slowest"
+  ) |>
+  to_factor() |>
+  arrange(antigen, visage)
+tab <- gt(tab_dat, groupname_col = "antigen", rowname_col = "visage") |>
+  fmt_integer(starts_with("obs")) |>
+  fmt_number(starts_with(c("gmc", "gsd")), decimals = 2) |>
+  fmt(starts_with(c("q1", "q3")), fns = fmt_num) |>
+  fmt(starts_with(c("min", "max")), fns = fmt_num) |>
+  cols_merge(
+    columns = c(min_aP, max_aP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_merge(
+    columns = c(min_wP, max_wP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_merge(
+    columns = c(q1_aP, q3_aP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_merge(
+    columns = c(q1_wP, q3_wP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_label(
+    obs_aP = "n",
+    obs_wP = "n",
+    gmc_aP = "GMC",
+    gmc_wP = "GMC",
+    gsd_aP = "GSD",
+    gsd_wP = "GSD",
+    q1_aP = "Q1–Q3",
+    q1_wP = "Q1–Q3",
+    min_aP = "Min–Max",
+    min_wP = "Min–Max"
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  tab_spanner(
+    label = "\\makecell{\\textbf{aP} \\\\ N = 29}",
+    columns = ends_with("_aP")
+  ) |>
+  tab_spanner(
+    label = "\\makecell{\\textbf{wP} \\\\ N = 24}",
+    columns = ends_with("_wP")
+  ) |>
+  sub_missing(
+    columns = everything(),
+    rows = everything(),
+    missing_text = "---"
+  ) |>
+  tab_footnote(
+    footnote = "Geometric mean concentration",
+    locations = cells_column_labels(columns = starts_with("gmc"))
+  ) |>
+  tab_footnote(
+    footnote = "Geometric standard deviation",
+    locations = cells_column_labels(columns = starts_with("gsd"))
+  ) |>
+  tab_footnote(
+    footnote = "Q1 - 25th sample percentile, Q3 - 75th sample percentile",
+    locations = cells_column_labels(columns = starts_with("q1"))
+  ) |>
+  tab_footnote(
+    footnote = "Seroprotection at specified levels",
+    locations = cells_column_labels(columns = starts_with("pos"))
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_column_labels(columns = everything())
+  ) |>
+  tab_options(table.font.size = px(9))
+tab |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: fit-opa-all
+make_stan_data <- function(dd, var, form = ~trt) {
+  tmp <- dd |>
+    filter(row_number() == 1, .by = subjid) |>
+    select(-visage) |>
+    distinct() |>
+    to_factor(drop_unused_labels = TRUE)
+  X <- model.matrix(form, data = tmp)
+  Y <- dd |>
+    select(subjid, visage, {{ var }}) |>
+    spread(visage, {{ var }}) |>
+    select(-subjid) |>
+    mutate(across(everything(), ~ replace_na(.x, -99))) |>
+    as.matrix()
+  R <- dd |>
+    mutate(
+      R = case_when(
+        is.na({{ var }}) ~ 1,
+        !is.na({{ var }}) ~ 0
+      )
+    ) |>
+    select(subjid, visage, R) |>
+    spread(visage, R) |>
+    select(-subjid) |>
+    as.matrix()
+  out <- list(
+    N = nrow(tmp),
+    J = ncol(Y),
+    X = X,
+    P = ncol(X),
+    Y = Y,
+    R = R
+  )
+  return(out)
+}
+
+
+mdat <- dat_com |>
+  select(
+    antigen,
+    subjid,
+    visage,
+    trt,
+    opa
+  ) |>
+  mutate(
+    log_opa = log10(opa),
+    antigen = droplevels(antigen),
+    visage = droplevels(visage)
+  ) |>
+  nest(dat = -antigen)
+
+mdat_opa <- mdat |>
+  mutate(
+    sdat = map(dat, ~ make_stan_data(.x, log_opa, ~trt)),
+    sfit = map(
+      sdat,
+      ~ {
+        multinorm$sample(
+          data = .x,
+          seed = 71033,
+          chains = 8,
+          iter_sampling = 625,
+          iter_warmup = 500,
+          refresh = 0,
+          show_messages = FALSE,
+          show_exceptions = FALSE
+        )
+      }
+    ),
+    sdrw = map2(
+      sfit,
+      sdat,
+      ~ {
+        tmp <- as_draws_rvars(.x)
+        rownames(tmp$beta) <- colnames(.y$Y)
+        colnames(tmp$beta) <- colnames(.y$X)
+        return(tmp)
+      }
+    ),
+    gmr = map(
+      sdrw,
+      ~ {
+        out <- 10^.x$beta[, 2]
+        as_tibble(rbind(out), rownames = "visage")
+      }
+    )
+  )
+
+gmr_opa <- mdat_opa |>
+  select(antigen, gmr) |>
+  unnest(gmr) |>
+  mutate(group = "GMR") |>
+  mutate(visage = fct_inorder(visage))
+```
+
+```{r}
+#| label: opa-tab-data
+tab_dat_opa <- gmr_opa |>
+  arrange(antigen) |>
+  mutate(
+    antigen = fct_inorder(antigen),
+    visage = fct_inorder(visage),
+    group = fct_inorder(group)
+  ) |>
+  arrange(antigen, group, visage) |>
+  mutate(
+    mean = mean(trtwP),
+    sd = sd(trtwP),
+    med = median(trtwP),
+    lo = quantile(trtwP, 0.025)[1, ],
+    hi = quantile(trtwP, 0.975)[1, ],
+    pr = Pr(trtwP > 1),
+    pr_ninf = if_else(group == "GMR", Pr(trtwP > 2 / 3), NA_real_)
+  ) |>
+  select(-trtwP, -group)
+
+tab_opa <- gt(tab_dat_opa, groupname_col = "antigen", rowname_col = "visage") |>
+  fmt_number(2:9, decimals = 2) |>
+  cols_merge(
+    columns = c(mean, sd),
+    pattern = "<<{1} ± {2}>>"
+  ) |>
+  cols_merge(
+    columns = c(lo, hi),
+    pattern = "<<({1}, {2})>>"
+  ) |>
+  cols_label(
+    visage = "Age",
+    mean = md("Mean ± std"),
+    med = "Median",
+    lo = "95% CrI",
+    pr = "Pr(> 1)",
+    pr_ninf = "Pr(> 2/3)"
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  cols_align(
+    columns = 2,
+    align = "left"
+  ) |>
+  sub_missing(
+    columns = everything(),
+    rows = everything(),
+    missing_text = "---"
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_column_labels(columns = everything())
+  )
+```
+
+```{r}
+#| label: fig-gmr-opa-model
+#| fig-cap: Posterior GMR (median and 95% CrI) for wP versus aP by age and antigen for OPA.
+#| fig-width: 5
+#| fig-height: 3
+p <- gmr_opa |>
+  ggplot(aes(y = visage, xdist = trtwP)) +
+  facet_wrap(vars(antigen), ncol = 1, strip.position = "left") +
+  stat_pointinterval(.width = c(0.8, 0.95)) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  labs(x = "Geometric mean ratio", y = "Age") +
+  scale_x_log10(breaks = c(0.4, 0.6, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 4)) +
+  scale_y_discrete(limits = rev)
+p
+```
+
+```{r}
+#| label: fig-gmr-opa-model-ppc
+#| fig-cap: Posterior predictive eCDF by antigen and treatment group.
+#| fig-width: 5
+#| fig-height: 5
+plot_pp_ecdf <- function(sfit, sdat) {
+  Ypred <- c(as_draws_rvars(sfit)[["Ypred"]])
+  Y <- c(sdat$Y)
+  G <- factor(sdat$X[, 2], levels = 0:1, labels = c("aP", "wP"))
+  Ypred <- as_draws_matrix(Ypred[Y != -99])[1:100, ]
+  G <- c(G, G)[Y != -99]
+  Y <- Y[Y != -99]
+  ppc_ecdf_overlay_grouped(
+    Y,
+    Ypred,
+    G
+  )
+}
+pp <- map2(mdat_opa$sfit, mdat_opa$sdat, plot_pp_ecdf)
+(pp[[1]] + labs(title = mdat_opa$antigen[[1]])) /
+  (pp[[2]] + labs(title = mdat_opa$antigen[[2]])) /
+  (pp[[3]] + labs(title = mdat_opa$antigen[[3]])) +
+  plot_layout(guides = "collect") &
+  theme(title = element_text(size = 8))
+```
+
+```{=latex}
+\clearpage
+```
+
+# IgG by age and treatment group {#sec-igg-trt}
 
 ```{r}
 #| label: fig-igg-antigen-visit
@@ -226,14 +724,357 @@ dat_com |>
   labs(x = "Visit age | treatment")
 ```
 
-\clearpage
+```{r}
+#| label: fig-igg-antigen-visit-trt-ecdf
+#| fig-cap: IgG ceCDF by visit age, serotype, and assigned treatment group. X-axis is $\log_2$ transformed.
+#| fig-height: 4
+#| fig-width: 6
+dat_com |>
+  ggplot(aes(concentration)) +
+  facet_grid(visage ~ antigen) +
+  stat_ecdf(aes(colour = trt, y = after_stat(1 - ecdf))) +
+  scale_x_continuous(
+    "IgG",
+    transform = "log2",
+    breaks = scales::breaks_log(n = 10, base = 2),
+    labels = label_log(base = 2)
+  ) +
+  labs(y = "eCDF", colour = "Treatment") +
+  scale_colour_manual(values = c("black", "orange"))
+```
 
-# OPA and IgG
+```{r}
+#| label: tbl-igg-summaries
+#| tbl-cap: |
+#|   Descriptve summaries of IgG concentrations by age and treatment group.
+#| tbl-pos: "H"
+#| results: "asis"
+var <- sym("concentration")
+tab_dat <- dat_com |>
+  summarise(
+    obs = sum(!is.na({{ var }})),
+    gmc = gmc({{ var }}, na.rm = TRUE),
+    gsd = gsd({{ var }}, na.rm = TRUE),
+    q1 = quantile({{ var }}, probs = 0.25, na.rm = TRUE),
+    q3 = quantile({{ var }}, probs = 0.75, na.rm = TRUE),
+    min = min({{ var }}, na.rm = TRUE),
+    max = max({{ var }}, na.rm = TRUE),
+    .by = c(antigen, visage, trt)
+  ) |>
+  arrange(trt) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(obs, gmc, gsd, q1, q3, min, max),
+    names_vary = "slowest"
+  ) |>
+  to_factor() |>
+  arrange(antigen, visage)
+tab <- gt(tab_dat, groupname_col = "antigen", rowname_col = "visage") |>
+  fmt_integer(starts_with("obs")) |>
+  fmt_number(starts_with(c("gmc", "gsd")), decimals = 2) |>
+  fmt(starts_with(c("q1", "q3")), fns = fmt_num) |>
+  fmt(starts_with(c("min", "max")), fns = fmt_num) |>
+  cols_merge(
+    columns = c(min_aP, max_aP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_merge(
+    columns = c(min_wP, max_wP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_merge(
+    columns = c(q1_aP, q3_aP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_merge(
+    columns = c(q1_wP, q3_wP),
+    pattern = "{1}–{2}"
+  ) |>
+  cols_label(
+    obs_aP = "n",
+    obs_wP = "n",
+    gmc_aP = "GMC",
+    gmc_wP = "GMC",
+    gsd_aP = "GSD",
+    gsd_wP = "GSD",
+    q1_aP = "Q1–Q3",
+    q1_wP = "Q1–Q3",
+    min_aP = "Min–Max",
+    min_wP = "Min–Max"
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  tab_spanner(
+    label = "\\makecell{\\textbf{aP} \\\\ N = 29}",
+    columns = ends_with("_aP")
+  ) |>
+  tab_spanner(
+    label = "\\makecell{\\textbf{wP} \\\\ N = 24}",
+    columns = ends_with("_wP")
+  ) |>
+  sub_missing(
+    columns = everything(),
+    rows = everything(),
+    missing_text = "---"
+  ) |>
+  tab_footnote(
+    footnote = "Geometric mean concentration",
+    locations = cells_column_labels(columns = starts_with("gmc"))
+  ) |>
+  tab_footnote(
+    footnote = "Geometric standard deviation",
+    locations = cells_column_labels(columns = starts_with("gsd"))
+  ) |>
+  tab_footnote(
+    footnote = "Q1 - 25th sample percentile, Q3 - 75th sample percentile",
+    locations = cells_column_labels(columns = starts_with("q1"))
+  ) |>
+  tab_footnote(
+    footnote = "Seroprotection at specified levels",
+    locations = cells_column_labels(columns = starts_with("pos"))
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_column_labels(columns = everything())
+  ) |>
+  tab_options(table.font.size = px(9))
+tab |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: fit-igg-all
+mdat <- dat_com |>
+  select(
+    antigen,
+    subjid,
+    visage,
+    trt,
+    log_concentration
+  ) |>
+  mutate(
+    antigen = droplevels(antigen),
+    visage = droplevels(visage)
+  ) |>
+  nest(dat = -antigen)
+
+mdat_igg <- mdat |>
+  mutate(
+    sdat = map(dat, ~ make_stan_data(.x, log_concentration, ~trt)),
+    sfit = map(
+      sdat,
+      ~ {
+        multinorm$sample(
+          data = .x,
+          seed = 71033,
+          chains = 8,
+          iter_sampling = 625,
+          iter_warmup = 500,
+          refresh = 0,
+          show_messages = FALSE,
+          show_exceptions = FALSE
+        )
+      }
+    ),
+    sdrw = map2(
+      sfit,
+      sdat,
+      ~ {
+        tmp <- as_draws_rvars(.x)
+        rownames(tmp$beta) <- colnames(.y$Y)
+        colnames(tmp$beta) <- colnames(.y$X)
+        return(tmp)
+      }
+    ),
+    gmr = map(
+      sdrw,
+      ~ {
+        out <- 10^.x$beta[, 2]
+        as_tibble(rbind(out), rownames = "visage")
+      }
+    )
+  )
+
+gmr_igg <- mdat_igg |>
+  select(antigen, gmr) |>
+  unnest(gmr) |>
+  mutate(group = "GMR") |>
+  mutate(visage = fct_inorder(visage))
+```
+
+```{r}
+#| label: igg-tab-data
+tab_dat_igg <- gmr_igg |>
+  arrange(antigen) |>
+  mutate(
+    antigen = fct_inorder(antigen),
+    visage = fct_inorder(visage),
+    group = fct_inorder(group)
+  ) |>
+  arrange(antigen, group, visage) |>
+  mutate(
+    mean = mean(trtwP),
+    sd = sd(trtwP),
+    med = median(trtwP),
+    lo = quantile(trtwP, 0.025)[1, ],
+    hi = quantile(trtwP, 0.975)[1, ],
+    pr = Pr(trtwP > 1),
+    pr_ninf = if_else(group == "GMR", Pr(trtwP > 2 / 3), NA_real_)
+  ) |>
+  select(-trtwP, -group)
+
+tab_igg <- gt(tab_dat_igg, groupname_col = "antigen", rowname_col = "visage") |>
+  fmt_number(2:9, decimals = 2) |>
+  cols_merge(
+    columns = c(mean, sd),
+    pattern = "<<{1} ± {2}>>"
+  ) |>
+  cols_merge(
+    columns = c(lo, hi),
+    pattern = "<<({1}, {2})>>"
+  ) |>
+  cols_label(
+    visage = "Age",
+    mean = md("Mean ± std"),
+    med = "Median",
+    lo = "95% CrI",
+    pr = "Pr(> 1)",
+    pr_ninf = "Pr(> 2/3)"
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  cols_align(
+    columns = 2,
+    align = "left"
+  ) |>
+  sub_missing(
+    columns = everything(),
+    rows = everything(),
+    missing_text = "---"
+  ) |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_column_labels(columns = everything())
+  )
+```
+
+```{r}
+#| label: fig-gmr-igg-model
+#| fig-cap: Posterior GMR (median and 95% CrI) for wP versus aP by age and antigen for IgG.
+#| fig-width: 5
+#| fig-height: 3
+p <- gmr_igg |>
+  ggplot(aes(y = visage, xdist = trtwP)) +
+  facet_wrap(vars(antigen), ncol = 1, strip.position = "left") +
+  stat_pointinterval(.width = c(0.8, 0.95)) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  labs(x = "Geometric mean ratio", y = "Age") +
+  scale_x_log10(breaks = c(0.4, 0.6, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 4)) +
+  scale_y_discrete(limits = rev)
+p
+```
+
+```{r}
+#| label: fig-gmr-igg-model-ppc
+#| fig-cap: Posterior predictive eCDF by antigen and treatment group.
+#| fig-width: 5
+#| fig-height: 5
+pp <- map2(mdat_igg$sfit, mdat_igg$sdat, plot_pp_ecdf)
+(pp[[1]] + labs(title = mdat_igg$antigen[[1]])) /
+  (pp[[2]] + labs(title = mdat_igg$antigen[[2]])) /
+  (pp[[3]] + labs(title = mdat_igg$antigen[[3]])) +
+  plot_layout(guides = "collect") &
+  theme(title = element_text(size = 8))
+```
+
+```{=latex}
+\clearpage
+```
+
+# OPA and IgG GMR {#sec-opa-igg-trt}
+
+The estimated GMR for wP versus aP by visit age for OPA and IgG are shown in @tbl-gmr-igg-opa.
+The GMR for OPA were generally lower and closer to 1 compared to IgG.
+For PnPs 3, GMR at 18-months was higher than 6-months for IgG but was lower for OPA.
+
+```{r}
+#| label: tbl-gmr-igg-opa
+#| tbl-cap: |
+#|   Summary of estimated posterior geometric mean ratios (wP versus aP) for IgG and OPA by age.
+#| tbl-pos: "H"
+tab_dat <- left_join(
+  tab_dat_igg |>
+    rename_with(.fn = ~ paste0(.x, "_igg"), mean:pr_ninf),
+  tab_dat_opa |>
+    rename_with(.fn = ~ paste0(.x, "_opa"), mean:pr_ninf),
+  join_by(antigen, visage)
+)
+
+gt(tab_dat, groupname_col = "antigen", rowname_col = "visage") |>
+  fmt_number(2:16, decimals = 2) |>
+  cols_merge(
+    columns = c(mean_igg, sd_igg),
+    pattern = "<<{1} ± {2}>>"
+  ) |>
+  cols_merge(
+    columns = c(lo_igg, hi_igg),
+    pattern = "<<({1}, {2})>>"
+  ) |>
+  cols_merge(
+    columns = c(mean_opa, sd_opa),
+    pattern = "<<{1} ± {2}>>"
+  ) |>
+  cols_merge(
+    columns = c(lo_opa, hi_opa),
+    pattern = "<<({1}, {2})>>"
+  ) |>
+  cols_label(
+    visage ~ "Age",
+    starts_with("mean") ~ md("Mean ± std"),
+    starts_with("med") ~ "Median",
+    starts_with("lo") ~ "95% CrI",
+    starts_with("pr") ~ "Pr(> 1)",
+    starts_with("pr_ninf") ~ "Pr(> 2/3)"
+  ) |>
+  tab_stub_indent(
+    rows = everything(),
+    indent = 1
+  ) |>
+  cols_align(
+    columns = 2,
+    align = "left"
+  ) |>
+  sub_missing(
+    columns = everything(),
+    rows = everything(),
+    missing_text = "---"
+  ) |>
+  tab_spanner(ends_with("_igg"), label = "IgG") |>
+  tab_spanner(ends_with("_opa"), label = "OPA") |>
+  tab_style(
+    style = cell_text(align = "center"),
+    locations = cells_column_labels(columns = everything())
+  ) |>
+  tab_options(table.font.size = px(8))
+```
+
+```{=latex}
+\clearpage
+```
+
+# OPA and IgG correlations {#sec-opa-igg-cor}
 
 ```{r}
 #| label: fig-igg-vs-opa-antigen
 #| fig-cap: Correlation between IgG and OPA by antigen.
-#| fig-height: 3
+#| fig-height: 2.5
 #| fig-width: 6
 dat_cor <- dat_com |>
   select(subjid, visage, antigen, concentration, opa) |>
@@ -267,7 +1108,7 @@ dat_com |>
 ```{r}
 #| label: fig-igg-vs-opa-antigen-visit-age
 #| fig-cap: Correlation between IgG and OPA by antigen and visit age.
-#| fig-height: 5
+#| fig-height: 4
 #| fig-width: 6
 dat_cor <- dat_com |>
   select(subjid, visage, antigen, concentration, opa) |>
@@ -296,4 +1137,40 @@ dat_com |>
     breaks = 2^seq(0, 12, by = 2),
     labels = label_log(base = 2)
   )
+```
+
+```{r}
+#| label: fig-igg-vs-opa-antigen-visit-age-trt
+#| fig-cap: Correlation between IgG and OPA by antigen and visit age.
+#| fig-height: 4
+#| fig-width: 6
+dat_cor <- dat_com |>
+  select(subjid, visage, trt, antigen, concentration, opa) |>
+  nest(dat = -c(antigen, visage, trt)) |>
+  mutate(
+    fit = map(dat, ~ lm(log(opa) ~ log(concentration), data = .x)),
+    cor = map_dbl(dat, ~ cor(log(.x$concentration), log(.x$opa), use = "complete.obs")),
+    rho = sprintf("Corr. = %.2f", cor),
+    x = if_else(trt == "aP", 2^(-4), 2^3)
+  )
+
+dat_com |>
+  ggplot(aes(colour = trt)) +
+  facet_grid(visage ~ antigen) +
+  geom_point(aes(concentration, opa)) +
+  geom_smooth(aes(concentration, opa), method = "lm", se = FALSE) +
+  geom_label(data = dat_cor, aes(label = rho, x = x, y = 1), size = 2.5) +
+  scale_x_continuous(
+    "IgG",
+    transform = "log2",
+    breaks = 2^seq(-6, 6, by = 2),
+    labels = label_log(base = 2)
+  ) +
+  scale_y_continuous(
+    "OPA",
+    transform = "log2",
+    breaks = 2^seq(0, 12, by = 2),
+    labels = label_log(base = 2)
+  ) +
+  scale_colour_manual(values = c("black", "orange"))
 ```
