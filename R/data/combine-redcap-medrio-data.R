@@ -778,6 +778,11 @@ combine_food_household <- function() {
       febfform,
       fethickyn,
       fesolyn,
+      fesoldat,
+      fesolage,
+      feeggyn,
+      femilyn,
+      fenutyn,
       fefadiag,
       fefadiagspec,
       fefadiadat,
@@ -787,12 +792,31 @@ combine_food_household <- function() {
       fedog,
       fedcyn,
       feecz,
-      feeczdat
+      feeczdat,
+      # All the "food first given" info
+      matches("(ng|fefooddat|quan)[1-8]")
     ) |>
     mutate(
       across(
-        c(febfever, febfform, fethickyn, fesupp, ferash, fedcyn),
+        c(feeggyn, femilyn, fenutyn, febfever, febfform, fethickyn, fesupp, ferash, fedcyn),
         ~ recode_values(.x, FALSE ~ "No", TRUE ~ "Yes")
+      ),
+      # These are only asked if fecurr is 4, 5, 6, or 7 (i.e. started on solids)
+      # Also, I'm calling 4629-3 an error and switching to "No":
+      # - they are exclusively breastfed but have also started on egg, nut and cow's milk...
+      across(
+        c(feeggyn, femilyn, fenutyn),
+        ~ replace_when(
+          .x,
+          is.na(.x) &
+            fecurr %in%
+              c(
+                "Exclusively Breastfed",
+                "Exclusively formula-fed",
+                "Both breastfed and formula-fed"
+              ) ~ "No",
+          record_id == "4629-3" & visit_age == "9-month" ~ "No"
+        )
       )
     )
 
@@ -892,28 +916,87 @@ combine_food_household <- function() {
     mutate(visdat = as_date(visdat, format = "%d-%b-%Y")) |>
     rename(fedat = visdat)
   st1_visits <- bind_rows(st1_visits_v1, st1_visits_v2) |>
-    bind_rows(st1_phone)
+    bind_rows(st1_phone) |>
+    mutate(record_id = as.character(medrioid), .after = medrioid) |>
+    select(-medrioid)
 
+  st1_food_v1 <- st1_food_v1 |>
+    mutate(
+      visit_age = case_when(
+        visit == "Visit 1" ~ "6-week",
+        .default = NA_character_,
+      ),
+      .after = visit
+    )
   st1_food_v2 <- st1_food_v2 |>
-    rename_with(~ gsub("fe2", "fe", .x))
+    rename_with(~ gsub("fe2", "fe", .x)) |>
+    mutate(
+      visit_age = case_when(
+        visit == "Visit 2" ~ "4-month",
+        visit == "Visit 3" ~ "6-month",
+        visit == "Visit 5" ~ "7-month",
+        .default = NA_character_,
+      ),
+      .after = visit
+    )
   st1_food_v3 <- st1_food_v3 |>
-    rename_with(~ gsub("fe6", "fe", .x))
+    rename_with(~ gsub("fe6", "fe", .x)) |>
+    mutate(
+      visit_age = case_when(
+        visit == "9 month phone contact" ~ "9-month",
+        visit == "Visit 6" ~ "12-month",
+        visit == "15 month phone contact" ~ "15-month",
+        visit == "Visit 7" ~ "18-month",
+        visit == "Visit 8" ~ "19-month",
+        .default = NA_character_,
+      ),
+      .after = visit
+    )
 
-  st1_food <- bind_rows(
+  st1_food_all <- bind_rows(
     st1_food_v1,
     st1_food_v2,
     st1_food_v3
   ) |>
+    mutate(
+      visit_age = factor(
+        visit_age,
+        levels = c(
+          "6-week",
+          "4-month",
+          "6-month",
+          "7-month",
+          "9-month",
+          "12-month",
+          "15-month",
+          "18-month",
+          "19-month"
+        )
+      )
+    ) |>
+    arrange(medrioid, visit_age) |>
+    mutate(
+      record_id = as.character(medrioid),
+      .after = medrioid
+    ) |>
+    select(-medrioid, -subjectid, -form, -formentrydate, -subjectstatus, -site)
+
+  st1_food_1 <- st1_food_all |>
     filter(is.na(vargroup1row & is.na(vargroup2row) & is.na(vargroup3row))) |>
     select(
-      medrioid,
-      subjectid,
+      record_id,
       visit,
+      visit_age,
       fecurr,
       febfever,
       febfform,
       fethickyn,
       fesolyn,
+      fesolage,
+      fesolun,
+      feeggyn,
+      femilyn,
+      fenutyn,
       fefadiag,
       fefadiagspec,
       fefadiagstag,
@@ -926,30 +1009,36 @@ combine_food_household <- function() {
       feeczag,
       feexstun
     ) |>
-    left_join(st1_visits, join_by(medrioid, visit)) |>
+    left_join(st1_visits, join_by(record_id, visit)) |>
     rename(
       feecz = feecx,
       feeczstun = feexstun
     ) |>
-    arrange(medrioid) |>
     mutate(
-      record_id = as.character(medrioid),
-      fe_phone = grepl("phone", visit),
-      visit_age = case_when(
-        visit == "Visit 1" ~ "6-week",
-        visit == "Visit 2" ~ "4-month",
-        visit == "Visit 3" ~ "6-month",
-        visit == "Visit 4" ~ "6-month + 72 hrs",
-        visit == "Visit 5" ~ "7-month",
-        visit == "9 month phone contact" ~ "9-month",
-        visit == "Visit 6" ~ "12-month",
-        visit == "15 month phone contact" ~ "15-month",
-        visit == "Visit 7" ~ "18-month",
-        visit == "Visit 8" ~ "19-month",
-        .default = NA_character_
-      )
+      fe_phone = grepl("phone", visit)
+    )
+
+  st1_food_2 <- st1_food_all |>
+    arrange(record_id, visit_age) |>
+    select(record_id, visit_age, vargroup3row, fefoodtp, fefoodng, fefoodag, fefdquan) |>
+    filter(!is.na(vargroup3row)) |>
+    # In REDCap, 7 is Egg and 8 is Peanut butter
+    # In Medrio, 7 is Peanut butter and 8 is egg.
+    # Swap them
+    mutate(
+      vargroup3row = replace_values(vargroup3row, 7 ~ 8, 8 ~ 7),
+      fefoodng = replace_values(fefoodng, "Not Given" ~ "No", "N/A" ~ NA_character_, NA_character_ ~ "Yes"),
+      # One response appears to be in months instead of days (11 at 12-month visit)
+      # Change this to approximate "days"
+      fefoodag = replace_values(fefoodag, 11 ~ 11 * 30)
     ) |>
-    select(-visit, -medrioid)
+    select(-fefoodtp) |>
+    pivot_wider(
+      names_from = vargroup3row,
+      values_from = c("fefoodng", "fefoodag", "fefdquan"),
+      names_sep = "",
+      names_vary = "slowest"
+    )
 
   # Eczema diagnoses at visit 1
   # st1_ecz_v1 <- st1_food_v1 |>
@@ -1026,11 +1115,37 @@ combine_food_household <- function() {
   # var_label(ecz) <- var_label(st2_ecz)
   # ecz
 
+  st1_food <- left_join(st1_food_1, st1_food_2, join_by(record_id, visit_age)) |>
+    mutate(
+      across(
+        c(feeggyn, femilyn, fenutyn),
+        ~ replace_when(
+          .x,
+          is.na(.x) &
+            fecurr %in%
+              c(
+                "Exclusively Breastfed",
+                "Exclusively formula-fed",
+                "Both breastfed and formula-fed"
+              ) ~ "No",
+          record_id == "4629-3" & visit_age == "9-month" ~ "No"
+        )
+      )
+    )
+
   st_food <- bind_rows(st2_food, st1_food) |>
     mutate(
       fecat = if_else(fecat == "N/A", "No", fecat),
       fedog = if_else(fedog == "N/A", "No", fedog)
-    )
+    ) |>
+    relocate(fefoodag1, .after = fefooddat1) |>
+    relocate(fefoodag2, .after = fefooddat2) |>
+    relocate(fefoodag3, .after = fefooddat3) |>
+    relocate(fefoodag4, .after = fefooddat4) |>
+    relocate(fefoodag5, .after = fefooddat5) |>
+    relocate(fefoodag6, .after = fefooddat6) |>
+    relocate(fefoodag7, .after = fefooddat7) |>
+    relocate(fefoodag8, .after = fefooddat8)
   var_label(st_food) <- var_label(st2_food)
   st_food
 }

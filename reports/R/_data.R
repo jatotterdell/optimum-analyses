@@ -176,6 +176,7 @@ dat_grid_fhq <- dat_grid |>
     record_id,
     trt,
     rand_stage,
+    rand_site,
     discdat,
     disc_age_mth,
     visit_age,
