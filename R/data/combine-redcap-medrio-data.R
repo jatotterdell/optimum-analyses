@@ -766,6 +766,7 @@ combine_food_household <- function() {
         .default = NA_character_
       )
     )
+  var_labs <- var_label(st2_food)
 
   st2_food <- st2_food |>
     select(
@@ -1136,7 +1137,10 @@ combine_food_household <- function() {
   st_food <- bind_rows(st2_food, st1_food) |>
     mutate(
       fecat = if_else(fecat == "N/A", "No", fecat),
-      fedog = if_else(fedog == "N/A", "No", fedog)
+      fedog = if_else(fedog == "N/A", "No", fedog),
+      feeggyn = factor(feeggyn, levels = c("No", "Yes")),
+      femilyn = factor(femilyn, levels = c("No", "Yes")),
+      fenutyn = factor(fenutyn, levels = c("No", "Yes"))
     ) |>
     relocate(fefoodag1, .after = fefooddat1) |>
     relocate(fefoodag2, .after = fefooddat2) |>
@@ -1146,7 +1150,7 @@ combine_food_household <- function() {
     relocate(fefoodag6, .after = fefooddat6) |>
     relocate(fefoodag7, .after = fefooddat7) |>
     relocate(fefoodag8, .after = fefooddat8)
-  var_label(st_food) <- var_label(st2_food)
+  var_label(st_food) <- var_labs[names(var_labs) %in% colnames(st_food)]
   st_food
 }
 
