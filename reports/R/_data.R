@@ -174,6 +174,7 @@ dat_grid_fhq <- dat_grid |>
   ) |>
   select(
     record_id,
+    birthdat,
     trt,
     rand_stage,
     rand_site,
