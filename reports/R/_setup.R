@@ -17,6 +17,7 @@ suppressPackageStartupMessages({
   library(legendry)
   library(ggh4x)
   library(scales)
+  library(ggsurvfit)
 
   # Tables
   library(gt)
@@ -29,6 +30,7 @@ suppressPackageStartupMessages({
   library(tidybayes)
   library(distributional)
   library(brmsmargins)
+  library(survival)
 })
 
 options(brms.backend = "cmdstanr", mc.cores = 8)

@@ -477,7 +477,7 @@ left_join(fhq_by_trt, fhq_ovr) |>
 
 \clearpage
 
-## Characteristics
+## Baseline characteristics
 
 The baseline characteristics of all participants by their randomly assigned treatment group are reported in @tbl-baseline-characteristics. Characteristics were similar between the groups.
 
@@ -814,5 +814,380 @@ tbl |>
   cat()
 ```
 
-
+```{=latex}
 \clearpage
+```
+
+## Introduction of solid foods
+
+For some foods, there are multiple sources of information from the food and household questionnaire. The survey first asked:"does you child currently eat egg?", "does your child currently eat/drink cow's milk?", and "does your child currently eat peanuts/other nuts?".
+
+The survey subsequently asked for each of: rice cereal, cow's milk, fruit, vegetables, meat, fish, egg, and peanut, whether that food had been given for the first time since the last visit, and if so, the date it was first given and the quantity that was given.
+
+### Egg, cow's milk, and nuts
+
+On the food and household questionnaire, parents were asked whether their child *currently* eats egg, cow's milk, or peanuts/other nuts. @tbl-food-status-st1 and @tbl-food-status-st2 report on the responses to these questions by treatment group and the visit occasion (scheduled age) for stage 1 and stage 2 participants respectively. Ages are for the scheduled age of assessment, not necessarily the age at which that survey response was obtained. Proportions and denominators only include those participants who responded to the survey and so vary with the scheduled age of assessment.
+
+```{r}
+#| label: tbl-food-status-st1
+#| tbl-cap: |
+#|   Number and percentage of infants who consume egg, cow's milk, and peanut by treatment group and visit age, stage 1 participants.
+#| tbl-pos: "H"
+#| results: asis
+dat_grid_fhq |>
+  filter(rand_stage == 1, !(visit_age %in% c("6-week", "4-month"))) |>
+  droplevels() |>
+  tbl_strata2(
+    strata = "trt",
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        include = c(feeggyn, femilyn, fenutyn),
+        label = list(
+          feeggyn ~ "Does your child currently eat egg?",
+          femilyn ~ "Does your child currently eat/drink cow's milk?",
+          fenutyn ~ "Does your child currently eat peanuts/other nuts?"
+        ),
+        by = visit_age,
+        type = list(feeggyn ~ "dichotomous"),
+        value = list(feeggyn ~ "Yes"),
+        statistic = all_dichotomous() ~ "{n}/{N} ({p})",
+        missing = "no"
+      ),
+    .combine_with = "tbl_stack"
+  ) |>
+  modify_header(label = "**Treatment group and item**") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(8)) |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-food-status-st2
+#| tbl-cap: |
+#|   Number and percentage of infants who consume egg, cow's milk, and peanut by treatment group and visit age, stage 2 participants.
+#| tbl-pos: "H"
+#| results: asis
+dat_grid_fhq |>
+  filter(rand_stage == 2, visit_age != "6-week") |>
+  droplevels() |>
+  tbl_strata2(
+    strata = "trt",
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        include = c(feeggyn, femilyn, fenutyn),
+        label = list(
+          feeggyn ~ "Does your child currently eat egg?",
+          femilyn ~ "Does your child currently eat/drink cow's milk?",
+          fenutyn ~ "Does your child currently eat peanuts/other nuts?"
+        ),
+        by = visit_age,
+        type = list(feeggyn ~ "dichotomous"),
+        value = list(feeggyn ~ "Yes"),
+        statistic = all_dichotomous() ~ "{n}/{N} ({p})",
+        missing = "no"
+      ),
+    .combine_with = "tbl_stack"
+  ) |>
+  modify_header(label = "**Treatment group and item**") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(8)) |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
+### First time foods
+
+Parent's were subsequently asked whether any of the specified foods had been introduced since the previous visit, and if so, when they were introduced and what quantity was given. In stage 1, rather than a date of introduction, the survey collected the *age* of introduction in days. In stage 2, only the *date* of introduction was elicited. For stage 1 responses, the reported age in days was used unless no record of introduction existed, in which case the response was treated as right-censored at the date of the last completed food and household questionnaire.
+
+In some cases, the stage 2 date at which the food was introduced (`fefooddat`) contained clear errors (e.g. date was before date of birth or after the survey completion date). To calculate age (in days) at which the food was first introduce we first corrected any obvious errors in dates and then took the difference between the infants date of birth and the minimum of `fefooddat` (date food was first given) and `fedat` (date survey was completed). Again, not all infants had a record of food introduction. For infants with no responses of yes for the food in question the age of introduction was treated as right censored at the date of the last completed food and household questionnaire.
+
+Some inconsistencies were noted between the responses to these items and those from the previous section. For example, where `femilyn` is "Yes" to all surveys from a certain date but `fefoodng1` (has cow's milk been introduced since last visit) is "No" or "N/A" on all questionnaires and `fefooddat2` (date cow's milk was introduced) is missing. The `fefooddat` data are reported as documented without cross-checking against other available fields given that it is only possible to cross-check for cow's milk, egg, and nuts. Missing dates were treated as right-censored which may not be accurate (e.g. food could have been introduced by xx-months of age but date of introduction was not documented on any questionnaire).
+
+Kaplan-Meier curves for age at which a food was introduced for stage 1 participants stratified by the assigned treatment group are shown in @fig-kaplan-meier-food-intro-stage1. Curves for stage 2 participants are shown in @fig-kaplan-meier-food-intro-stage2.
+
+```{r}
+#| label: food-intro-timing-helpers
+make_km_plot <- function(dat, time_var, event_var, trt_var, lab = "") {
+  params <- list(
+    time_var = substitute(time_var),
+    event_var = substitute(event_var),
+    trt_var = substitute(trt_var),
+    dat = substitute(dat)
+  )
+  fit <- eval.parent(substitute(
+    survfit2(
+      Surv(
+        time = time_var,
+        event = event_var,
+      ) ~ trt_var,
+      data = dat
+    ),
+    params
+  ))
+  fit |>
+    ggsurvfit() +
+    add_confidence_interval() +
+    add_censor_mark() +
+    scale_colour_manual("Treatment group", values = c("black", "orange")) +
+    scale_fill_manual("Treatment group", values = c("black", "orange")) +
+    labs(title = lab, y = "Percentage yet to be introduced to food") +
+    scale_ggsurvfit(
+      x_scales = list(name = "Age (days)", breaks = seq(0, 630, 90), limits = c(0, 650))
+    ) +
+    guides(colour = guide_legend(override.aes = list(shape = NA))) +
+    theme_get() +
+    theme(legend.direction = "horizontal", title = element_text(size = 8))
+}
+
+plot_food_introduction_stage1 <- function(
+  food_var = fefoodng2,
+  age_var = fefoodag2,
+  trt_var = trt
+) {
+  # If they have "Yes", we want that record
+  # If they don't we want the last response
+  food_obs <- dat_grid_fhq |>
+    filter(rand_stage == 1) |>
+    select(record_id, birthdat, {{ trt_var }}, fedat, visit_age, {{ food_var }}, {{ age_var }}) |>
+    filter({{ food_var }} == "Yes") |>
+    # Some have multiple, take the first
+    filter(row_number() == 1, .by = record_id) |>
+    mutate(fedat_age = time_length(interval(birthdat, fedat), "days")) |>
+    mutate(y = pmin(fedat_age, {{ age_var }}), event = 1)
+  food_cens <- dat_grid_fhq |>
+    filter(rand_stage == 1, !(record_id %in% food_obs$record_id)) |>
+    select(record_id, birthdat, {{ trt_var }}, visit_age, fedat, fecurr, {{ food_var }}, {{ age_var }}) |>
+    filter(!is.na(fedat)) |>
+    filter(row_number() == n(), .by = record_id) |>
+    mutate(y = time_length(interval(birthdat, fedat), "days"), event = 0)
+
+  food <- bind_rows(food_obs, food_cens)
+  food
+}
+
+plot_food_introduction_stage2 <- function(
+  food_var = fefoodng2,
+  food_date = fefooddat2,
+  trt_var = trt,
+  food_lab = ""
+) {
+  food_obs <- dat_grid_fhq |>
+    filter(rand_stage == 2) |>
+    select(record_id, birthdat, {{ trt_var }}, fedat, visit_age, {{ food_var }}, {{ food_date }}) |>
+    filter({{ food_var }} == "Yes") |>
+    filter(row_number() == 1, .by = record_id) |>
+    mutate(
+      feage1 = time_length(interval(birthdat, {{ food_date }}), "days"),
+      feage2 = time_length(interval(birthdat, fedat), "days"),
+      y = pmin(feage1, feage2),
+      event = 1
+    )
+  food_cens <- dat_grid_fhq |>
+    filter(rand_stage == 2, !(record_id %in% food_obs$record_id)) |>
+    select(record_id, birthdat, {{ trt_var }}, fedat, visit_age, {{ food_var }}, {{ food_date }}) |>
+    filter(!is.na(fedat)) |>
+    filter(row_number() == n(), .by = record_id) |>
+    mutate(
+      feage1 = time_length(interval(birthdat, {{ food_date }}), "days"),
+      feage2 = time_length(interval(birthdat, fedat), "days"),
+      y = feage2,
+      event = 0
+    )
+  food <- bind_rows(food_obs, food_cens)
+  food
+}
+
+# Corrections to some dates identified manually
+dat_grid_fhq <- dat_grid_fhq |>
+  mutate(
+    fefooddat1 = case_when(
+      record_id == "4629-223" & fefooddat1 == date("2023-01-23") ~ date("2024-01-23"),
+      record_id == "4629-263" & fefooddat1 == date("2023-03-30") ~ date("2024-03-30"),
+      record_id == "5785-133" & fefooddat1 == date("2022-02-01") ~ date("2023-02-01"),
+      .default = fefooddat1
+    ),
+    fefooddat2 = case_when(
+      record_id == "4629-230" & fefooddat2 == date("2023-01-04") ~ date("2024-01-04"),
+      record_id == "5785-101" & fefooddat2 == date("2021-10-23") ~ date("2022-10-23"),
+      .default = as_date(fefooddat2, format = "%Y-%m-%d")
+    ),
+    fefooddat2 = replace_values(fefooddat2, date("2010-08-01") ~ date("2020-08-01")),
+    fefooddat4 = case_when(
+      record_id == "5785-174" & fefooddat4 == date("2022-01-29") ~ date("2023-01-29"),
+      .default = fefooddat4
+    ),
+    fefooddat6 = case_when(
+      record_id == "5785-88" & fefooddat6 == ymd("2021-03-10") ~ ymd("2023-03-10"),
+      record_id == "5785-126" & fefooddat6 == ymd("2022-02-10") ~ ymd("2023-02-10"),
+      record_id == "5785-270" & fefooddat6 == ymd("2023-01-22") ~ ymd("2024-01-22"),
+      .default = fefooddat6
+    ),
+    fefooddat8 = case_when(
+      record_id == "4629-27" & fefooddat8 == ymd("2020-01-11") ~ ymd("2021-01-11"),
+      record_id == "4629-141" & fefooddat8 == ymd("423-05-02") ~ ymd("2023-05-02"),
+      record_id == "5785-124" & fefooddat8 == ymd("2022-03-30") ~ ymd("2023-03-30"),
+      record_id == "5785-394" & fefooddat8 == ymd("2023-02-10") ~ ymd("2024-02-10"),
+      .default = fefooddat8
+    )
+  )
+```
+
+```{r}
+#| label: fig-kaplan-meier-food-intro-stage1
+#| fig-cap: |
+#|   Age of food introduction for stage 1 participants.
+#|   Censored observations are marked by a cross.
+#| fig-width: 5
+#| fig-height: 7
+# Stage 1
+# dat_grid_fhq |>
+#   filter(any(femilyn == "Yes"), !any(fefoodng2 == "Yes", na.rm = TRUE), .by = record_id) |>
+#   select(record_id, visit_age, fedat, femilyn, feeggyn, fenutyn, starts_with("fefood")) |>
+#   filter(record_id == "4629-7") |>
+#   select(-record_id) |>
+#   print(width = Inf)
+# dat_grid_fhq |>
+#   filter(any(femilyn == "Yes"), !any(fefoodng2 == "Yes", na.rm = TRUE), .by = record_id) |>
+#   select(record_id, visit_age, fedat, femilyn, feeggyn, fenutyn, starts_with("fefood")) |>
+#   filter(record_id == "4630-34") |>
+#   select(-record_id) |>
+#   print(width = Inf)
+# dat_grid_fhq |>
+#   filter(any(femilyn == "Yes"), !any(fefoodng2 == "Yes", na.rm = TRUE), .by = record_id) |>
+#   select(record_id, visit_age, fedat, femilyn, feeggyn, fenutyn, starts_with("fefood")) |>
+#   filter(record_id == "4629-42") |>
+#   select(-record_id)
+
+# dat_grid_fhq |>
+#   filter(!any(femilyn == "Yes"), any(fefoodng2 == "Yes", na.rm = TRUE), .by = record_id) |>
+#   select(record_id, visit_age, fedat, femilyn, feeggyn, fenutyn, starts_with("fefooddat")) |>
+#   filter(record_id == "8644-17") |>
+#   select(-record_id)
+
+# dat_grid_fhq |>
+#   filter(any(femilyn == "Yes"), !any(fefoodng2 == "Yes", na.rm = TRUE), .by = record_id) |>
+#   select(record_id, visit_age, fedat, femilyn, feeggyn, fenutyn, starts_with("fefooddat")) |>
+#   pull(record_id) |>
+#   unique()
+
+# dat_grid_fhq |>
+#   filter(any(feeggyn == "Yes"), !any(fefoodng7 == "Yes", na.rm = TRUE), .by = record_id) |>
+#   select(record_id, visit_age, fedat, femilyn, feeggyn, fenutyn, starts_with("fefooddat")) |>
+#   filter(record_id == "8644-12") |>
+#   select(-record_id)
+
+p1 <- plot_food_introduction_stage1(fefoodng1, fefoodag1, trt)
+p2 <- plot_food_introduction_stage1(fefoodng2, fefoodag2, trt)
+p3 <- plot_food_introduction_stage1(fefoodng3, fefoodag3, trt)
+p4 <- plot_food_introduction_stage1(fefoodng4, fefoodag4, trt)
+p5 <- plot_food_introduction_stage1(fefoodng5, fefoodag5, trt)
+p6 <- plot_food_introduction_stage1(fefoodng6, fefoodag6, trt)
+p7 <- plot_food_introduction_stage1(fefoodng7, fefoodag7, trt)
+p8 <- plot_food_introduction_stage1(fefoodng8, fefoodag8, trt)
+
+des <- "
+12
+34
+56
+78
+99
+"
+plot_stage1 <- (make_km_plot(p1, y, event, trt, "Rice cereal") +
+  make_km_plot(p2, y, event, trt, "Cow's milk") +
+  (make_km_plot(p3, y, event, trt, "Fruit") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p4, y, event, trt, "Vegetables") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p5, y, event, trt, "Meat") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p6, y, event, trt, "Fish") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p7, y, event, trt, "Egg") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p8, y, event, trt, "Peanut") +
+    theme(legend.position = "none")) +
+  guide_area()) +
+  plot_layout(
+    design = des,
+    heights = c(1, 1, 1, 1, 0.25),
+    guides = "collect",
+    axes = "collect_y"
+  )
+
+plot_stage1
+```
+
+
+```{r}
+#| label: fig-kaplan-meier-food-intro-stage2
+#| fig-cap: |
+#|   Age of food introduction for stage 2 participants.
+#|   Censored observations are marked by a cross.
+#| fig-width: 5
+#| fig-height: 7
+# Stage 2
+p1 <- plot_food_introduction_stage2(fefoodng1, fefooddat1, trt)
+p2 <- plot_food_introduction_stage2(fefoodng2, fefooddat2, trt)
+p3 <- plot_food_introduction_stage2(fefoodng3, fefooddat3, trt)
+p4 <- plot_food_introduction_stage2(fefoodng4, fefooddat4, trt)
+p5 <- plot_food_introduction_stage2(fefoodng5, fefooddat5, trt)
+p6 <- plot_food_introduction_stage2(fefoodng6, fefooddat6, trt)
+p7 <- plot_food_introduction_stage2(fefoodng7, fefooddat7, trt)
+p8 <- plot_food_introduction_stage2(fefoodng8, fefooddat8, trt)
+
+des <- "
+12
+34
+56
+78
+99
+"
+plot_stage2 <- (make_km_plot(p1, y, event, trt, "Rice cereal") +
+  make_km_plot(p2, y, event, trt, "Cow's milk") +
+  (make_km_plot(p3, y, event, trt, "Fruit") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p4, y, event, trt, "Vegetables") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p5, y, event, trt, "Meat") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p6, y, event, trt, "Fish") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p7, y, event, trt, "Egg") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p8, y, event, trt, "Peanut") +
+    theme(legend.position = "none")) +
+  guide_area()) +
+  plot_layout(
+    design = des,
+    heights = c(1, 1, 1, 1, 0.25),
+    guides = "collect",
+    axes = "collect_y"
+  )
+
+plot_stage2
+```
+
+
+
+```{=latex}
+\clearpage
+```
