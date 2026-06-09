@@ -151,15 +151,23 @@ dat_base_ae |>
     when_any(rand_site != "PCH", rand_site == "PCH" & as.numeric(substr(record_id, 6, 9)) > 150),
     !is.na(aecode1)
   ) |>
-  select(record_id, rand_site, trt, aetype, aecode1, aesev, aerel, aetymead) |>
+  select(record_id, rand_site, trt, aecode1, aeday_v1, aetype, aesev, aerel, aetymead) |>
   gt() |>
   cols_label(
     rand_site ~ "Site",
-    trt ~ "Treatment"
+    trt ~ "Treatment",
+    aerel ~ "Relationship to study vaccine",
+    aeday_v1 ~ "Days after visit 1"
   ) |>
-  tab_options(table.font.size = px(9), table.width = pct(100)) |>
-  cols_width(aecode1 ~ px(100), aetymead ~ px(100), aerel ~ px(100)) |>
-  cols_align(align = "left")
+  tab_options(table.font.size = px(8), table.width = pct(100)) |>
+  cols_width(
+    aecode1 ~ px(100),
+    aeday_v1 ~ px(50),
+    aetymead ~ px(100),
+    aerel ~ px(80)
+  ) |>
+  cols_align(align = "left") |>
+  cols_align(aeday_v1, align = "right")
 ```
 
 ```{r}
@@ -169,17 +177,20 @@ dat_base_ae |>
 #| tbl-pos: "H"
 dat_base_ae |>
   filter(aerel == "Related") |>
+  # filter_out(when_all(record_id == 70, grepl("left leg", aeterm))) |>
   select(record_id, trt, aecode1, aeday_v1, aetype, aesev, aerel, aetymead) |>
   gt() |>
   cols_label(
     trt ~ "Treatment",
+    aerel ~ "Relationship to study vaccine",
     aeday_v1 ~ "Days after visit 1"
   ) |>
-  tab_options(table.font.size = px(9), table.width = pct(100)) |>
+  tab_options(table.font.size = px(8), table.width = pct(100)) |>
   cols_width(
-    record_id ~ px(70),
-    trt ~ px(70),
+    record_id ~ px(60),
+    trt ~ px(60),
     aecode1 ~ px(100),
+    aeday_v1 ~ px(50),
     aetymead ~ px(100),
     aerel ~ px(80),
     aetype ~ px(80),
@@ -189,7 +200,14 @@ dat_base_ae |>
   ) |>
   cols_align(align = "left") |>
   cols_align(aeday_v1, align = "right") |>
-  sub_missing()
+  sub_missing() |>
+  tab_footnote(
+    footnote = "One was for left leg and the other was for right leg injection site",
+    location = cells_body(
+      rows = record_id == "70",
+      columns = record_id
+    )
+  )
 ```
 
 \clearpage

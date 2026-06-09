@@ -920,7 +920,7 @@ Parent's were subsequently asked whether any of the specified foods had been int
 
 In some cases, the stage 2 date at which the food was introduced (`fefooddat`) contained clear errors (e.g. date was before date of birth or after the survey completion date). To calculate age (in days) at which the food was first introduce we first corrected any obvious errors in dates and then took the difference between the infants date of birth and the minimum of `fefooddat` (date food was first given) and `fedat` (date survey was completed). Again, not all infants had a record of food introduction. For infants with no responses of yes for the food in question the age of introduction was treated as right censored at the date of the last completed food and household questionnaire.
 
-Some inconsistencies were noted between the responses to these items and those from the previous section. For example, where `femilyn` is "Yes" to all surveys from a certain date but `fefoodng1` (has cow's milk been introduced since last visit) is "No" or "N/A" on all questionnaires and `fefooddat2` (date cow's milk was introduced) is missing. The `fefooddat` data are reported as documented without cross-checking against other available fields given that it is only possible to cross-check for cow's milk, egg, and nuts. Missing dates were treated as right-censored which may not be accurate (e.g. food could have been introduced by xx-months of age but date of introduction was not documented on any questionnaire).
+The `fefooddat` data are reported as documented without cross-checking against other available fields given that it is only possible to cross-check for cow's milk, egg, and nuts. Some inconsistencies were noted between the responses to these items and those from the previous section. For example, where `femilyn` is "Yes" to all surveys from a certain date but `fefoodng2` (has cow's milk been introduced since last visit) is "No" or "N/A" on all questionnaires and `fefooddat2` (date cow's milk was introduced) is missing. Missing dates were treated as right-censored which may not be accurate (e.g. food could have been introduced by xx-months of age but date of introduction was not documented on any questionnaire).
 
 Kaplan-Meier curves for age at which a food was introduced for stage 1 participants stratified by the assigned treatment group are shown in @fig-kaplan-meier-food-intro-stage1. Curves for stage 2 participants are shown in @fig-kaplan-meier-food-intro-stage2.
 
@@ -944,14 +944,15 @@ make_km_plot <- function(dat, time_var, event_var, trt_var, lab = "") {
     params
   ))
   fit |>
-    ggsurvfit() +
+    ggsurvfit(type = "risk") +
     add_confidence_interval() +
     add_censor_mark() +
     scale_colour_manual("Treatment group", values = c("black", "orange")) +
     scale_fill_manual("Treatment group", values = c("black", "orange")) +
-    labs(title = lab, y = "Percentage yet to be introduced to food") +
+    labs(title = lab) +
     scale_ggsurvfit(
-      x_scales = list(name = "Age (days)", breaks = seq(0, 630, 90), limits = c(0, 650))
+      x_scales = list(name = "Age (days)", breaks = seq(0, 630, 90), limits = c(0, 651)),
+      y_scales = list(name = "Percentage introduced to food", limits = c(0, 1))
     ) +
     guides(colour = guide_legend(override.aes = list(shape = NA))) +
     theme_get() +
@@ -1043,7 +1044,7 @@ dat_grid_fhq <- dat_grid_fhq |>
     ),
     fefooddat8 = case_when(
       record_id == "4629-27" & fefooddat8 == ymd("2020-01-11") ~ ymd("2021-01-11"),
-      record_id == "4629-141" & fefooddat8 == ymd("423-05-02") ~ ymd("2023-05-02"),
+      record_id == "4629-141" & fefooddat8 == date("423-05-02") ~ ymd("2023-05-02"),
       record_id == "5785-124" & fefooddat8 == ymd("2022-03-30") ~ ymd("2023-03-30"),
       record_id == "5785-394" & fefooddat8 == ymd("2023-02-10") ~ ymd("2024-02-10"),
       .default = fefooddat8
