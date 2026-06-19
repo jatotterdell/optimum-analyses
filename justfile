@@ -33,3 +33,8 @@ render-report-opa:
 # Render clinical trial report
 render-report-ctr:
   quarto render --profile report reports/clinical-trial-report.qmd
+
+# Render presentation
+render-presentation:
+  quarto render --profile presentation presentation/optimum-dsmb.qmd
+  
