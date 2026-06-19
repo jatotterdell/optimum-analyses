@@ -1,0 +1,16 @@
+project:
+  type: default
+  output-dir: _presentations
+  execute-dir: project
+
+format:
+  revealjs: 
+    theme: simple
+    embed-resources: true
+    slide-number: true
+    show-slide-number: all
+    controls: true
+    height: 1080
+    width: 1920
+    fig-dpi: 144
+    fig-align: center
