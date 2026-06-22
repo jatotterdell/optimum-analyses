@@ -9,13 +9,24 @@
 <h3>2026-06-23</h3>
 \
 
-# Background
+## Trial Design
 
-# Outcomes
+- Parallel group, randomised trial
+- Interventions
+  - Combined Diphtheria (D)-Tetanus (T)-acellular Pertussis (aP), Hepatitis B (HepB), Inactivated Poliovirus (IPV) and Haemophilus influenzae type b (Hib) vaccine (DTaP-HepB-IPV-Hib) administered at approximately 2 months (referred to as **aP**), or
+  - Combined Diphtheria (D)-Tetanus (T)-whole-cell Pertussis (wP), Hepatitis B (HepB) and Haemophilus influenzae type b (Hib) vaccine (DTwP-HepB-Hib) in place of DTaP-HepB-IPVHib at approximately 2 months (referred to as **wP**), 
+
+  together with the vaccines recommended by the National Immunisation Program.
+
+- Originally, a maximum sample size of 3,000 participants randomised 1:1
+  - revised to 2,000 participants due to feasibility constraints
+  - stopped early just before 1,000 participants randomised due to inability to procure IMP
 
 ## Primary Outcome Definition
 
 IgE-mediated food allergy with evidence of food sensitisation on skin prick test (SPT) by 12-months old and confirmed (where necessary) by medically supervised oral food challenge(s) (OFC).
+
+::: {.fragment}
 
 Primary endpoint met if either of the following criteria were reached:
 
@@ -25,11 +36,17 @@ Primary endpoint met if either of the following criteria were reached:
 
   ii. **Clinician-confirmed food anaphylaxis**, affecting $\geq$ 2 of the following systems: skin, gastrointestinal tract, respiratory tract, cardiovascular system; **AND** evidence of *sensitisation on SPT* to the food of interest.
 
+:::
+
+::: {.fragment}
+
 - **Criteria 2: Highly probable IgE-mediated food allergy**
 
   - A history of food allergic reaction (consistent with PRACTALL criteria), with evidence of *sensitisation on SPT* to the food of interest.
 
 Sensitistaion on SPT for a specific food was defined as an APT wheal size >1mm than that produced by a negative control solution.
+
+:::
 
 ## Key Secondary Outcome Definitions
 
@@ -53,7 +70,19 @@ to at least one allergen by approximately 12-months of age.
 
 :::
 
-## Schedule of Assessments
+## Schedule of Assessments (SPT/OFC)
+
+- **Visit 1 (6 to <12 weeks of age)**
+  - eligibility, baseline status, administration of study vaccine as assigned, other routine vaccines
+- **Visit 2 (12 to <15 months of age)**
+  - skin prick test ASAP after 12-months and no later than 18-months
+- **OFC Visit**
+  - oral food challenge organised (12 to <18-months) if positive SPT or at discretion of site PI on basis of history of allergic reaction or food intolerance
+- **Unscheduled SPT**
+  - at discretion of site PI if suspected IgE-mediated food reaction
+- **SPT panel of allergens**
+  - cow's milk, hen egg, peanut, cashew, house dust mite (*Dermatophagoides pteronyssinus*), cat dander, rye grass *Lolium perenne*)
+  - other's at discretion of site PI
 
 ## Participants
 
@@ -63,6 +92,30 @@ to at least one allergen by approximately 12-months of age.
 ![](figures/enrolments.png)
 
 ## Characteristics
+
+![](figures/characteristics-table-1.png)
+
+## Introduction of Foods
+
+:::: {.columns}
+
+::: {.column width="50%"}
+
+![](figures/introduction-foods-1.png){fig-align=center}
+
+:::
+
+::: {.column width="50%"}
+
+"Has *X* been given for the first time since the last visit? If so, what date/age?" 
+
+\
+
+(only stage 2 participants shown)
+
+:::
+
+::::
 
 ## Skin Prick Tests
 
@@ -75,8 +128,11 @@ Number and percentage of infants with an SPT result.
 There were 23 participants with no documented SPT result.
 :::
 
-::: {.column width="60%"}
+::: {.column .fragment width="60%"}
 ![](figures/spt-figure-1.png)
+
+Early stage 1 protocol change from SPT at 18-months to 12-months.
+
 :::
 
 ::::
@@ -107,16 +163,28 @@ There were 23 participants with no documented SPT result.
 
 ::::
 
+::: {.fragment}
+
+![](figures/spt-comparison.png){.absolute bottom=350 left=-50}
+
+::: {style="font-size: 40%;"}
+
+Walker S, D'Vaz N, Pretorius R ... Infant Diet Recommendations Reduce IgE-Mediated Egg, Peanut, and Cow’s Milk Allergies The Journal of Allergy and Clinical Immunology: In Practice, 2025; 13, 3077-3083.e1 - *"Food allergen sensitization was defined as a positive skin prick test (mean weal diameter ≥3 mm above the negative control weal size) to at least 1 food allergen." At 12-months of age. Born in Perth, Australia*
+
+:::
+
+:::
+
 ## SPT Sensitisation Results
 
 :::: {.columns}
 
 ::: {.column width="70%"}
 
-![](figures/spt-sensitisation-model-table.png)
+![](figures/spt-sensitisation-model-table.png){fig-align=center height=350}
 
 
-![](figures/spt-sensitisation-model-figure.png)
+![](figures/spt-sensitisation-model-figure.png){fig-align=center height=500}
 
 :::
 
@@ -147,15 +215,55 @@ Allergic sensitisation similar in both groups. Vaccine type did not appear to in
 
 ::::
 
+::: {.aside}
+
+::: {style="font-size: 70%;"}
+
+Adjusted for site, sex, breastfeeding status, birth order, parental income, mode of delivery, family history of atopic disease.
+
+:::
+
+:::
+
 ## IgE-mediated Food Allergy Outcomes
+
+::: {style="font-size: 70%;"}
 
 - Criteria 1.i - positive OFC
 - Criteria 1.ii - clinician-confirmed food anaphylaxis
 - Criteria 2. - highly probable IgE-mediated food allergy
 
+:::
+
+:::: {.columns}
+
+::: {.column width="50%"}
+
+::: {.fragment}
+
 ![](figures/ige-food-allergy-table-1.png)
 
+:::
+
+::: {.fragment}
+
 ![](figures/ige-food-allergy-table-2.png)
+
+:::
+
+:::
+
+::: {.column width="50%"}
+
+::: {.fragment}
+
+![](figures/ige-food-allergy-table-3.png)
+
+:::
+
+:::
+
+::::
 
 ## IgE-mediated Food Allergy Results
 
@@ -171,7 +279,7 @@ Allergic sensitisation similar in both groups. Vaccine type did not appear to in
 
 ::: {.column width="30%"}
 
-::: {style="font-size: 80%;"}
+::: {.fragment style="font-size: 80%;"}
 
 Estimated difference in SPT (>1mm) sensitisation probability (wP vs. aP): ​
 
@@ -188,9 +296,8 @@ to be small​
 
 \
 
-- Food allergy rates were similar in both groups
-- Estimated effect was uncertain but small
-- Results do not show a reduction in food allergy
+Food allergy rates were similar in both groups. 
+Results do not show a reduction in IgE-mediated food allergy.
 
 :::
 
@@ -208,7 +315,7 @@ to be small​
 
 :::
 
-::: {.column width="60%"}
+::: {.column .fragment width="60%"}
 
 ![](figures/eczema-table-2.png)
 
@@ -224,7 +331,7 @@ to be small​
 
 ![](figures/eczema-model-table.png)
 
-![](figures/eczema-model-figure.png)
+![](figures/eczema-model-figure.png){fig-align=center height=550}
 
 :::
 
@@ -260,3 +367,7 @@ to be small​
 :::
 
 ::::
+
+## Safety
+
+![](figures/safety-table-1.png)
