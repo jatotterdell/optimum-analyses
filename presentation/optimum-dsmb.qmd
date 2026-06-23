@@ -1,6 +1,6 @@
 
 
-<h1>The OPTIMUM trial</h1>
+<h1>The OPTIMUM Trial - Results</h1>
 \
 <h2>OPTimising IMmunisation Using Mixed schedules</h2>
 \
@@ -9,9 +9,20 @@
 <h3>2026-06-23</h3>
 \
 
+## Outline
+
+- Trial design
+- Outcome definitions
+- Participant characteristics
+- Outcomes
+  - skin prick test sensitisation
+  - food allergy
+  - eczema
+- Safety
+
 ## Trial Design
 
-- Parallel group, randomised trial
+- Parallel group, two-arm, randomised trial
 - Interventions
   - Combined Diphtheria (D)-Tetanus (T)-acellular Pertussis (aP), Hepatitis B (HepB), Inactivated Poliovirus (IPV) and Haemophilus influenzae type b (Hib) vaccine (DTaP-HepB-IPV-Hib) administered at approximately 2 months (referred to as **aP**), or
   - Combined Diphtheria (D)-Tetanus (T)-whole-cell Pertussis (wP), Hepatitis B (HepB) and Haemophilus influenzae type b (Hib) vaccine (DTwP-HepB-Hib) in place of DTaP-HepB-IPVHib at approximately 2 months (referred to as **wP**), 
@@ -44,7 +55,7 @@ Primary endpoint met if either of the following criteria were reached:
 
   - A history of food allergic reaction (consistent with PRACTALL criteria), with evidence of *sensitisation on SPT* to the food of interest.
 
-Sensitistaion on SPT for a specific food was defined as an APT wheal size >1mm than that produced by a negative control solution.
+Sensitistaion on SPT for a specific food was defined as an SPT wheal size >1mm than that produced by a negative control solution.
 
 :::
 
@@ -70,12 +81,16 @@ to at least one allergen by approximately 12-months of age.
 
 :::
 
+::: {.fragment}
+For both primary and secondary "approximately 12-months old" taken to be 12-months to <19-months old.
+:::
+
 ## Schedule of Assessments (SPT/OFC)
 
 - **Visit 1 (6 to <12 weeks of age)**
   - eligibility, baseline status, administration of study vaccine as assigned, other routine vaccines
 - **Visit 2 (12 to <15 months of age)**
-  - skin prick test ASAP after 12-months and no later than 18-months
+  - skin prick test ASAP after 12-months and no later than 18-months of age
 - **OFC Visit**
   - oral food challenge organised (12 to <18-months) if positive SPT or at discretion of site PI on basis of history of allergic reaction or food intolerance
 - **Unscheduled SPT**
@@ -111,7 +126,14 @@ to at least one allergen by approximately 12-months of age.
 
 \
 
-(only stage 2 participants shown)
+Only stage 2 participants shown, FHQ scheduled at approximately:
+
+- 6-weeks
+- 6-months
+- 9-months
+- 12-months
+- 15-months
+- 18-months
 
 :::
 
@@ -202,7 +224,7 @@ Estimated difference in SPT (>1mm) sensitisation probability (wP vs. aP): ​
 
 :::
 
-→ Uncertain direction, but any difference likely
+→ Uncertain direction, but any benefit likely
 to be small​
 
 \
@@ -232,6 +254,8 @@ Adjusted for site, sex, breastfeeding status, birth order, parental income, mode
 - Criteria 1.i - positive OFC
 - Criteria 1.ii - clinician-confirmed food anaphylaxis
 - Criteria 2. - highly probable IgE-mediated food allergy
+
+All requiring SPT sensitisation.
 
 :::
 
@@ -291,8 +315,7 @@ Estimated difference in SPT (>1mm) sensitisation probability (wP vs. aP): ​
 
 :::
 
-→ Uncertain, but any difference likely
-to be small​
+→ Uncertain, but any benefit likely to be small​
 
 \
 
@@ -351,14 +374,11 @@ Estimated difference in probability of eczema by 6-months (wP vs. aP): ​
 
 :::
 
-→ Uncertain direction, but any difference likely
-to be small​
+→ Uncertain direction, but any benefit likely to be small​
 
 \
 
-- eczema rates were similar between groups
-- estimated effect was uncertain but small
-- results do not show a reduction in eczema
+Eczema rates were similar between groups. Results do not show a reduction in eczema.
 
 :::
 
@@ -371,3 +391,5 @@ to be small​
 ## Safety
 
 ![](figures/safety-table-1.png)
+
+# End
