@@ -2105,36 +2105,37 @@ fit_pars_fhafa <- dat_po |>
 
 #### Parental country of birth
 
-Whether an infant had one or more parent born in Asia was derived from the mother's country of birth (`bcmoth`) and the father's country of birth (`bcfath`). If either of these was unknown (being missing or reported as "other") than the infant's status was considered "unknown".
+Whether an infant had one or more parent born in East Asia was derived from the mother's country of birth (`bcmoth`) and the father's country of birth (`bcfath`) classified according to the Standard Australian Classification of Countries (SACC). If either of these was unknown (being missing or reported as "other") than the infant's status was considered "unknown".
 
 ```{r}
 #| label: subgroup-asia-derive
 #| include: false
 # Which countries (of those appearing) should be mapped to Asia?
+# We focus on "East Asia" as per Standard Australian Classification of Countries from ABS
 countries_asia <- c(
   "Malaysia",
   "China (excludes SARs and Taiwan)",
-  "India",
+  # "India",
   "Indonesia",
   "Philippines",
   "Hong Kong (SAR of China)",
   "Singapore",
   "Vietnam",
-  "Nepal",
-  "Sri Lanka",
-  "Maldives",
+  # "Nepal",
+  # "Sri Lanka",
+  # "Maldives",
   "Taiwan",
   "Thailand",
   "Korea, Republic of (South)",
   "Brunei Darussalam",
   "Japan",
-  "Myanmar",
-  "Pakistan"
+  "Myanmar"
+  # "Pakistan"
 )
 
 country_to_region <- tribble(
-  ~country                           , ~region   ,
-  countries_asia                     , "Asia"    ,
+  ~country                           , ~region     ,
+  countries_asia                     , "East Asia" ,
   c(NA, "Other", "OTHER", "Unknown") , "Unknown"
 )
 
@@ -2145,20 +2146,20 @@ dat_po <- dat_po |>
       bcmoth,
       from = country_to_region$country,
       to = country_to_region$region,
-      default = "Not Asia"
+      default = "Not East Asia"
     ),
     bcfath_region = recode_values(
       bcfath,
       from = country_to_region$country,
       to = country_to_region$region,
-      default = "Not Asia"
+      default = "Not East Asia"
     ),
     any_asia = factor(
       case_when(
-        bcmoth_region == "Asia" | bcfath_region == "Asia" ~ "Yes",
+        bcmoth_region == "East Asia" | bcfath_region == "East Asia" ~ "Yes",
         bcmoth_region == "Unknown" ~ "Unknown",
         bcfath_region == "Unknown" ~ "Unknown",
-        bcmoth_region == "Not Asia" & bcfath_region == "Not Asia" ~ "No"
+        bcmoth_region == "Not East Asia" & bcfath_region == "Not East Asia" ~ "No"
       ),
       levels = c("No", "Yes", "Unknown")
     )
@@ -2178,7 +2179,7 @@ dat_po |>
 ```{r}
 #| label: tbl-primary-outcome-criteria-asia
 #| tbl-cap: |
-#|   Number and percentage of infants who met each primary outcome condition by treatment group and whether at least one parent was born in Asia. Unknown cases occurred where either the mother or father's country of birth was not known (either missing or reported as "other").
+#|   Number and percentage of infants who met each primary outcome condition by treatment group and whether at least one parent was born in East Asia. Unknown cases occurred where either the mother or father's country of birth was not known (either missing or reported as "other").
 #| tbl-pos: "H"
 #| output: asis
 tbl <- dat_po |>
@@ -2218,7 +2219,7 @@ tbl |>
 ```{r}
 #| label: tbl-primary-outcome-overall-asia
 #| tbl-cap: |
-#|   Number and percentage of infants who met the primary outcome by primary reason, treatment group, and whether at least one parent was born in Asia. Unknown cases occurred where either the mother or father's country of birth was not known (either missing or reported as "other").
+#|   Number and percentage of infants who met the primary outcome by primary reason, treatment group, and whether at least one parent was born in East Asia. Unknown cases occurred where either the mother or father's country of birth was not known (either missing or reported as "other").
 #| tbl-pos: "H"
 #| output: asis
 tbl <- dat_po |>
@@ -2324,7 +2325,7 @@ bind_rows(
     rename(level = fhafa),
   fit_pars_asia |>
     select(any_asia, rd) |>
-    mutate(var = "One parent\nborn in Asia") |>
+    mutate(var = "One parent born\nin East Asia") |>
     rename(level = any_asia)
 ) |>
   mutate(var = fct_inorder(var)) |>
