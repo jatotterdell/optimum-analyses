@@ -42,6 +42,7 @@ format:
     link-citations: true
     tbl-pos: "H"
     fig-dpi: 150
+    keep-tex: true
     template-partials: 
       - tex/toc.tex
     include-in-header:
