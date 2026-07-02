@@ -20,6 +20,12 @@ _site
 _freeze
 /data/
 **/*.quarto_ipynb
+
 *_cache
 *_files
+
 *.rmarkdown
+*.tex
+*.spl
+*.bst
+*.cls
