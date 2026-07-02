@@ -1,0 +1,109 @@
+---
+title: |
+  Efficacy of an early first dose of whole-cell pertussis vaccine in infants for the prevention of IgE-mediated food allergy: A randomised controlled trial
+author:
+  - name: Gladymer Pérez Chacón
+    email: xxx
+  - name: James Totterdell
+    email: james.totterdell@sydney.edu.au
+    affiliations:
+      - id: usyd
+        name: The University of Sydney
+  - name: Tom Snelling
+    email:
+    attributes:
+        corresponding: true
+date: last-modified
+bibliography: references.bib
+
+format:
+  elsevier-pdf:
+    keep-tex: true
+    journal:
+      name: Journal of Allergy and Clinical Immunology
+      formatting: preprint
+      model: 3p
+      layout: twocolumn
+      cite-style: number
+
+keywords:
+  - Diphtheria-Tetanus-Pertussis Vaccine
+  - Diphtheria-Tetanus-acellular Pertussis Vaccines
+  - Food Hypersensitivity
+  - Infant
+  - Australia
+
+abstract: |
+  # Background {.unnumbered}
+
+  Timely introduction of peanut, egg, and cow's milk into the infant's diet reduces the risk of developing IgE-mediated food allergies to these foods. Additional strategies to promote oral tolerance and prevent food allergic reactions are being investigated in clinical trials.
+
+  # Objective {.unnumbered}
+
+  We aimed to determine if a dose of whole-cell pertussis vaccine (wP) at 6 weeks old, in lieu of acellular pertussis (aP) vaccine, could reduce the incidence of IgE-mediated food allergy in infants.
+
+  # Methods {.unnumbered}
+
+  In this multicentre, randomised, observer-blinded, parallel, two-stage, Bayesian adaptive trial we assigned Australian infants to one of two pertussis vaccination schedules. These consisted of either a first dose of a WHO-prequalified wP combination vaccine (Pentabio®, PT Bio Farma Indonesia) at approximately six weeks old, followed by aP combination vaccine at ages four, six, and 18 months ("mixed wP/aP" schedule), or the standard homologous aP prime boost at the same ages ("aP-only" schedule). The primary outcome was IgE-mediated food allergy with evidence of food sensitisation by age 18-months, confirmed where necessary by medically supervised oral food challenge(s).
+
+  # Results {.unnumbered}
+
+  # Conclusions {.unnumbered}
+
+  There is little evidence of a clinically meaningful reduction in IgE-mediated food allergy in infants receiving a mixed wP/aP versus the standard aP-only schedule. Funded by the National Health and Medical Research Council of Australia; ANZCTR number, ACTRN12616000215426.
+
+  # Clinical Implications {.unnumbered}
+
+  An early first dose of wP is unlikely to meaningfully reduce the probability of developing IgE-mediated food allergy, eczema, or atopic sensitisation in infants and toddlers.
+
+---
+
+# Introduction
+
+IgE-mediated food allergy affects approximately 10\% of Australian infants and is a leading cause of paediatric anaphylaxis presentations [@osborne2011; @mullins2022]. Despite national guidelines promoting early infant feeding since 2016, the population-level impact of early dietary introduction of peanut and egg has been smaller than expected given the effects observed in landmark clinical trials, with evidence of heterogeneity according to parental region of birth and early-onset eczema [@odoi2026; @koplin2026]. Therefore, preventive strategies beyond dietary modification remain a priority.
+
+The whole-cell pertussis (wP) vaccine is an essential component of the global Expanded Program of Immunisation. Recognised for its high protective efficacy against severe pertussis disease, wP vaccines have been administered to at least 1.4 billion children in Gavi-supported countries since 2000 [@simondon1997; @dtp-cont]. In Australia, a locally manufactured wP-based combination vaccine was withdrawn from the National Immunisation Program (NIP) and replaced with a subunit acellular pertussis (aP) combination vaccine between 1997 and 1999 @mcintyre1998. A case-control study suggested that Australian children born during the transition to aP vaccines who developed IgE-mediated food allergy were less likely to have received wP, rather than aP, as their first pertussis vaccine dose in infancy (odds ratio 0.77; 95% confidence interval, 0.62--0.95) @estcourt2020.
+
+Compared to  aP vaccines, wP vaccines are more reactogenic and induce a lifelong Th~1~ and Th~17~ polarised immuno-phenotype. This effect may be driven by the adjuvant properties of lipopolysaccharide within the whole-killed *Bordetella pertussis* cells [@patterson2018; @iwasaki2020]. Compared to priming with aP vaccines, there is evidence that priming with wP vaccines attenuates Th\textsubscript{2}-mediated humoral immunity against diphtheria (DT) and pertussis toxins (PT) [@aalberse2019; @dasilvaantunes2021]. However, unlike previous reports, we found no evidence of an effect on tetanus toxoid (TT) IgE responses [@perez2024immunogenicity; @holt2016].
+
+Given the association observed in the case-control study and biological plausibility, we hypothesised that an early first dose of wP could help induce a balanced Th~1~/Th~17~/Th~2~ immunonophenotype in young infants with atopic predisposition, and thereby help to prevent the development of food sensitisation and IgE-mediated food allergy. The OPTIMUM (Optimising Immunisations Using Mixed Schedules) study  was therefore designed to evaluate whether substituting the first aP vaccine dose with a wP vaccine would prevent IgE-mediated food allergy, compared to the standard aP-only vaccine schedule.
+
+# Methods
+
+## Trial design and participants
+ 
+OPTIMUM was an observer and participant-blinded, two-stage, Bayesian group-sequential randomised trial, conducted at four active study sites across the states of Western Australia (Perth Children's Hospital), Victoria (Murdoch Children's Research Institute), and New South Wales (Sydney Children's Hospital, Randwick and The Children's Hospital at Westmead), and a non-enrolling site (Fiona Stanley Hospital, Perth, Western Australia) [@pérezchacón2020; @totterdell2022].
+
+## Trial procedures
+
+## Trial outcomes
+
+The primary outcome was IgE-mediated food allergy with evidence of food sensitisation on SPT by age 12 to <19 months and confirmed (where necessary) by a medically supervised OFC. The primary outcome was met if there was either unequivocal evidence of IgE-mediated food allergy, or if IgE-mediated food allergy was deemed highly likely by the  site allergist who was blinded to group allocation. Evidence of IgE-mediated food allergy was deemed unequivocal if there was either: (1.a) a positive OFC with evidence of sensitisation on SPT to the food of interest, or (1.b) a history of clinician-diagnosed food anaphylaxis (symptoms affecting at least two of the following: skin, gastrointestinal tract, respiratory tract, cardiovascular system), with evidence of sensitisation on SPT to the food of interest. IgE-mediated food allergy was deemed highly likely if there was (2) a history of food allergic reaction consistent with PRACTALL criteria, with evidence of sensitisation on SPT to the food of interest @sampson2012. 
+
+Additional clinical and mechanistic outcomes were new-onset parent-reported clinician-diagnosed  eczema by (1) six months or (2) 12 months old and a positive SPT to any allergen by approximately 12 months old (onset defined by the documented age at first occurrence), and (3) an SPT more than 1 mm or (4) more than 3 mm greater than the negative control to at least one allergen by approximately 12 months old (12 to <19 months).
+
+Stage one six- and seven-month old immunogenicity and reactogenicity data have been reported previously @perez2024immunogenicity; pre- and post-booster responses to the 18-month dose of DTaP-IPV will be reported separately.
+
+## Trial oversight
+
+Approval was obtained from the Child and Adolescent Health Service Human Research Ethics Committee and **XXX**. Written informed consent was obtained from one parent or guardian of each infant enrolled in this trial. An independent DSMC provided safety oversight.
+
+The trial was registered with the Australian New Zealand Clinical Trial Registry (ACTRN12616000215426) and funded by the National Health and Medical Research Council (NHMRC GNT1158722) and the Western Australia Health Research Fund. The funders had no involvement in the study design, data collection, data analysis, data interpretation, or writing of the report.
+
+## Statistical Analysis
+
+This trial used an adaptive group sequential design and Bayesian inference as detailed the protocol and the statistical analysis plan @totterdell2022.  In brief, we hypothesised that assignment to the mixed wP/aP schedule would be superior to the standard aP-only schedule with respect to the incidence of IgE-mediated food allergy by 12 to <19 months.
+
+The primary analysis used independent beta-binomial models to estimate the difference in probability of IgE-mediated food allergy between the two vaccine strategies; uniform priors were assumed for both response probabilities. Secondary analyses assumed a logistic regression model for occurrence of IgE-mediated food allergy adjusting for study site, sex, breastfeeding status, birth order, parental income, mode of delivery, and family history of atopic disease at baseline. The analyses of clinical and mechanistic secondary outcomes followed the same approach. For all summaries and analyses, all participants were included and grouped according to their randomly assigned study intervention (ITT).
+
+A posterior probability for reduction in IgE-mediated food allergy of at least 0.95 was considered evidence of superiority. A first interim analysis was scheduled to occur after the 200th participant completed the study. Additional interim analyses were to occur for every additional 200 participants unless a stopping rule was met or the maximum sample size had been reached. At each analysis, the trial could be stopped for expected success or futility if the predicted probability of meeting the superiority condition was greater than 0.95 or less than 0.05 respectively based on the posterior predictive distribution from the primary analysis model @totterdell2022.
+
+A maximum sample size of 3,000 infants was selected with 1:1 randomisation. The thresholds above were selected based upon trial simulations used to estimate their effect on trial operating characteristics under various enrolment rates, in particular type I and type II error rates and expected stopping times were assessed. Assuming 10% incidence of IgE-mediated food allergy by age 12 months in the aP-only schedule group simulations indicated the trial would have 85% power for detecting a reduction to 7% in the mixed wP/aP schedule group under the specified thresholds. Before any efficacy analyses were conducted, the maximum sample size was revised to 2,000 participants (1,000 per arm) due to feasibility constraints. Statistical power was reassessed using the same thresholds where the design had 80% power for a reduction from 10.0% to 6.6%.
+
+## Early trial termination
+
+Enrolment commenced at Perth Children's Hospital and stage one was completed on **XXX**. However, while stage two was in progress, we became unable to procure further doses of the wP combination vaccine approved for this study (Pentabio® PT Bio Farma, Indonesia) or any alternative WHO-prequalified wP-based formulations. Following consultation with the DSMC, the trial steering committee, and the Human Research Ethics Committee,  enrolment was terminated upon enrolment of 972 infants (49% of the planned maximum sample size) and after one interim analysis in which no stopping rule had been met.
+
+# Results
+
+## Participants
