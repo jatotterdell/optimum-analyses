@@ -60,11 +60,11 @@ abstract: |
 
 # Introduction
 
-IgE-mediated food allergy affects approximately 10\% of Australian infants and is a leading cause of paediatric anaphylaxis presentations [@osborne2011; @mullins2022]. Despite national guidelines promoting early infant feeding since 2016, the population-level impact of early dietary introduction of peanut and egg has been smaller than expected given the effects observed in landmark clinical trials, with evidence of heterogeneity according to parental region of birth and early-onset eczema [@odoi2026; @koplin2026]. Therefore, preventive strategies beyond dietary modification remain a priority.
+IgE-mediated food allergy affects approximately 10\% of Australian infants and is a leading cause of paediatric anaphylaxis presentations [@osborne2011; @mullins2022]. Despite national guidelines promoting early infant feeding since 2016, the population-level impact of early dietary introduction of peanut and egg has been smaller than expected given the effects observed in landmark clinical trials, with evidence of heterogeneity according to parental region of birth and early-onset eczema [@odoi2026; @soriano2022; @koplin2026]. Therefore, preventive strategies beyond dietary modification remain a priority.
 
-The whole-cell pertussis (wP) vaccine is an essential component of the global Expanded Program of Immunisation. Recognised for its high protective efficacy against severe pertussis disease, wP vaccines have been administered to at least 1.4 billion children in Gavi-supported countries since 2000 [@simondon1997; @dtp-cont]. In Australia, a locally manufactured wP-based combination vaccine was withdrawn from the National Immunisation Program (NIP) and replaced with a subunit acellular pertussis (aP) combination vaccine between 1997 and 1999 @mcintyre1998. A case-control study suggested that Australian children born during the transition to aP vaccines who developed IgE-mediated food allergy were less likely to have received wP, rather than aP, as their first pertussis vaccine dose in infancy (odds ratio 0.77; 95% confidence interval, 0.62--0.95) @estcourt2020.
+The whole-cell pertussis (wP) vaccine is an essential component of the global Expanded Program of Immunisation. Recognised for its high protective efficacy against severe pertussis disease, wP vaccines have been administered to at least 1.4 billion children in Gavi-supported countries since 2000 [@simondon1997; @sheridan2012; @klein2013; @dtp-cont]. In Australia, a locally manufactured wP-based combination vaccine was withdrawn from the National Immunisation Program (NIP) and replaced with a subunit acellular pertussis (aP) combination vaccine between 1997 and 1999 @mcintyre1998. A case-control study suggested that Australian children born during the transition to aP vaccines who developed IgE-mediated food allergy were less likely to have received wP, rather than aP, as their first pertussis vaccine dose in infancy (odds ratio 0.77; 95% confidence interval, 0.62--0.95) @estcourt2020.
 
-Compared to  aP vaccines, wP vaccines are more reactogenic and induce a lifelong Th~1~ and Th~17~ polarised immuno-phenotype. This effect may be driven by the adjuvant properties of lipopolysaccharide within the whole-killed *Bordetella pertussis* cells [@patterson2018; @iwasaki2020]. Compared to priming with aP vaccines, there is evidence that priming with wP vaccines attenuates Th\textsubscript{2}-mediated humoral immunity against diphtheria (DT) and pertussis toxins (PT) [@aalberse2019; @dasilvaantunes2021]. However, unlike previous reports, we found no evidence of an effect on tetanus toxoid (TT) IgE responses [@perez2024immunogenicity; @holt2016].
+Compared to  aP vaccines, wP vaccines are more reactogenic and induce a lifelong Th~1~ and Th~17~ polarised immuno-phenotype. This effect may be driven by the adjuvant properties of lipopolysaccharide within the whole-killed *Bordetella pertussis* cells [@patterson2018; @dasilvaantunes2018; @iwasaki2020]. Compared to priming with aP vaccines, there is evidence that priming with wP vaccines attenuates Th\textsubscript{2}-mediated humoral immunity against diphtheria (DT) and pertussis toxins (PT) [@aalberse2019; @nilsson1998; @dasilvaantunes2021]. However, unlike previous reports, we found no evidence of an effect on tetanus toxoid (TT) IgE responses [@perez2024immunogenicity; @mascart2007; @holt2016].
 
 Given the association observed in the case-control study and biological plausibility, we hypothesised that an early first dose of wP could help induce a balanced Th~1~/Th~17~/Th~2~ immunonophenotype in young infants with atopic predisposition, and thereby help to prevent the development of food sensitisation and IgE-mediated food allergy. The OPTIMUM (Optimising Immunisations Using Mixed Schedules) study  was therefore designed to evaluate whether substituting the first aP vaccine dose with a wP vaccine would prevent IgE-mediated food allergy, compared to the standard aP-only vaccine schedule.
 
@@ -107,3 +107,28 @@ Enrolment commenced at Perth Children's Hospital and stage one was completed on 
 # Results
 
 ## Participants
+
+From March 2018 to December 2023, a total of 975 infants were assessed in clinic for eligibility and 972 were randomised **(Figure 1)**. Except for one infant, all correctly received either aP or wP as assigned for their first dose.
+
+Overall, 463 (48%) of 972 infants were female, 924 (95%) were born to a mother receiving dTaP in the preceding pregnancy, and 833 (86\%) had a family history of atopy in at least one first-degree relative. Baseline characteristics were similar across the study groups **(Table 1)**. Timing of introducing solid foods up to 18-months of age were similar across the study groups **(Supplement)**.
+
+## IgE-mediated food allergy
+
+The primary endpoint of unequivocal or highly likely IgE-mediated food allergy was met in 26 of 486 (5.3%) in the aP-only group and 31 of 486 (6.4%) in the mixed wP/aP group **(Table 2)**. The estimated difference in IgE-mediated food allergy between recipients of the mixed wP/aP schedule versus the aP-only schedule was 0.01 (-0.02, 0.04) [posterior median (95\% credible interval)]. The probability of a reduction in IgE-mediated food allergy under the mixed wP/aP compared to aP-only schedule was 0.25. Results from the secondary (adjusted) analyses were nearly identical to the primary analysis **(Supplement)**.
+
+We calculated the predicted probability of superiority using the data from the 972 participants enrolled. The estimated predicted probability of superiority assuming the trial enrolled to the maximum of 2,000 participants was estimated to be <0.01 which would have met the pre-specified trial futility criteria.
+
+## New-onset eczema
+
+## Skin prick test sensitisation
+
+## Safety
+
+# Discussion
+
+# Acknowledgements
+
+The authors wish to dedicate this work to the memory of Professor Katrina (Katie) Allen AO, who passed away peacefully in January 2026. We express our gratitude for her outstanding contributions to the field of paediatric allergy and to the development of the OPTIMUM study National Health and Medical Research Council grant proposal.
+
+
+# References
