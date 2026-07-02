@@ -37,4 +37,7 @@ render-report-ctr:
 # Render presentation
 render-presentation:
   quarto render --profile presentation presentation/optimum-dsmb.qmd
-  
+
+# Render manuscript
+render-manuscript:
+  quarto render --profile report manuscript/optimum-manuscript.qmd
