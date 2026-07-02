@@ -602,6 +602,118 @@ dat_outcome |>
   tab_options(table.font.size = px(9))
 ```
 
+
+```{r}
+#| label: tbl-posterior-spt-pp
+#| tbl-cap: |
+#|   Posterior summaries for risk and difference in risk of positive skin prick test by size.
+#| tbl-pos: "H"
+#| include: false
+diff_agg <- diff_outcome |>
+  group_by(size) |>
+  nest_rvars() |>
+  ungroup() |>
+  mutate(
+    across(aP:delta, ~ 100 * .x),
+    model = "Unadjusted",
+    across(
+      aP:delta,
+      list(
+        med = median,
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975),
+        pr = ~ Pr(.x < 0)
+      ),
+      .names = "{.fn}_{.col}"
+    )
+  ) |>
+  select(-aP, -wP, -delta) |>
+  bind_rows(
+    fit_outcome |>
+      unnest(rd) |>
+      rename(delta = .rd_empirical) |>
+      select(size, aP, wP, delta) |>
+      mutate(model = "Adjusted") |>
+      mutate(
+        across(aP:delta, ~ 100 * .x),
+        across(
+          aP:delta,
+          list(
+            med = median,
+            lo = ~ quantile2(.x, 0.025),
+            hi = ~ quantile2(.x, 0.975),
+            pr = ~ Pr(.x < 0)
+          ),
+          .names = "{.fn}_{.col}"
+        )
+      ) |>
+      select(-aP, -wP, -delta)
+  ) |>
+  select(-pr_aP, -pr_wP)
+dat_outcome |>
+  select(size, trt, n, y, p) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p)
+  ) |>
+  left_join(diff_agg, join_by(size)) |>
+  mutate(
+    size = factor(
+      size,
+      levels = c("0mm", "1mm", "3mm"),
+      labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]")
+    )
+  ) |>
+  gt(groupname_col = "model", rowname_col = "size") |>
+  fmt_percent(starts_with("p_"), decimals = 1) |>
+  fmt_number(starts_with(c("med", "lo", "hi")), decimals = 1) |>
+  fmt_number(starts_with(c("pr")), decimals = 2) |>
+  cols_align(align = "left", columns = 1) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_aP, lo_aP, hi_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_wP, lo_wP, hi_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_aP, med_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
+
 ```{r}
 #| label: fig-posterior-density-spt
 #| fig-cap: |
@@ -938,6 +1050,14 @@ There were `r nrow(filter(dat_fa, outalltp == "Anaphylaxis"))` outcome records f
 ```{r}
 #| label: check-positive-spt-ana
 #| include: false
+
+# Invalid age
+dat_fa |>
+  filter(
+    outalltp == "Anaphylaxis",
+    outageval_months2 > 18
+  )
+
 dat_ana_spt <- dat_fa |>
   filter(
     outalltp == "Anaphylaxis",
@@ -1415,6 +1535,104 @@ po_sum |>
   gt(rowname_col = "model") |>
   fmt_percent(starts_with("p_"), decimals = 0) |>
   fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_aP, lo_aP, hi_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_wP, lo_wP, hi_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_aP, med_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
+```{r}
+#| label: tbl-posterior-primary-pp
+#| tbl-cap: |
+#|   Posterior summaries for risk and difference in risk of IgE-mediated food allergy.
+#| tbl-pos: "H"
+#| include: false
+diff_agg <- po_diff |>
+  nest_rvars() |>
+  mutate(across(aP:delta, ~ 100 * .x)) |>
+  ungroup() |>
+  mutate(
+    model = "Unadjusted",
+    across(
+      aP:delta,
+      list(
+        med = median,
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975),
+        pr = ~ Pr(.x < 0)
+      ),
+      .names = "{.fn}_{.col}"
+    )
+  ) |>
+  select(-aP, -wP, -delta) |>
+  bind_rows(
+    dat_rd_po |>
+      rename(delta = .rd_empirical) |>
+      select(aP, wP, delta) |>
+      mutate(model = "Adjusted") |>
+      mutate(across(
+        aP:delta,
+        list(
+          med = median,
+          lo = ~ quantile2(.x, 0.025),
+          hi = ~ quantile2(.x, 0.975),
+          pr = ~ Pr(.x < 0)
+        ),
+        .names = "{.fn}_{.col}"
+      )) |>
+      select(-aP, -wP, -delta)
+  ) |>
+  select(-pr_aP, -pr_wP)
+
+po_sum |>
+  select(trt, n, y, p) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p)
+  ) |>
+  bind_cols(diff_agg) |>
+  gt(rowname_col = "model") |>
+  fmt_percent(starts_with("p_"), decimals = 1) |>
+  fmt_number(starts_with(c("med", "lo", "hi")), decimals = 1) |>
+  fmt_number(starts_with(c("pr")), decimals = 2) |>
   cols_merge(
     c(y_aP, n_aP, p_aP),
     pattern = "{1}/{2} ({3})"
@@ -2651,6 +2869,109 @@ dat_outcome |>
   gt(groupname_col = "model", rowname_col = "age") |>
   fmt_percent(starts_with("p_"), decimals = 0) |>
   fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_aP, lo_aP, hi_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_wP, lo_wP, hi_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_aP, med_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+
+```{r}
+#| label: tbl-posterior-eczema-pp
+#| tbl-cap: |
+#|   Posterior summaries for risk and difference in risk of eczema by age of onset.
+#| tbl-pos: "H"
+#| include: false
+diff_agg <- diff_outcome |>
+  group_by(age) |>
+  nest_rvars() |>
+  ungroup() |>
+  mutate(
+    across(aP:delta, ~ 100 * .x),
+    model = "Unadjusted",
+    across(
+      aP:delta,
+      list(
+        med = median,
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975),
+        pr = ~ Pr(.x < 0)
+      ),
+      .names = "{.fn}_{.col}"
+    )
+  ) |>
+  select(-aP, -wP, -delta) |>
+  bind_rows(
+    fit_outcome |>
+      unnest(rd) |>
+      rename(delta = .rd_empirical) |>
+      select(age, aP, wP, delta) |>
+      mutate(model = "Adjusted") |>
+      mutate(
+        across(aP:delta, ~ 100 * .x),
+        across(
+          aP:delta,
+          list(
+            med = median,
+            lo = ~ quantile2(.x, 0.025),
+            hi = ~ quantile2(.x, 0.975),
+            pr = ~ Pr(.x < 0)
+          ),
+          .names = "{.fn}_{.col}"
+        )
+      ) |>
+      select(-aP, -wP, -delta)
+  ) |>
+  select(-pr_aP, -pr_wP)
+
+dat_outcome |>
+  select(age, trt, n, y, p) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p)
+  ) |>
+  left_join(diff_agg, join_by(age)) |>
+  gt(groupname_col = "model", rowname_col = "age") |>
+  fmt_percent(starts_with("p_"), decimals = 1) |>
+  fmt_number(starts_with(c("med", "lo", "hi")), decimals = 1) |>
+  fmt_number(starts_with(c("pr")), decimals = 2) |>
   cols_merge(
     c(y_aP, n_aP, p_aP),
     pattern = "{1}/{2} ({3})"
