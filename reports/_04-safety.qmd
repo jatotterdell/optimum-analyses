@@ -11,6 +11,13 @@ dat_ae <- dat_raw |>
   mutate(
     aerel = str_to_sentence(aerel)
   )
+
+# We want to exclude any AESI which were eczema or food allergy as these became outcomes
+dat_ae <- dat_ae |>
+  filter(
+    !(aecode1 %in% c("Eczema", "Food allergy", "Adverse food reaction") & aetype == "AESI")
+  )
+
 dat_base_ae <- dat_base |>
   select(
     record_id,
@@ -39,11 +46,9 @@ n_aesi <- nrow(filter(dat_ae, aetype == "AESI"))
 n_sae <- nrow(filter(dat_ae, aetype == "SAE"))
 ```
 
-There were `{r} nrow(dat_ae)` adverse events (`{r} n_unsol` unsolicited, `{r} n_aesi` adverse events of special interest, and `{r} n_sae` serious adverse events[^sae]) documented during the trial.
+There were `{r} nrow(dat_ae)` adverse events (`{r} n_unsol` unsolicited, `{r} n_aesi` adverse events of special interest, and `{r} n_sae` serious adverse events) documented during the trial.
 Most adverse events were for infants randomised at PCH (`r sum(dat_ae$rand_site == "PCH")`).
 Most of these events were due to the closer follow-up as part of stage 1 (@tbl-events-by-stage-and-site) and for the first 150 participants recruited as part of stage 2 (@tbl-pch-adverse-events). There were `r sum(dat_ae$rand_site != "PCH")` adverse events for infants randomised at a site other than PCH (@tbl-listing-ae-non-pch). A listing of the related AEs is given in @tbl-listing-ae-related-pch.
-
-[^sae]: there were a further 3 SAEs which were documented on the SAE reporting log but were not recorded on the AE form (see next section on serious adverse events) - so `{r} n_sae + 3` SAEs.
 
 There was a higher number of adverse events in the wP group compared to aP. There was also a higher number of infants who experienced at least one AE (@tbl-summary-ae-pch). Some of the difference in total AEs was due to infants with multiple events. For both groups only a few AEs were documented as related to the blinded study vaccine.
 
@@ -230,6 +235,7 @@ dat_base_ae |>
     `Any related SAE` = any(aetype == "SAE" & aerel == "Related", na.rm = TRUE),
     `Any severe AE` = any(aesev == "Severe", na.rm = TRUE),
     `Number of AEs` = sum(!is.na(aecode1)),
+    `Number of SAEs` = factor(sum(aetype == "SAE", na.rm = TRUE), levels = 0:3),
     `Number of related AEs` = sum(aerel == "Related", na.rm = TRUE),
     .by = c(record_id, trt)
   ) |>
@@ -280,6 +286,7 @@ dat_base_ae |>
     `Any related SAE` = any(aetype == "SAE" & aerel == "Related", na.rm = TRUE),
     `Any severe AE` = any(aesev == "Severe", na.rm = TRUE),
     `Number of AEs` = sum(!is.na(aecode1)),
+    `Number of SAEs` = factor(sum(aetype == "SAE", na.rm = TRUE), levels = 0:2),
     `Number of related AEs` = sum(aerel == "Related", na.rm = TRUE),
     .by = c(record_id, trt)
   ) |>
@@ -405,7 +412,7 @@ dat_base_ae |>
 
 ## Serious adverse events
 
-A listing of serious adverse events are reported in @tbl-listing-sae. These are any events reported either in the SAE reporting log (`sae_reporting_log`, stage 2 only) or on the adverse events form (`adverse_events`) with `aetype = "SAE"`. In some cases, a record was on the SAE log but not the adverse event log, resulting in some missing information below.
+A listing of serious adverse events are reported in @tbl-listing-sae. These are any events reported either in the SAE reporting log (`sae_reporting_log`, stage 2 only) or on the adverse events form (`adverse_events`) with `aetype = "SAE"`.
 
 ```{r}
 #| label: tbl-listing-sae
