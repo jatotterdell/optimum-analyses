@@ -372,6 +372,23 @@ get_skin_prick_long <- function(dat_raw) {
     arrange(str_rank(record_id, numeric = TRUE), pridat) |>
     mutate(spt_num = dense_rank(pridat), .by = record_id) |>
     mutate(spt_num = if_else(is.na(spt_num), 1, spt_num))
+
+  out <- out |>
+    mutate(
+      spt_tested_merged = fct_inorder(fct_recode(
+        spt_tested,
+        egg = "whole egg",
+        egg = "egg white",
+        egg = "egg yolk",
+        egg = "baked egg",
+        "cow's milk" = "cows milk fresh",
+        "D.pteronyssinus" = "d.pteronyssinus",
+        "cat dander" = "cat fur",
+        "walnut" = "fresh walnut",
+        "banana" = "fresh banana"
+      ))
+    )
+  out
 }
 
 summarise_spt_positive <- function(spt) {
