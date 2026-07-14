@@ -22,6 +22,17 @@ std_allergens <- c(
   "seasme"
 )
 
+std_allergens_merged <- c(
+  "D.pteronyssinus",
+  "cat dander",
+  "perennial ryegrass",
+  "egg",
+  "cashew",
+  "cow's milk",
+  "peanut",
+  "seasme"
+)
+
 no_spt_record <- dat_spt |>
   filter(row_number() == 1, .by = record_id) |>
   filter(!priyn)
@@ -226,10 +237,10 @@ dat_spt |>
   filter(spt_occasion == "scheduled") |>
   summarise(
     N = n(),
-    n = sum(!is.na(spt_1mm)),
-    y = sum(spt_1mm, na.rm = TRUE),
+    n = sum(any(!is.na(spt_1mm))),
+    y = sum(any(spt_1mm, na.rm = TRUE)),
     p = y / n,
-    m = sum(is.na(spt_1mm)),
+    m = sum(all(is.na(spt_1mm))),
     .by = c(trt, spt_tested)
   ) |>
   pivot_wider(
@@ -260,10 +271,8 @@ dat_spt |>
   filter(spt_occasion == "scheduled") |>
   select(record_id, trt, spt_age, spt_tested, spt_0mm, spt_1mm, spt_3mm) |>
   droplevels() |>
+  filter(spt_age <= 18) |>
   complete(nesting(select(dat_base, record_id, trt)), spt_tested) |>
-  mutate(
-    across(spt_0mm:spt_3mm, ~ .x * (spt_age <= 18))
-  ) |>
   pivot_longer(
     spt_0mm:spt_3mm,
     names_pattern = "spt_([0-3]+mm)",
@@ -335,10 +344,7 @@ dat_spt |>
   filter(spt_occasion == "scheduled") |>
   select(record_id, trt, spt_age, spt_tested, spt_0mm, spt_1mm, spt_3mm) |>
   droplevels() |>
-  # complete(nesting(select(dat_base, record_id, trt)), spt_tested) |>
-  mutate(
-    across(spt_0mm:spt_3mm, ~ .x * (spt_age <= 18))
-  ) |>
+  filter(spt_age <= 18) |>
   pivot_longer(
     spt_0mm:spt_3mm,
     names_pattern = "spt_([0-3]+mm)",
@@ -404,6 +410,78 @@ dat_spt |>
   as_latex() |>
   latex_unescape() |>
   gsub("NA", "-", x = _) |>
+  cat()
+```
+
+In some cases, egg was split into egg white or whole egg. The following table combines the above to tables, grouping together any "egg" components which were tested.
+
+```{r}
+#| label: tbl-spt-positive-tested-combined
+#| tbl-cap: |
+#|   Number and percentage of infants with a positive SPT (scheduled or unscheduled)
+#|   by 18 months of age by tested allergen for all allergens which were tested.
+#|   Each cell gives positive/tested (%).
+#| tbl-pos: "H"
+#| output: asis
+dat_spt |>
+  select(record_id, trt, spt_age, spt_tested, spt_tested_merged, spt_0mm, spt_1mm, spt_3mm) |>
+  mutate(spt_tested_merged = str_to_sentence(spt_tested_merged)) |>
+  filter(spt_tested_merged %in% str_to_sentence(std_allergens_merged)) |>
+  filter(spt_age <= 18) |>
+  summarise(
+    across(spt_0mm:spt_3mm, ~ if_else(all(is.na(.x)), NA, any(.x == 1, na.rm = TRUE))),
+    .by = c(record_id, trt, spt_tested_merged)
+  ) |>
+  pivot_longer(
+    spt_0mm:spt_3mm,
+    names_pattern = "spt_([0-3]+mm)",
+    names_to = "size",
+    values_to = "diameter"
+  ) |>
+  mutate(spt_tested_merged = fct_inorder(spt_tested_merged)) |>
+  complete(nesting(select(dat_base, record_id, trt)), spt_tested_merged, size) |>
+  pivot_wider(names_from = spt_tested_merged, values_from = diameter) |>
+  mutate(
+    size = factor(
+      size,
+      levels = c("0mm", "1mm", "3mm"),
+      labels = c(
+        "Wheal size >0mm",
+        "Wheal size >1mm vs. neg control",
+        "Wheal size ≥3mm vs neg. control"
+      )
+    )
+  ) |>
+  tbl_strata(
+    strata = size,
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        include = `D.pteronyssinus`:last_col(),
+        by = trt,
+        statistic = all_dichotomous() ~ "{n}/{N_nonmiss} ({p}%) [{p_miss}%]",
+        missing = "no"
+      ) |>
+      add_overall(last = TRUE) |>
+      remove_footnote_header() |>
+      modify_header(label = "**Allergen**") |>
+      modify_header(
+        all_stat_cols() ~
+          paste0(
+            "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+            "N = {formatC(n, format='d', big.mark=',')}}}"
+          )
+      ) |>
+      modify_column_alignment(starts_with("stat"), align = "right"),
+    .combine_with = "tbl_stack"
+  ) |>
+  as_gt() |>
+  tab_style(
+    style = cell_text(style = "italic"),
+    locations = cells_body(columns = label, rows = label == "D.pteronyssinus")
+  ) |>
+  tab_options(table.font.size = px(10), table.width = pct(80)) |>
+  as_latex() |>
+  latex_unescape() |>
   cat()
 ```
 
@@ -931,7 +1009,7 @@ dat_1_fits |>
     diff_E = (1 - rfun(plogis)(b_hu_Intercept + b_hu_trtwP)) *
       exp(b_Intercept + b_trtwP + sigma^2 / 2) -
       (1 - rfun(plogis)(b_hu_Intercept)) * exp(b_Intercept + sigma^2 / 2),
-    diff_Pr_gt0 = 100 * ((1 - rfun(plogis)(b_hu_Intercept + b_hu_trtwP)) - (1 - rfun(plogis)(b_hu_Intercept))),
+    diff_Pr_gt0 = ((1 - rfun(plogis)(b_hu_Intercept + b_hu_trtwP)) - (1 - rfun(plogis)(b_hu_Intercept))),
     diff_E_gt0 = exp(b_Intercept + b_trtwP + sigma^2 / 2) - exp(b_Intercept + sigma^2 / 2)
   ) |>
   select(spt_tested, starts_with("diff")) |>
@@ -974,7 +1052,43 @@ There were `r nrow(filter(dat_fa, outalltp == "Oral food challenge"))` outcome r
 ```{r}
 #| label: check-positive-spt-ofc
 #| include: false
-# Total outcomes reported
+
+# Total OFC by 18-months of age
+dat_fc |>
+  filter(ofcage <= 18) |>
+  count(record_id)
+
+fc_positive <- dat_fc |>
+  filter(ofcage <= 18, ofcresult == "Positive")
+
+# OFC outcome but no positive result
+dat_fa |>
+  filter(
+    outalltp == "Oral food challenge",
+    outageval_months2 <= 18
+  ) |>
+  select(record_id, birthdat, outfrafood, outfraexptp) |>
+  filter(!(record_id %in% fc_positive$record_id))
+
+# Positive result but no OFC outcome
+fc_positive |>
+  filter(
+    !(record_id %in%
+      (dat_fa |>
+        filter(
+          outalltp == "Oral food challenge",
+          outageval_months2 <= 18
+        ) |>
+        select(record_id, birthdat, outfrafood, outfraexptp) |>
+        pull(record_id)))
+  )
+
+fc_positive |>
+  filter(record_id %in% c("117", "4629-92", "4629-191", "5785-283"))
+dat_fa |>
+  filter(record_id %in% c("117", "4629-92", "4629-191", "5785-283")) |>
+  select(record_id, trt, birthdat, outalltp, outsev, outageval_months2, outfrasource, outfrafood)
+
 dat_fa |>
   filter(
     outalltp == "Oral food challenge"

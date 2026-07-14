@@ -197,6 +197,15 @@ dat_spt_pos_any <- dat_spt_pos |>
     .by = record_id
   )
 
+dat_spt_food_pos <- dat_spt |>
+  filter(!(spt_tested %in% c("D.pteronyssinus", "cat dander", "perennial ryegrass"))) |>
+  summarise_spt_positive()
+dat_spt_food_pos_any <- dat_spt_food_pos |>
+  summarise(
+    any_pos_spt = any(any_spt_pos_1mm & spt_age < 19),
+    .by = record_id
+  )
+
 # Dataset used for SPT outcome analyses
 dat_spt_analysis <- dat_spt |>
   summarise(
@@ -251,3 +260,61 @@ dat_ecz_analysis <- dat_ecz_spt |>
       select(record_id, rand_site, gender, bfed, fborn, parinc_imp, ces, fha),
     join_by(record_id)
   )
+
+
+# More data and visit checks ----
+dat_ofc_raw <- select_form(dat_raw, "food_challenge")
+dat_out_raw <- select_form(dat_raw, "outcome_report")
+dat_spt_raw <- select_form(dat_raw, "skin_prick_test")
+
+# dat_grid_vs |>
+#   filter(rand_stage == 2) |>
+#   select(
+#     record_id,
+#     subjid,
+#     birthdat,
+#     visdat1,
+#     visage,
+#     visdat,
+#     visit_gap,
+#     visit_attended,
+#     windyn,
+#     windreas,
+#     windothspec
+#   ) |>
+#   filter(visage == "12-month") |>
+#   mutate(
+#     visage_obs = time_length(interval(birthdat, visdat), "months")
+#   ) |>
+#   left_join(dat_spt_raw) |>
+#   mutate(priage_obs = time_length(interval(birthdat, pridat), "months")) |>
+#   filter(!visit_attended, priyn)
+
+# Missed visits
+# dat_grid_vs |>
+#   filter(visage %in% c("12-month", "18-month")) |>
+#   select(subjid, trt, visage, visit_attended) |>
+#   pivot_wider(names_from = visage, values_from = visit_attended) |>
+#   count(trt, `12-month`, `18-month`)
+
+# Early Terminations
+
+# dat_base |>
+#   select(subjid, disc_age_mth, streas, stetrreas, ippvspec) |>
+#   filter(streas != "Completed protocol") |>
+#   filter_out(grepl("deviation", stetrreas)) |>
+#   print(n = Inf)
+
+# How many infants had no SPT
+
+# What was the earliest termination which had an outcome reported?
+# dat_base |>
+#   select(record_id, subjid, streas, stetrreas, birthdat, discdat, disc_age_mth) |>
+#   left_join(
+#     dat_out_raw |>
+#       filter(outallyn) |>
+#       select(record_id, outalltp, outrepdat, outawardat, outdiagdat, outfrasource)
+#   ) |>
+#   arrange(disc_age_mth) |>
+#   mutate(across(outrepdat:outdiagdat, ~ time_length(interval(birthdat, .x), "months"), .names = "age_{.col}")) |>
+#   print(n = Inf)
