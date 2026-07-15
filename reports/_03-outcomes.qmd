@@ -413,7 +413,7 @@ dat_spt |>
   cat()
 ```
 
-In some cases, egg was split into egg white or whole egg. The following table combines the above to tables, grouping together any "egg" components which were tested.
+In some cases, egg was split into egg white or whole egg. The following table combines the above two tables, grouping together any "egg" components which were tested.
 
 ```{r}
 #| label: tbl-spt-positive-tested-combined
@@ -520,7 +520,7 @@ diff_outcome <- dat_outcome |>
   mutate(.draw = 1:n()) |>
   ungroup() |>
   pivot_wider(names_from = "trt", values_from = "post_drws") |>
-  mutate(delta = wP - aP)
+  mutate(aP = 100 * aP, wP = 100 * wP, delta = wP - aP)
 
 diff_2c <- filter(diff_outcome, size == "1mm")
 diff_2d <- filter(diff_outcome, size == "3mm")
@@ -565,10 +565,10 @@ fit_outcome <- dat_spt_analysis |>
         add_epred_rvars(y, value = ".epred_wP") |>
         mutate(wgt = wgt) |>
         summarise(
-          aP = rvar_mean(.epred_aP),
-          wP = rvar_mean(.epred_wP),
-          .rd_empirical = rvar_mean(.epred_wP - .epred_aP),
-          .rd_bootstrap = rvar_sum((.epred_wP - .epred_aP) * wgt)
+          aP = rvar_mean(100 * .epred_aP),
+          wP = rvar_mean(100 * .epred_wP),
+          .rd_empirical = 100 * rvar_mean(.epred_wP - .epred_aP),
+          .rd_bootstrap = 100 * rvar_sum((.epred_wP - .epred_aP) * wgt)
         )
     })
   )
@@ -634,7 +634,8 @@ dat_outcome |>
   ) |>
   gt(groupname_col = "model", rowname_col = "size") |>
   fmt_percent(starts_with("p_"), decimals = 0) |>
-  fmt_number(starts_with(c("med", "lo", "hi", "pr")), decimals = 2) |>
+  fmt_number(starts_with(c("med", "lo", "hi")), decimals = 1) |>
+  fmt_number(starts_with(c("pr")), decimals = 2) |>
   cols_align(align = "left", columns = 1) |>
   cols_merge(
     c(y_aP, n_aP, p_aP),
@@ -823,11 +824,11 @@ p1 <- diff_outcome |>
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_x_continuous(breaks = seq(-10, 10, 2), limits = c(-10, 10)) +
   scale_y_continuous(limits = ~ range(.x, -0.05)) +
   labs(
     fill = "Interval",
-    x = "Difference in skin prick test sensitisation, wP - aP",
+    x = "Difference in skin prick test sensitisation, wP - aP, %pt.",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -863,11 +864,11 @@ p2 <- fit_outcome |>
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_x_continuous(breaks = seq(-10, 10, 2), limits = c(-10, 10)) +
   scale_y_continuous(limits = ~ range(.x, -0.05)) +
   labs(
     fill = "Interval",
-    x = "Difference in skin prick test sensitisation, wP - aP",
+    x = "Difference in skin prick test sensitisation, wP - aP, %pt.",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -1599,10 +1600,11 @@ The results between the primary analysis (unadjusted) and secondary (adjusted) a
 A pre-specified stopping rule was to assess the predicted probability of success (PPoS) up to the planned maximum sample size of 2,000 infants (1,000 per arm). Success required that the probability of a reduction in IgE-mediated food allergy exceed 0.95. Calculation of PPoS used the posterior predictive distribution under each arm to impute outcomes for future participantts. If PPoS < 0.05 then the trial was to be stopped for  futility. At the time of stopping, 486 participants had been assigned to each arm with 514 further infants required to reach 1,000 per arm. At this stage, $\text{PPoS} \approx `{r} ppos1` < 0.05$ and would have met the futility criteria. 
 
 ```{r}
-#| label: tbl-posterior-primary
+#| label: tbl-posterior-primary-raw
 #| tbl-cap: |
 #|   Posterior summaries for risk and difference in risk of IgE-mediated food allergy.
 #| tbl-pos: "H"
+#| include: false
 diff_agg <- po_diff |>
   nest_rvars() |>
   ungroup() |>
@@ -1694,11 +1696,11 @@ po_sum |>
 ```
 
 ```{r}
-#| label: tbl-posterior-primary-pp
+#| label: tbl-posterior-primary
 #| tbl-cap: |
 #|   Posterior summaries for risk and difference in risk of IgE-mediated food allergy.
 #| tbl-pos: "H"
-#| include: false
+#| include: true
 diff_agg <- po_diff |>
   nest_rvars() |>
   mutate(across(aP:delta, ~ 100 * .x)) |>
@@ -1722,6 +1724,7 @@ diff_agg <- po_diff |>
       rename(delta = .rd_empirical) |>
       select(aP, wP, delta) |>
       mutate(model = "Adjusted") |>
+      mutate(across(aP:delta, ~ 100 * .x)) |>
       mutate(across(
         aP:delta,
         list(
@@ -1800,7 +1803,7 @@ po_sum |>
 #| include: false
 p1 <- po_diff |>
   nest_rvars() |>
-  ggplot(aes(xdist = delta)) +
+  ggplot(aes(xdist = 100 * delta)) +
   stat_histinterval(
     aes(fill = after_stat(level)),
     breaks = 100,
@@ -1811,11 +1814,11 @@ p1 <- po_diff |>
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_x_continuous(breaks = seq(-10, 10, 2), limits = c(-10, 10)) +
   scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
-    x = "Difference in IgE-mediated food allergy risk, wP - aP",
+    x = "%pt. difference in IgE-mediated food allergy risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -1829,7 +1832,7 @@ p1
 #| fig-height: 2
 #| fig-width: 5
 #| include: false
-p2 <- ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
+p2 <- ggplot(dat_rd_po, aes(xdist = 100 * .rd_bootstrap)) +
   stat_histinterval(
     aes(fill = after_stat(level)),
     breaks = 100,
@@ -1840,11 +1843,11 @@ p2 <- ggplot(dat_rd_po, aes(xdist = .rd_bootstrap)) +
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_x_continuous(breaks = seq(-10, 10, 2), limits = c(-10, 10)) +
   scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
-    x = "Difference in IgE-mediated food allergy risk, wP - aP",
+    x = "%pt. difference in IgE-mediated food allergy risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -2931,10 +2934,11 @@ fit_outcome <- dat_ecz_analysis |>
 
 
 ```{r}
-#| label: tbl-posterior-eczema
+#| label: tbl-posterior-eczema-raw
 #| tbl-cap: |
 #|   Posterior summaries for risk and difference in risk of eczema by age of onset.
 #| tbl-pos: "H"
+#| include: false
 diff_agg <- diff_outcome |>
   group_by(age) |>
   nest_rvars() |>
@@ -3028,11 +3032,11 @@ dat_outcome |>
 ```
 
 ```{r}
-#| label: tbl-posterior-eczema-pp
+#| label: tbl-posterior-eczema
 #| tbl-cap: |
 #|   Posterior summaries for risk and difference in risk of eczema by age of onset.
 #| tbl-pos: "H"
-#| include: false
+#| include: true
 diff_agg <- diff_outcome |>
   group_by(age) |>
   nest_rvars() |>
@@ -3086,6 +3090,7 @@ dat_outcome |>
   fmt_percent(starts_with("p_"), decimals = 1) |>
   fmt_number(starts_with(c("med", "lo", "hi")), decimals = 1) |>
   fmt_number(starts_with(c("pr")), decimals = 2) |>
+  cols_align("left", 1) |>
   cols_merge(
     c(y_aP, n_aP, p_aP),
     pattern = "{1}/{2} ({3})"
@@ -3141,7 +3146,7 @@ dat_outcome |>
 p1 <- diff_outcome |>
   group_by(age) |>
   nest_rvars() |>
-  ggplot(aes(xdist = delta)) +
+  ggplot(aes(xdist = 100 * delta)) +
   facet_wrap(~age, ncol = 1) +
   stat_histinterval(
     aes(fill = after_stat(level)),
@@ -3153,11 +3158,11 @@ p1 <- diff_outcome |>
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_x_continuous(breaks = seq(-10, 10, 2), limits = c(-8, 8)) +
   scale_y_continuous(limits = ~ range(.x, -0.1)) +
   labs(
     fill = "Interval",
-    x = "Difference in eczema risk, wP - aP",
+    x = "%pt. difference in eczema risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
@@ -3174,7 +3179,7 @@ p1
 #| include: false
 p2 <- fit_outcome |>
   unnest(rd) |>
-  ggplot(aes(xdist = .rd_bootstrap)) +
+  ggplot(aes(xdist = 100 * .rd_bootstrap)) +
   facet_wrap(~age, ncol = 1) +
   stat_histinterval(
     aes(fill = after_stat(level)),
@@ -3186,11 +3191,11 @@ p2 <- fit_outcome |>
   ) +
   geom_vline(xintercept = 0, linetype = 2) +
   scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
-  scale_x_continuous(breaks = seq(-0.1, 0.1, 0.02), limits = c(-0.08, 0.08)) +
+  scale_x_continuous(breaks = seq(-10, 10, 2), limits = c(-8, 8)) +
   scale_y_continuous(limits = ~ range(.x, -0.15)) +
   labs(
     fill = "Interval",
-    x = "Difference in eczema risk, wP - aP",
+    x = "%pt. difference in eczema risk, wP - aP",
     y = "Density"
   ) +
   guides(fill = guide_legend(override.aes = list(point_size = NA)))
