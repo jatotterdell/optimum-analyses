@@ -485,6 +485,9 @@ tab <- dat_ige |>
     names_vary = "slowest"
   ) |>
   to_factor() |>
+  mutate(
+    allergen = fct_relevel(allergen, "Total IgE")
+  ) |>
   arrange(allergen, visit_age)
 
 gt(tab, groupname_col = "allergen", rowname_col = "visit_age") |>
@@ -550,6 +553,9 @@ sample_gmr <- dat_ige |>
   # filter(allergen %in% c("Total IgE", "Tetanus-toxoid", "Egg white", "Whole egg")) |>
   mutate(
     ige = if_else(ige == 0, 0.0005, ige)
+  ) |>
+  mutate(
+    allergen = fct_relevel(allergen, "Total IgE")
   ) |>
   arrange(subjid, allergen, visit_age) |>
   mutate(
@@ -1974,6 +1980,147 @@ out <- res_sens |>
   ) |>
   tab_options(table.font.size = px(9))
 out
+```
+
+\clearpage
+
+### 19-month only
+
+In the following, analysis is restricted to only the 19-month IgE measurements.
+
+```{r}
+#| label: tbl-ige-gmr-19month
+#| tbl-cap: |
+#|   Estimated geometric mean ratio (GMR) at 19-months of age, wP versus aP, by allergen.
+#| tbl-pos: "H"
+pr1 <- c(
+  prior(normal(0, 10), class = "Intercept"),
+  prior(normal(0, 10), class = "b"),
+  prior(cauchy(0, 10), class = "sigma")
+)
+pr2 <- c(
+  prior(student_t(4, 0, 1.75), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = b)
+)
+
+dat_ige_19m <- dat_ige |>
+  filter(visit_age == "19-month") |>
+  mutate(
+    ige_cens = if_else(ige == 0, 0.001, ige),
+    cens = -1 * as.integer(ige == 0),
+    ige_quant = as.numeric(ige >= 0.01),
+    ige_sens = as.numeric(ige >= 0.1)
+  ) |>
+  nest(dat = -allergen) |>
+  mutate(
+    fit1 = map(
+      dat,
+      ~ brm(
+        ige_cens | cens(cens) ~ trt,
+        family = lognormal(),
+        prior = pr1,
+        data = .x,
+        silent = 2,
+        seed = 91835
+      )
+    ),
+    gmr1 = map(fit1, ~ exp(as_draws_rvars(.x)$b_trtwP)),
+    fit2 = map(
+      dat,
+      ~ brm(
+        ige_quant ~ trt,
+        family = bernoulli(),
+        prior = pr2,
+        data = .x,
+        silent = 2,
+        seed = 91835
+      )
+    ),
+    rd2 = map(
+      fit2,
+      ~ tibble(trt = c("aP", "wP")) |>
+        add_epred_rvars(.x) |>
+        summarise(rd2 = 100 * (.epred[2] - .epred[1]))
+    ),
+    fit3 = map(
+      dat,
+      ~ brm(
+        ige_sens ~ trt,
+        family = bernoulli(),
+        prior = pr2,
+        data = .x,
+        silent = 2,
+        seed = 91835
+      )
+    ),
+    rd3 = map(
+      fit3,
+      ~ tibble(trt = c("aP", "wP")) |>
+        add_epred_rvars(.x) |>
+        summarise(rd3 = 100 * (.epred[2] - .epred[1]))
+    )
+  )
+
+tab_desc <- dat_ige_19m |>
+  unnest(dat) |>
+  mutate(ige = if_else(ige == 0, 0.0005, ige)) |>
+  summarise(
+    n = sum(!is.na(ige)),
+    gmc = gmc(ige, na.rm = TRUE),
+    quan = mean(ige_quant, na.rm = TRUE),
+    sens = mean(ige_sens, na.rm = TRUE),
+    .by = c(allergen, trt)
+  ) |>
+  mutate(allergen = fct_relevel(allergen, "Total IgE")) |>
+  arrange(allergen, trt) |>
+  pivot_wider(names_from = trt, values_from = c(n, gmc, quan, sens))
+# mutate(gmr = c(NA, gmc[2] / gmc[1]), .by = allergen)
+
+tab_mod <- dat_ige_19m |>
+  unnest(gmr1) |>
+  unnest(rd2) |>
+  unnest(rd3) |>
+  mutate(allergen = fct_relevel(allergen, "Total IgE")) |>
+  arrange(allergen) |>
+  mutate(
+    across(
+      c(gmr1, rd2, rd3),
+      list(
+        med = ~ median(.x),
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975)
+      )
+    )
+  ) |>
+  select(allergen, ends_with(c("med", "lo", "hi")))
+
+# For memory
+rm(dat_ige_19m)
+
+left_join(tab_desc, tab_mod, join_by(allergen)) |>
+  gt() |>
+  cols_align("left", 1) |>
+  fmt_number(gmc_aP:last_col(), decimals = 2) |>
+  fmt_percent(starts_with(c("quan", "sens")), decimals = 0) |>
+  fmt_number(starts_with("rd2"), decimals = 0) |>
+  fmt_number(starts_with("rd3"), decimals = 0) |>
+  cols_merge(starts_with("gmr1"), pattern = "<<{1} ({2}, {3})>>") |>
+  cols_merge(starts_with("rd2"), pattern = "<<{1} ({2}, {3})>>") |>
+  cols_merge(starts_with("rd3"), pattern = "<<{1} ({2}, {3})>>") |>
+  tab_spanner(ends_with("_aP"), label = "aP") |>
+  tab_spanner(ends_with("_wP"), label = "wP") |>
+  tab_spanner(ends_with("med"), label = "Median (95% CrI)") |>
+  cols_label(
+    allergen ~ "IgE Type",
+    starts_with("n_") ~ "N",
+    starts_with("gmc_") ~ "GMC",
+    starts_with("quan_") ~ md("&ge;0.01"),
+    starts_with("sens_") ~ md("&ge;0.1"),
+    gmr1_med ~ "GMR",
+    rd2_med ~ md("Diff. &ge;0.01"),
+    rd3_med ~ md("Diff. &ge;0.1")
+  ) |>
+  tab_options(table.font.size = px(9))
 ```
 
 \clearpage
