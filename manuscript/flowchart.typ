@@ -46,10 +46,10 @@
     (-1, 0.5),
     align(left)[
       #node-grid(
-        [Declined follow-up],
-        [*1,591*],
         [Lost to follow-up],
         [*1,646*],
+        [Declined follow-up],
+        [*1,591*],
       )
     ],
     name: <declined-1>,
