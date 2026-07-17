@@ -85,8 +85,32 @@
   ),
 
   node((0, 3), [Randomised\ *972*], name: <randomised>, width: node-width),
-  node((-1, 4), [Assigned aP-only\ *486*], name: <aP>, width: node-width),
-  node((1, 4), [Assigned mixed wP/aP\ *486*], name: <wP>, width: node-width),
+  node(
+    (-1, 4),
+    align(left)[#node-grid(
+      [Assigned to aP-only],
+      [*486*],
+      [- Received aP as first-dose],
+      [*485*],
+      [- Recieved wP as first-dose],
+      [*1*],
+    )],
+    name: <aP>,
+    width: node-width,
+  ),
+  node(
+    (1, 4),
+    align(left)[#node-grid(
+      [Assigned to mixed wP/aP],
+      [*486*],
+      [- Received wP as first-dose],
+      [*486*],
+      [- Received aP as first -dose],
+      [*0*],
+    )],
+    name: <wP>,
+    width: node-width,
+  ),
 
   node(
     (-1, 5),
