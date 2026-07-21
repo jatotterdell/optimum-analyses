@@ -1137,7 +1137,6 @@ plot_stage1 <- (make_km_plot(p1, y, event, trt, "Rice cereal") +
 plot_stage1
 ```
 
-
 ```{r}
 #| label: fig-kaplan-meier-food-intro-stage2
 #| fig-cap: |
@@ -1187,7 +1186,77 @@ plot_stage2 <- (make_km_plot(p1, y, event, trt, "Rice cereal") +
 plot_stage2
 ```
 
+```{r}
+#| label: fig-kaplan-meier-food-intro-both
+#| fig-cap: |
+#|   Age of food introduction for all participants combined.
+#|   Censored observations are marked by a cross.
+#| fig-width: 5
+#| fig-height: 7
+p1 <- bind_rows(
+  plot_food_introduction_stage1(fefoodng1, fefoodag1, trt),
+  plot_food_introduction_stage2(fefoodng1, fefooddat1, trt)
+)
+p2 <- bind_rows(
+  plot_food_introduction_stage1(fefoodng2, fefoodag2, trt),
+  plot_food_introduction_stage2(fefoodng2, fefooddat2, trt)
+)
+p3 <- bind_rows(
+  plot_food_introduction_stage1(fefoodng3, fefoodag3, trt),
+  plot_food_introduction_stage2(fefoodng3, fefooddat3, trt)
+)
+p4 <- bind_rows(
+  plot_food_introduction_stage1(fefoodng4, fefoodag4, trt),
+  plot_food_introduction_stage2(fefoodng4, fefooddat4, trt)
+)
+p5 <- bind_rows(
+  plot_food_introduction_stage1(fefoodng5, fefoodag5, trt),
+  plot_food_introduction_stage2(fefoodng5, fefooddat5, trt)
+)
+p6 <- bind_rows(
+  plot_food_introduction_stage1(fefoodng6, fefoodag6, trt),
+  plot_food_introduction_stage2(fefoodng6, fefooddat6, trt)
+)
+p7 <- bind_rows(
+  plot_food_introduction_stage1(fefoodng7, fefoodag7, trt),
+  plot_food_introduction_stage2(fefoodng7, fefooddat7, trt)
+)
+p8 <- bind_rows(
+  plot_food_introduction_stage1(fefoodng8, fefoodag8, trt),
+  plot_food_introduction_stage2(fefoodng8, fefooddat8, trt)
+)
 
+des <- "
+12
+34
+56
+78
+99
+"
+plot_both <- (make_km_plot(p1, y, event, trt, "Rice cereal") +
+  make_km_plot(p2, y, event, trt, "Cow's milk") +
+  (make_km_plot(p3, y, event, trt, "Fruit") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p4, y, event, trt, "Vegetables") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p5, y, event, trt, "Meat") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p6, y, event, trt, "Fish") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p7, y, event, trt, "Egg") +
+    theme(legend.position = "none")) +
+  (make_km_plot(p8, y, event, trt, "Peanut") +
+    theme(legend.position = "none")) +
+  guide_area()) +
+  plot_layout(
+    design = des,
+    heights = c(1, 1, 1, 1, 0.25),
+    guides = "collect",
+    axes = "collect_y"
+  )
+
+plot_both
+```
 
 ```{=latex}
 \clearpage
