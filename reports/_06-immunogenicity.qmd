@@ -1989,9 +1989,34 @@ out
 In the following, analysis is restricted to only the 19-month IgE measurements.
 
 ```{r}
+#| label: fig-ige-19month
+#| fig-cap: |
+#|   Distribution of IgE (kU/L) concentrations at 19-months of age by IgE type and assigned treatment group.
+#| fig-width: 6
+#| fig-height: 5
+dat_ige |>
+  mutate(allergen = fct_relevel(allergen, "Total IgE")) |>
+  # filter(allergen != "Total IgE") |>
+  filter(visit_age == "19-month") |>
+  ggplot(aes(pmax(0.0005, ige))) +
+  facet_wrap(~allergen, ncol = 4) +
+  stat_ecdf(aes(colour = trt, y = after_stat(1 - y))) +
+  geom_vline(xintercept = c(1 / 100, 1 / 10), linetype = 2) +
+  scale_x_log10(
+    "IgE (kU/L)",
+    breaks = c(1 / 1000, 1 / 100, 1 / 10, 1, 10, 100, 1000),
+    labels = label_log()
+  ) +
+  scale_y_continuous("1 - eCDF", breaks = seq(0, 1, 0.2)) +
+  # scale_x_log10("IgE (kU/L)", breaks = c(1 / 100, 1 / 10, 1, 10, 100), labels = ~ sprintf("%.2f", .x)) +
+  scale_colour_manual("Group", values = c("black", "orange")) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
 #| label: tbl-ige-gmr-19month
 #| tbl-cap: |
-#|   Estimated geometric mean ratio (GMR) at 19-months of age, wP versus aP, by allergen.
+#|   Estimated geometric mean ratio (GMR) and %pt difference in quantitation and sensitisation at 19-months of age, wP versus aP, by allergen.
 #| tbl-pos: "H"
 pr1 <- c(
   prior(normal(0, 10), class = "Intercept"),
