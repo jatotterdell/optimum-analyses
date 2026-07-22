@@ -266,6 +266,39 @@ dat_ecz_analysis <- dat_ecz_spt |>
 dat_ofc_raw <- select_form(dat_raw, "food_challenge")
 dat_out_raw <- select_form(dat_raw, "outcome_report")
 dat_spt_raw <- select_form(dat_raw, "skin_prick_test")
+dat_pa_raw <- select_form(dat_raw, "participant_assessment")
+dat_pe_raw <- select_form(dat_raw, "physical_examination")
+
+dat_vs_spt <- dat_grid_vs |>
+  select(
+    record_id,
+    subjid,
+    trt,
+    birthdat,
+    streas,
+    stetrreas,
+    ippvspec,
+    discdat,
+    disc_age_mth,
+    visage,
+    visdat,
+    age_months,
+    visit_attended,
+    windyn,
+    windreas,
+    windothspec
+  ) |>
+  filter(visage == "12-month") |>
+  left_join(
+    dat_spt_raw |>
+      filter(is.na(unvisyn)) |>
+      filter(row_number() == 1, .by = record_id) |>
+      select(record_id, priyn, prinspec, pridat),
+    join_by(record_id)
+  ) |>
+  mutate(
+    priage = time_length(interval(birthdat, pridat), "months")
+  )
 
 # dat_grid_vs |>
 #   filter(rand_stage == 2) |>
