@@ -1,0 +1,21 @@
+---
+title: |
+  Efficacy of an early first dose of whole-cell pertussis vaccine in infants for the prevention of IgE-mediated food allergy: A randomised controlled trial
+subtitle: |
+  Supplementary material
+date: last-modified
+format:
+  pdf: default
+---
+
+![Age (days) at food introduction by type of food and assigned study group. Censored observations are marked by a cross.](../reports/clinical-trial-report_files/figure-pdf/fig-kaplan-meier-food-intro-both-1.pdf)
+
+![Posterior density for difference in risk of IgE-mediated food allergy by model. Unadjusted model was the primary Beta-Binomial model and adjusted model was logistic regression with terms for the specified baseline factors. For the adjusted model, the posterior risk difference was standardised to the trial sample.](../reports/clinical-trial-report_files/figure-pdf/fig-posterior-difference-primary-unadjusted-adjusted-1.pdf)
+
+![Posterior density for difference in risk of new-onset eczema by model. For the adjusted model, the risk difference was standardised to the trial sample.](../reports/clinical-trial-report_files/figure-pdf/fig-posterior-difference-eczema-unadjusted-adjusted-1.pdf)
+
+![Posterior density for difference in risk of skin prick test sensitisation by model. For the adjusted model, the risk difference was standardised to the trial sample.](../reports/clinical-trial-report_files/figure-pdf/fig-posterior-difference-spt-unadjusted-adjusted-1.pdf)
+
+![Wheal diameter size amongst participants with an SPT reaction (diameter >0mm) by tested allergen and assigned study group.](../reports/clinical-trial-report_files/figure-pdf/fig-spt-magnitude-1.pdf)
+
+![Distribution of total and allergen-specific IgE concentrations (kU/L) by assigned study group. Vertical dotted lines indicate 0.01 and 0.1 kU/L](../reports/clinical-trial-report_files/figure-pdf/fig-ige-19month-1.pdf)
