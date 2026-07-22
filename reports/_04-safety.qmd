@@ -223,7 +223,7 @@ dat_base_ae |>
 #|   Number and proportion of infants with any adverse events and the number of adverse events per infant for the first 300 participants at PCH.
 #| tbl-pos: "H"
 #| results: "asis"
-dat_base_ae |>
+tab1 <- dat_base_ae |>
   filter(
     rand_site == "PCH",
     when_any(rand_stage == 1, rand_stage == 2 & as.numeric(substr(record_id, 6, 9)) <= 150)
@@ -236,7 +236,7 @@ dat_base_ae |>
     `Any severe AE` = any(aesev == "Severe", na.rm = TRUE),
     `Number of AEs` = sum(!is.na(aecode1)),
     `Number of SAEs` = factor(sum(aetype == "SAE", na.rm = TRUE), levels = 0:3),
-    `Number of related AEs` = sum(aerel == "Related", na.rm = TRUE),
+    `Number of related AEs` = factor(sum(aerel == "Related", na.rm = TRUE), levels = 0:2),
     .by = c(record_id, trt)
   ) |>
   mutate(
@@ -256,7 +256,8 @@ dat_base_ae |>
         "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
         "N = {formatC(n, format='d', big.mark=',')}}}"
       )
-  ) |>
+  )
+tab1 |>
   as_gt() |>
   tab_options(
     table.font.size = px(9),
@@ -274,7 +275,7 @@ dat_base_ae |>
 #|   Number and proportion of infants with any adverse events and the number of adverse events per infant for remaining PCH participants and participants at a site other than PCH.
 #| tbl-pos: "H"
 #| results: "asis"
-dat_base_ae |>
+tab2 <- dat_base_ae |>
   filter_out(
     rand_site == "PCH",
     when_any(rand_stage == 1, rand_stage == 2 & as.numeric(substr(record_id, 6, 9)) <= 150)
@@ -286,12 +287,12 @@ dat_base_ae |>
     `Any related SAE` = any(aetype == "SAE" & aerel == "Related", na.rm = TRUE),
     `Any severe AE` = any(aesev == "Severe", na.rm = TRUE),
     `Number of AEs` = sum(!is.na(aecode1)),
-    `Number of SAEs` = factor(sum(aetype == "SAE", na.rm = TRUE), levels = 0:2),
-    `Number of related AEs` = sum(aerel == "Related", na.rm = TRUE),
+    `Number of SAEs` = factor(sum(aetype == "SAE", na.rm = TRUE), levels = 0:3),
+    `Number of related AEs` = factor(sum(aerel == "Related", na.rm = TRUE), levels = 0:2),
     .by = c(record_id, trt)
   ) |>
   mutate(
-    `Number of related AEs` = ordered(`Number of related AEs`)
+    `Number of AEs` = fct_relabel(factor(`Number of AEs`, levels = 0:5), ~ if_else(.x > 4, "5+", .x))
   ) |>
   tbl_summary(
     by = "trt",
@@ -307,7 +308,26 @@ dat_base_ae |>
         "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
         "N = {formatC(n, format='d', big.mark=',')}}}"
       )
+  )
+tab2 |>
+  as_gt() |>
+  tab_options(
+    table.font.size = px(9),
+    table.width = pct(70),
+    latex.use_longtable = TRUE
   ) |>
+  as_latex() |>
+  latex_unescape() |>
+  cat()
+```
+
+```{r}
+#| label: tbl-summary-ae-combined
+#| tbl-cap: |
+#|   Number and proportion of infants with any adverse events and the number of adverse events per infant for all participants stratified by receipt of intensive monitoring.
+#| tbl-pos: "H"
+#| results: "asis"
+tbl_merge(list(tab1, tab2), c("First 300 PCH", "Remaining")) |>
   as_gt() |>
   tab_options(
     table.font.size = px(9),
