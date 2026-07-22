@@ -1,32 +1,7 @@
 project:
-  type: manuscript
-  output-dir: _manuscript
+  type: default
+  output-dir: _reports
   execute-dir: project
 
-manuscript: 
-  article: index-manuscript.qmd
-  notebooks: 
-    - notebook: notebooks/baseline-summary.qmd
-    - notebook: notebooks/outcomes.qmd
-
 format:
-  html:
-    theme: journal
-    fontsize: 1em
-    html-table-processing: none
-    cap-location: margin
-    toc-expand: true
-    grid:
-      body-width: 800px
-      sidebar-width: 250px
-      margin-width: 200px
-
   pdf: default
-
-format-links:
-  - pdf
-
-execute: 
-  freeze: false
-  warning: false
-  message: false

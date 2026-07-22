@@ -40,4 +40,5 @@ render-presentation:
 
 # Render manuscript
 render-manuscript:
-  quarto render --profile report manuscript/optimum-manuscript.qmd
+  quarto render --profile manuscript manuscript/optimum-manuscript.qmd
+  quarto render --profile manuscript manuscript/optimum-manuscript-supplement.qmd
