@@ -809,9 +809,10 @@ p1 <- diff_outcome |>
     size = factor(
       size,
       levels = c("0mm", "1mm", "3mm"),
-      labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]")
+      labels = c(">0mm", ">1mm vs ctrl.", "≥3mm vs ctrl.")
     )
   ) |>
+  filter(size != ">0mm") |>
   ggplot(aes(xdist = delta)) +
   facet_wrap(size ~ ., ncol = 1) +
   stat_histinterval(
@@ -849,9 +850,10 @@ p2 <- fit_outcome |>
     size = factor(
       size,
       levels = c("0mm", "1mm", "3mm"),
-      labels = c(">0mm", ">1mm vs ctrl. [2.c]", "≥3mm vs ctrl. [2.d]")
+      labels = c(">0mm", ">1mm vs ctrl.", "≥3mm vs ctrl.")
     )
   ) |>
+  filter(size != ">0mm") |>
   ggplot(aes(xdist = .rd_bootstrap)) +
   facet_wrap(~size, ncol = 1) +
   stat_histinterval(
@@ -1874,6 +1876,246 @@ p2
 
 \clearpage
 
+### Oral food challenge model
+
+```{r}
+#| label: primary-ofc-only-analysis
+set.seed(7761)
+po_ofc_sum <- dat_po |>
+  summarise(
+    n = n(),
+    y = sum(po_ofc),
+    p = y / n,
+    a = 1 + y,
+    b = 1 + n - y,
+    l = 1000 - n,
+    post = dist_beta(a, b),
+    .by = trt
+  ) |>
+  mutate(
+    p_sup = c(NA, beta_ineq_sim(a, b)),
+    ppos1 = c(NA, calc_ppos(a, b, l, 0.95, post_method = "sim", post_sim = 2e4))
+  )
+po_ofc_diff <- po_ofc_sum |>
+  mutate(post_drws = generate(post, 1e6)) |>
+  select(trt, post_drws) |>
+  unnest(post_drws) |>
+  group_by(trt) |>
+  mutate(.draw = 1:n()) |>
+  ungroup() |>
+  pivot_wider(names_from = "trt", values_from = "post_drws") |>
+  mutate(delta = wP - aP)
+
+prior <- c(
+  prior(logistic(0, 1), class = "Intercept"),
+  prior(student_t(4, 0, 1.75), class = "b")
+)
+fit_ofc <- brm(
+  po_ofc ~ trt + rand_site + gender + bfed + fborn + parinc_imp + ces + fha,
+  data = dat_po,
+  family = bernoulli(),
+  prior = prior,
+  warmup = 500,
+  iter = 5500,
+  refresh = 0,
+  silent = 2,
+  seed = 54123
+)
+
+wgt <- c(rdo(rdirichlet(1, rep(1, 972)), ndraws = ndraws(fit)))
+dat_rd_po_ofc <- dat_po |>
+  mutate(trt = "aP") |>
+  add_epred_rvars(fit_ofc, value = ".epred_aP") |>
+  mutate(trt = "wP") |>
+  add_epred_rvars(fit_ofc, value = ".epred_wP") |>
+  mutate(wgt = wgt) |>
+  summarise(
+    aP = rvar_mean(.epred_aP),
+    wP = rvar_mean(.epred_wP),
+    .rd_empirical = rvar_mean(.epred_wP - .epred_aP),
+    .rd_bootstrap = rvar_sum((.epred_wP - .epred_aP) * wgt)
+  )
+```
+
+
+```{r}
+#| label: tbl-posterior-ofc-analysis
+#| tbl-cap: |
+#|   Posterior summaries for risk and difference in risk of positive oral food challenge.
+#| tbl-pos: "H"
+#| include: true
+diff_agg <- po_ofc_diff |>
+  nest_rvars() |>
+  mutate(across(aP:delta, ~ 100 * .x)) |>
+  ungroup() |>
+  mutate(
+    model = "Unadjusted",
+    across(
+      aP:delta,
+      list(
+        med = median,
+        lo = ~ quantile2(.x, 0.025),
+        hi = ~ quantile2(.x, 0.975),
+        pr = ~ Pr(.x < 0)
+      ),
+      .names = "{.fn}_{.col}"
+    )
+  ) |>
+  select(-aP, -wP, -delta) |>
+  bind_rows(
+    dat_rd_po_ofc |>
+      rename(delta = .rd_empirical) |>
+      select(aP, wP, delta) |>
+      mutate(model = "Adjusted") |>
+      mutate(across(aP:delta, ~ 100 * .x)) |>
+      mutate(across(
+        aP:delta,
+        list(
+          med = median,
+          lo = ~ quantile2(.x, 0.025),
+          hi = ~ quantile2(.x, 0.975),
+          pr = ~ Pr(.x < 0)
+        ),
+        .names = "{.fn}_{.col}"
+      )) |>
+      select(-aP, -wP, -delta)
+  ) |>
+  select(-pr_aP, -pr_wP)
+
+po_ofc_sum |>
+  select(trt, n, y, p) |>
+  pivot_wider(
+    names_from = trt,
+    values_from = c(n, y, p)
+  ) |>
+  bind_cols(diff_agg) |>
+  gt(rowname_col = "model") |>
+  fmt_percent(starts_with("p_"), decimals = 1) |>
+  fmt_number(starts_with(c("med", "lo", "hi")), decimals = 1) |>
+  fmt_number(starts_with(c("pr")), decimals = 2) |>
+  cols_merge(
+    c(y_aP, n_aP, p_aP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_aP, lo_aP, hi_aP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(y_wP, n_wP, p_wP),
+    pattern = "{1}/{2} ({3})"
+  ) |>
+  cols_merge(
+    c(med_wP, lo_wP, hi_wP),
+    pattern = "{1} ({2}, {3})"
+  ) |>
+  cols_merge(
+    c(med_delta, lo_delta, hi_delta, pr_delta),
+    pattern = "{1} ({2}, {3}), {4}"
+  ) |>
+  tab_spanner(
+    columns = ends_with("aP"),
+    label = "aP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("wP"),
+    label = "wP"
+  ) |>
+  tab_spanner(
+    columns = ends_with("delta"),
+    label = "Difference"
+  ) |>
+  cols_label(
+    c(y_aP, y_wP) ~ "y/n (%)"
+  ) |>
+  cols_label(
+    c(med_aP, med_wP) ~ "Median (95% CrI)"
+  ) |>
+  cols_label(
+    c(med_delta) ~ "Median (95% CrI), Pr(<0)"
+  ) |>
+  tab_options(table.font.size = px(9))
+```
+```{r}
+#| label: fig-posterior-density-ofc-analysis
+#| fig-cap: |
+#|   Posterior density for difference in risk of positive oral food challenge, unadjusted primary model.
+#| fig-height: 2
+#| fig-width: 5
+#| include: false
+p1 <- po_ofc_diff |>
+  nest_rvars() |>
+  ggplot(aes(xdist = 100 * delta)) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    point_size = 1.5,
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = seq(-10, 10, 2), limits = c(-10, 10)) +
+  scale_y_continuous(limits = ~ range(.x, -0.1)) +
+  labs(
+    fill = "Interval",
+    x = "%pt. difference in positive OFC risk, wP - aP",
+    y = "Density"
+  ) +
+  guides(fill = guide_legend(override.aes = list(point_size = NA)))
+p1
+```
+
+
+```{r}
+#| label: fig-posterior-difference-adjusted-ofc-analysis
+#| fig-cap: Posterior difference in risk of positive oral food challenge for wP compared to aP, adjusted model.
+#| fig-height: 2
+#| fig-width: 5
+#| include: false
+p2 <- ggplot(dat_rd_po_ofc, aes(xdist = 100 * .rd_bootstrap)) +
+  stat_histinterval(
+    aes(fill = after_stat(level)),
+    breaks = 100,
+    .width = c(0.5, 0.8, 0.95),
+    point_size = 1.5,
+    slab_linewidth = 0.5,
+    slab_colour = "black"
+  ) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_fill_brewer(palette = "Reds", na.translate = FALSE) +
+  scale_x_continuous(breaks = seq(-10, 10, 2), limits = c(-10, 10)) +
+  scale_y_continuous(limits = ~ range(.x, -0.1)) +
+  labs(
+    fill = "Interval",
+    x = "%pt. difference in positive OFC risk, wP - aP",
+    y = "Density"
+  ) +
+  guides(fill = guide_legend(override.aes = list(point_size = NA)))
+p2
+```
+
+```{r}
+#| label: fig-posterior-difference-ofc-analysis-unadjusted-adjusted
+#| fig-cap: |
+#|   Posterior density for difference in risk of positive OFC by model.
+#|   Values in regions with high density are those most plausible given the data and model assumptions.
+#| fig-height: 2
+#| fig-width: 6
+(p1 + labs(title = "Unadjusted") | p2 + labs(title = "Adjusted")) +
+  plot_layout(axes = "collect", axis_titles = "collect", guides = "collect") &
+  theme(
+    legend.position = "bottom",
+    legend.margin = margin(t = 0, unit = "cm"),
+    legend.key.size = unit(1, "line"),
+    plot.title = element_text(size = rel(1)),
+    text = element_text(size = 9)
+  )
+```
+
+\clearpage
+
 ::: {.landscape}
 
 ### Subgroup analyses
@@ -2641,7 +2883,7 @@ For each subgroup we estimated the difference in risk of IgE-mediated food aller
 #| fig-cap: Subgroup specific estimates of difference in risk of IgE-mediated food allergy, wP versus aP.
 #| fig-width: 4
 #| fig-height: 6.5
-bind_rows(
+subgroup_fig_dat <- bind_rows(
   fit_pars_site |>
     select(rand_site, rd) |>
     mutate(var = "Site of enrolment") |>
@@ -2662,7 +2904,8 @@ bind_rows(
     select(any_asia, rd) |>
     mutate(var = "One parent born\nin East Asia") |>
     rename(level = any_asia)
-) |>
+)
+subgroup_fig_dat |>
   mutate(var = fct_inorder(var)) |>
   ggplot(aes(y = level, xdist = rd)) +
   facet_grid(var ~ ., scales = "free_y", space = "free_y", switch = "y") +
@@ -2674,6 +2917,64 @@ bind_rows(
     breaks = seq(-0.2, 0.2, 0.05)
   ) +
   theme(strip.placement = "outside")
+```
+
+```{r}
+figure_dat <- bind_rows(
+  po_diff |>
+    nest_rvars() |>
+    select(delta) |>
+    rename(rd = delta) |>
+    mutate(
+      rd = resample_draws(rd, ndraws = 20000),
+      group = "Outcomes",
+      var = "",
+      level = "IgE-mediated\nfood allergy"
+    ),
+  po_ofc_diff |>
+    nest_rvars() |>
+    select(delta) |>
+    rename(rd = delta) |>
+    mutate(
+      rd = resample_draws(rd, ndraws = 20000),
+      group = "Outcomes",
+      var = "",
+      level = "Positive OFC"
+    ),
+  subgroup_fig_dat |>
+    mutate(group = "Subgroups")
+)
+
+strip_theme <- strip_nested(
+  background_y = elem_list_rect(
+    fill = c("white", "grey90", "white", "grey80", "grey80", "grey80", "grey80", "grey80"),
+    color = c("white", "grey90", "white", "grey80", "grey80", "grey80", "grey80", "grey80")
+  ),
+  text_y = element_text(angle = 0),
+  by_layer_y = FALSE
+)
+
+fig <- figure_dat |>
+  mutate(level = fct_inorder(level), var = fct_inorder(var)) |>
+  ggplot(aes(y = level, xdist = rd)) +
+  # facet_grid(var ~ ., scales = "free_y", space = "free_y", switch = "y") +
+  facet_nested(group + var ~ ., scales = "free_y", space = "free_y", switch = "y", strip = strip_theme) +
+  stat_pointinterval(.width = c(0.8, 0.95), point_size = 1.5) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_y_discrete("", limits = rev) +
+  scale_x_continuous(
+    "Difference in risk\nwP - aP",
+    breaks = seq(-0.2, 0.2, 0.05)
+  ) +
+  theme(strip.placement = "outside") +
+  coord_cartesian(xlim = c(-0.1, 0.1))
+
+ggsave(
+  filename = file.path("output", "figure", "forest-plot.png"),
+  fig,
+  height = 7,
+  width = 7
+)
 ```
 
 
@@ -2846,7 +3147,7 @@ dat_outcome <- dat_ecz_analysis |>
     age = factor(
       age,
       levels = c("6m", "12m", "18m"),
-      labels = c("6m [2.a]", "12m [2.b]", "18m")
+      labels = c("6m", "12m", "18m")
     )
   ) |>
   filter(!is.na(outcome)) |>
@@ -2871,8 +3172,8 @@ diff_outcome <- dat_outcome |>
   pivot_wider(names_from = "trt", values_from = "post_drws") |>
   mutate(delta = wP - aP)
 
-diff_2a <- filter(diff_outcome, age == "6m [2.a]")
-diff_2b <- filter(diff_outcome, age == "12m [2.b]")
+diff_2a <- filter(diff_outcome, age == "6m")
+diff_2b <- filter(diff_outcome, age == "12m")
 
 prior <- c(
   prior(logistic(0, 1), class = "Intercept"),
@@ -2890,7 +3191,7 @@ fit_outcome <- dat_ecz_analysis |>
     age = factor(
       age,
       levels = c("6m", "12m", "18m"),
-      labels = c("6m [2.a]", "12m [2.b]", "18m")
+      labels = c("6m", "12m", "18m")
     )
   ) |>
   nest(-age) |>
@@ -3146,6 +3447,7 @@ dat_outcome |>
 p1 <- diff_outcome |>
   group_by(age) |>
   nest_rvars() |>
+  filter(age != "18m") |>
   ggplot(aes(xdist = 100 * delta)) +
   facet_wrap(~age, ncol = 1) +
   stat_histinterval(
@@ -3179,6 +3481,7 @@ p1
 #| include: false
 p2 <- fit_outcome |>
   unnest(rd) |>
+  filter(age != "18m") |>
   ggplot(aes(xdist = 100 * .rd_bootstrap)) +
   facet_wrap(~age, ncol = 1) +
   stat_histinterval(
