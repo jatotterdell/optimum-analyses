@@ -2920,6 +2920,7 @@ subgroup_fig_dat |>
 ```
 
 ```{r}
+#| include: false
 figure_dat <- bind_rows(
   po_diff |>
     nest_rvars() |>
@@ -2942,7 +2943,7 @@ figure_dat <- bind_rows(
       level = "Positive OFC"
     ),
   subgroup_fig_dat |>
-    mutate(group = "Subgroups")
+    mutate(group = "Subgroups\n(IgE-mediated\nfood allergy)")
 )
 
 strip_theme <- strip_nested(
