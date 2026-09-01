@@ -2240,12 +2240,17 @@ fit <- brm(
 )
 
 fit_pars_site <- dat_po |>
-  distinct(trt, rand_site) |>
+  summarise(n = n(), y = sum(po), .by = c(trt, rand_site)) |>
   arrange(rand_site) |>
   add_linpred_rvars(fit) |>
   add_epred_rvars(fit) |>
-  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
-  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
+  pivot_wider(names_from = trt, values_from = c(n, y, .linpred, .epred)) |>
+  mutate(
+    aP = sprintf("%i/%i (%.0f%%)", y_aP, n_aP, 100 * y_aP / n_aP),
+    wP = sprintf("%i/%i (%.0f%%)", y_wP, n_wP, 100 * y_wP / n_wP),
+    or = exp(.linpred_wP - .linpred_aP),
+    rd = .epred_wP - .epred_aP
+  )
 
 # fit_pars_site |>
 #   select(rand_site, or) |>
@@ -2411,12 +2416,17 @@ fit <- brm(
 )
 
 fit_pars_season <- dat_po |>
-  distinct(trt, birth_season) |>
+  summarise(n = n(), y = sum(po), .by = c(trt, birth_season)) |>
   arrange(birth_season) |>
   add_linpred_rvars(fit) |>
   add_epred_rvars(fit) |>
-  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
-  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
+  pivot_wider(names_from = trt, values_from = c(n, y, .linpred, .epred)) |>
+  mutate(
+    aP = sprintf("%i/%i (%.0f%%)", y_aP, n_aP, 100 * y_aP / n_aP),
+    wP = sprintf("%i/%i (%.0f%%)", y_wP, n_wP, 100 * y_wP / n_wP),
+    or = exp(.linpred_wP - .linpred_aP),
+    rd = .epred_wP - .epred_aP
+  )
 ```
 
 :::
@@ -2537,12 +2547,18 @@ fit <- brm(
 )
 
 fit_pars_fha <- dat_po |>
-  distinct(trt, fha) |>
+  summarise(n = n(), y = sum(po), .by = c(trt, fha)) |>
+  mutate(fha = fct_relevel(fha, "Yes", after = 1)) |>
   arrange(fha) |>
   add_linpred_rvars(fit) |>
   add_epred_rvars(fit) |>
-  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
-  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
+  pivot_wider(names_from = trt, values_from = c(n, y, .linpred, .epred)) |>
+  mutate(
+    aP = sprintf("%i/%i (%.0f%%)", y_aP, n_aP, 100 * y_aP / n_aP),
+    wP = sprintf("%i/%i (%.0f%%)", y_wP, n_wP, 100 * y_wP / n_wP),
+    or = exp(.linpred_wP - .linpred_aP),
+    rd = .epred_wP - .epred_aP
+  )
 ```
 
 :::
@@ -2666,12 +2682,17 @@ fit <- brm(
 )
 
 fit_pars_fhafa <- dat_po |>
-  distinct(trt, fhafa) |>
+  summarise(n = n(), y = sum(po), .by = c(trt, fhafa)) |>
   arrange(fhafa) |>
   add_linpred_rvars(fit) |>
   add_epred_rvars(fit) |>
-  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
-  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
+  pivot_wider(names_from = trt, values_from = c(n, y, .linpred, .epred)) |>
+  mutate(
+    aP = sprintf("%i/%i (%.0f%%)", y_aP, n_aP, 100 * y_aP / n_aP),
+    wP = sprintf("%i/%i (%.0f%%)", y_wP, n_wP, 100 * y_wP / n_wP),
+    or = exp(.linpred_wP - .linpred_aP),
+    rd = .epred_wP - .epred_aP
+  )
 ```
 
 :::
@@ -2862,12 +2883,17 @@ fit <- brm(
 )
 
 fit_pars_asia <- dat_po |>
-  distinct(trt, any_asia) |>
+  summarise(n = n(), y = sum(po), .by = c(trt, any_asia)) |>
   arrange(any_asia) |>
   add_linpred_rvars(fit) |>
   add_epred_rvars(fit) |>
-  pivot_wider(names_from = trt, values_from = c(.linpred, .epred)) |>
-  mutate(or = exp(.linpred_wP - .linpred_aP), rd = .epred_wP - .epred_aP)
+  pivot_wider(names_from = trt, values_from = c(n, y, .linpred, .epred)) |>
+  mutate(
+    aP = sprintf("%i/%i (%.0f%%)", y_aP, n_aP, 100 * y_aP / n_aP),
+    wP = sprintf("%i/%i (%.0f%%)", y_wP, n_wP, 100 * y_wP / n_wP),
+    or = exp(.linpred_wP - .linpred_aP),
+    rd = .epred_wP - .epred_aP
+  )
 ```
 
 :::
@@ -2877,6 +2903,128 @@ fit_pars_asia <- dat_po |>
 #### Subgroup forest plot
 
 For each subgroup we estimated the difference in risk of IgE-mediated food allergy for wP compared to aP within each grouping level. The estimated risk differences for each factor are reported in @fig-subgroup-plot.
+
+```{r}
+#| include: false
+prepare_subgroup <- function(dd, field, lab) {
+  dd |>
+    rename(level = {{ field }}) |>
+    select(level, aP, wP, rd) |>
+    mutate(
+      level = paste0("  ", level),
+      rd = 100 * rd,
+      est = median(rd),
+      lo = quantile2(rd, 0.025),
+      hi = quantile2(rd, 0.975),
+      ` ` = paste(rep(" ", 15), collapse = " "),
+      ci = sprintf("%.1f (%.1f, %.1f)", est, lo, hi)
+    ) |>
+    add_row(level = lab, aP = "", wP = "", ` ` = "", ci = "", .before = 1)
+}
+
+ovr_po <- dat_po |>
+  summarise(level = "IgE-mediated\nfood allergy", n = n(), y = sum(po), .by = trt) |>
+  pivot_wider(names_from = trt, values_from = c(n, y)) |>
+  mutate(
+    aP = sprintf("%i/%i (%.0f%%)", y_aP, n_aP, 100 * y_aP / n_aP),
+    wP = sprintf("%i/%i (%.0f%%)", y_wP, n_wP, 100 * y_wP / n_wP)
+  ) |>
+  select(level, aP, wP) |>
+  bind_cols(
+    po_diff |>
+      nest_rvars() |>
+      select(delta) |>
+      mutate(
+        rd = 100 * resample_draws(delta, ndraws = 20000),
+        est = median(rd),
+        lo = quantile2(rd, 0.025),
+        hi = quantile2(rd, 0.975),
+        ` ` = paste(rep(" ", 15), collapse = " "),
+        ci = sprintf("%.1f (%.1f, %.1f)", est, lo, hi)
+      ) |>
+      select(-delta)
+  )
+ovr_po_ofc <- dat_po |>
+  summarise(level = "Positive OFC", n = n(), y = sum(po_ofc), .by = trt) |>
+  pivot_wider(names_from = trt, values_from = c(n, y)) |>
+  mutate(
+    aP = sprintf("%i/%i (%.0f%%)", y_aP, n_aP, 100 * y_aP / n_aP),
+    wP = sprintf("%i/%i (%.0f%%)", y_wP, n_wP, 100 * y_wP / n_wP)
+  ) |>
+  select(level, aP, wP) |>
+  bind_cols(
+    po_ofc_diff |>
+      nest_rvars() |>
+      select(delta) |>
+      mutate(
+        rd = 100 * resample_draws(delta, ndraws = 20000),
+        est = median(rd),
+        lo = quantile2(rd, 0.025),
+        hi = quantile2(rd, 0.975),
+        ` ` = paste(rep(" ", 15), collapse = " "),
+        ci = sprintf("%.1f (%.1f, %.1f)", est, lo, hi)
+      ) |>
+      select(-delta)
+  )
+
+fp_dat <- bind_rows(
+  ovr_po_ofc,
+  ovr_po,
+  prepare_subgroup(fit_pars_site, rand_site, "Site"),
+  prepare_subgroup(fit_pars_season, birth_season, "Season of birth"),
+  prepare_subgroup(fit_pars_fha, fha, "Family history\nof atopy"),
+  prepare_subgroup(fit_pars_fhafa, fhafa, "Family history\nof food allergy"),
+  prepare_subgroup(fit_pars_asia, any_asia, "One parent born\nin East Asia")
+) |>
+  rename(`Outcome/Subgroup` = level, `Median\n(95% CrI)` = ci)
+
+th <- forest_theme(
+  core = list(
+    fg_params = list(
+      hjust = c(rep(1, 2), 0, rep(1, 4), 0, rep(1, 4), 0, rep(1, 2), 0, rep(1, 2), 0, rep(1, 3)),
+      x = c(rep(0.9, 2), 0, rep(0.9, 4), 0, rep(0.9, 4), 0, rep(0.9, 2), 0, rep(0.9, 2), 0, rep(0.9, 3))
+    )
+  ),
+  colhead = list(
+    fg_params = list(
+      hjust = 0.5,
+      x = 0.5
+    )
+  ),
+  ci_pch = 20,
+  base_size = 8,
+  ci_lwd = 1.5,
+  base_family = "Palatino"
+)
+
+plt <- forest(
+  fp_dat[, c(1:3, 8:9)],
+  est = fp_dat$est,
+  lower = fp_dat$lo,
+  upper = fp_dat$hi,
+  ci_column = 4,
+  ref_line = 0,
+  arrow_lab = c("wP better", "wP worse"),
+  xlim = c(-20, 20),
+  theme = th
+)
+
+p_wh <- get_wh(plot = plt, unit = "in")
+ggsave(
+  file.path("output", "figure", "fp.pdf"),
+  plt,
+  device = cairo_pdf,
+  width = p_wh[1],
+  height = p_wh[2]
+)
+system(
+  sprintf(
+    "pdftoppm %s %s -png",
+    file.path("output", "figure", "fp.pdf"),
+    gsub(".pdf", "", file.path("output", "figure", "fp.pdf"))
+  )
+)
+```
 
 ```{r}
 #| label: fig-subgroup-plot

@@ -18,6 +18,7 @@ suppressPackageStartupMessages({
   library(ggh4x)
   library(scales)
   library(ggsurvfit)
+  library(forestploter)
 
   # Tables
   library(gt)

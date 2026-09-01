@@ -4,7 +4,8 @@ dat_raw <- qs2::qd_read(com_file)
 
 
 # Baseline data ----
-dat_base <- get_baseline_data(dat_raw, TRUE)
+dat_base <- get_baseline_data(dat_raw, TRUE) |>
+  mutate(rand_site = replace_values(rand_site, "SCHN" ~ "SCH"))
 dat_spt <- get_skin_prick_long(dat_raw)
 dat_ecz <- get_eczema_data(dat_raw)
 dat_fa <- get_food_allergy(dat_raw)
