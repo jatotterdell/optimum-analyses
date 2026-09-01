@@ -9,7 +9,7 @@ suppressPackageStartupMessages({
   library(tibble)
   library(lubridate)
   library(labelled)
-  library(qs)
+  library(qs2)
 })
 
 readRenviron(".env")
@@ -24,7 +24,7 @@ st2_path <- file.path(
 )
 st2_file <- file.path(st2_path, config::get("raw_data_stage2_file"))
 com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
-st2_data <- qread(st2_file)
+st2_data <- qd_read(st2_file)
 
 combine_randomisation <- function() {
   st2_rand <- extract_tibble(st2_data, "randomisation") |>
@@ -534,6 +534,7 @@ combine_nonstudy_vaccination_log <- function() {
       names_pattern = "(ipvac|vacothspec|ipnstvacdat|vacaddyn)([1-6])",
       names_to = c(".value", "vac_num")
     )
+  st2_nsv
 }
 
 combine_vax_admin_v1 <- function() {
@@ -2543,7 +2544,7 @@ read_stage2_randomisation_list <- function() {
         substr(rand, 1, 2) == "21" ~ "PCH",
         substr(rand, 1, 2) == "22" ~ "CHW",
         substr(rand, 1, 2) == "23" ~ "MCRI",
-        substr(rand, 1, 2) == "24" ~ "SCHN",
+        substr(rand, 1, 2) == "24" ~ "SCH",
         .default = NA_character_
       ),
       rand_stage = 2
@@ -2588,7 +2589,8 @@ optimum_data <- list(
   "medical_history" = dat_mh,
   "vaccine_administration_v1" = dat_vax_v1,
   "vaccine_administration_v3" = dat_vax_v3,
-  "skin_prick_test" = dat_spt,
+  # "nonstudy_vaccination_log" = combine_nonstudy_vaccination_log(),
+  "skin_prick_test" <- dat_spt,
   "other_immunological" = dat_oth_imm,
   "food_challenge" = dat_fc,
   "adverse_events" = dat_ae,

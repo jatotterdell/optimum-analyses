@@ -1,7 +1,8 @@
 library(REDCapTidieR)
 library(REDCapR)
 library(dplyr)
-library(qs)
+# library(qs)
+library(qs2)
 
 options(redcaptidier.allow.mdc = TRUE)
 
@@ -172,10 +173,10 @@ get_redcap_data <- function(append = "") {
       )
     )
 
-  qsave(dat_raw, file.path(data_path, paste0("redcap-raw", append, ".qs")))
-  qsave(
+  qd_save(dat_raw, file.path(data_path, paste0("redcap-raw", append, ".qs2")))
+  qd_save(
     dat_labelled,
-    file.path(data_path, paste0("redcap-labelled", append, ".qs"))
+    file.path(data_path, paste0("redcap-labelled", append, ".qs2"))
   )
 }
 
