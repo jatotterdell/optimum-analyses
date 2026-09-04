@@ -146,7 +146,7 @@
   straight-edge(<19>, <22>),
   straight-edge(<20>, <23>),
   bent-edge(<20>, <24>),
-  // straight-edge(<22>, <25>),
+  straight-edge(<22>, <25>),
   straight-edge(<23>, <26>),
   straight-edge(<24>, <27>),
 )
