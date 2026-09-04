@@ -926,6 +926,26 @@ Kaplan-Meier curves for age at which a food was introduced for stage 1 participa
 
 ```{r}
 #| label: food-intro-timing-helpers
+fit_km <- function(dat, time_var, event_var, trt_var) {
+  params <- list(
+    time_var = substitute(time_var),
+    event_var = substitute(event_var),
+    trt_var = substitute(trt_var),
+    dat = substitute(dat)
+  )
+  fit <- eval.parent(substitute(
+    survfit2(
+      Surv(
+        time = time_var,
+        event = event_var,
+      ) ~ trt_var,
+      data = dat
+    ),
+    params
+  ))
+  fit
+}
+
 make_km_plot <- function(dat, time_var, event_var, trt_var, lab = "") {
   params <- list(
     time_var = substitute(time_var),
@@ -972,14 +992,21 @@ plot_food_introduction_stage1 <- function(
     filter({{ food_var }} == "Yes") |>
     # Some have multiple, take the first
     filter(row_number() == 1, .by = record_id) |>
-    mutate(fedat_age = time_length(interval(birthdat, fedat), "days")) |>
+    mutate(
+      fedat_age = time_length(interval(birthdat, fedat), "days"),
+      fedat_age_months = time_length(interval(birthdat, fedat), "months")
+    ) |>
     mutate(y = pmin(fedat_age, {{ age_var }}), event = 1)
   food_cens <- dat_grid_fhq |>
     filter(rand_stage == 1, !(record_id %in% food_obs$record_id)) |>
     select(record_id, birthdat, {{ trt_var }}, visit_age, fedat, fecurr, {{ food_var }}, {{ age_var }}) |>
     filter(!is.na(fedat)) |>
     filter(row_number() == n(), .by = record_id) |>
-    mutate(y = time_length(interval(birthdat, fedat), "days"), event = 0)
+    mutate(
+      y = time_length(interval(birthdat, fedat), "days"),
+      y_months = time_length(interval(birthdat, fedat), "months"),
+      event = 0
+    )
 
   food <- bind_rows(food_obs, food_cens)
   food
@@ -999,7 +1026,10 @@ plot_food_introduction_stage2 <- function(
     mutate(
       feage1 = time_length(interval(birthdat, {{ food_date }}), "days"),
       feage2 = time_length(interval(birthdat, fedat), "days"),
+      feagemths1 = time_length(interval(birthdat, {{ food_date }}), "months"),
+      feagemths2 = time_length(interval(birthdat, fedat), "months"),
       y = pmin(feage1, feage2),
+      y_months = pmin(feagemths1, feagemths2),
       event = 1
     )
   food_cens <- dat_grid_fhq |>
@@ -1010,7 +1040,10 @@ plot_food_introduction_stage2 <- function(
     mutate(
       feage1 = time_length(interval(birthdat, {{ food_date }}), "days"),
       feage2 = time_length(interval(birthdat, fedat), "days"),
+      feagemths1 = time_length(interval(birthdat, {{ food_date }}), "months"),
+      feagemths2 = time_length(interval(birthdat, fedat), "months"),
       y = feage2,
+      y_months = feagemths2,
       event = 0
     )
   food <- bind_rows(food_obs, food_cens)
@@ -1256,6 +1289,32 @@ plot_both <- (make_km_plot(p1, y, event, trt, "Rice cereal") +
   )
 
 plot_both
+```
+
+```{r}
+library(survminer)
+
+prop_introduced <- function(dat, y, event, trt, lab = "") {
+  ff <- fit_km(dat, y, event, trt)
+  as_tibble(summary(ff, c(365, 548))[c("time", "strata", "surv")]) |>
+    mutate(
+      p = 1 - surv,
+      food = lab,
+      strata = factor(gsub("trt=", "", strata), levels = c("aP", "wP"))
+    )
+}
+
+
+bind_rows(
+  prop_introduced(p1, y, event, trt, "Rice cereal"),
+  prop_introduced(p2, y, event, trt, "Cow's milk"),
+  prop_introduced(p3, y, event, trt, "Fruit"),
+  prop_introduced(p4, y, event, trt, "Vegetables"),
+  prop_introduced(p5, y, event, trt, "Meat"),
+  prop_introduced(p6, y, event, trt, "Fish"),
+  prop_introduced(p7, y, event, trt, "Egg"),
+  prop_introduced(p8, y, event, trt, "Peanut")
+)
 ```
 
 ```{=latex}
