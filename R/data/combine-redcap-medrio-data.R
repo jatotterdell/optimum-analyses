@@ -79,6 +79,73 @@ combine_study_termination <- function() {
   st
 }
 
+combine_consent <- function() {
+  st1_consent <- read_delim(
+    file.path(st1_path, "EC.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      medrioid,
+      subjectid,
+      initconsdat,
+      initconsspec
+    ) |>
+    mutate(
+      initconsdat = as_date(initconsdat, format = "%d-%b-%Y")
+    )
+
+  # Changes to consent
+  st1_consent_chg <- read_delim(
+    file.path(st1_path, "CONSCHG.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      medrioid,
+      subjectid,
+      chgconsyn,
+      vargroup1row,
+      chgconsdat,
+      chgconsspec,
+      chgconsnot
+    ) |>
+    mutate(
+      chgconsspec = if_else(
+        chgconsspec ==
+          "Parent has consented to this study + future research EXCLUDING gene expression studies Parent has consented to this study + future research INCLUDING gene expression studies",
+        "Parent has consented to this study + future research EXCLUDING gene expression studies",
+        chgconsspec
+      ),
+      chgconsdat = as_date(chgconsdat, format = "%d-%b-%Y"),
+      chgconsyn = if_else(!is.na(vargroup1row), "Yes", chgconsyn)
+    ) |>
+    filter(!(chgconsyn == "Yes" & is.na(vargroup1row))) |>
+    rename(chgseq = vargroup1row) |>
+    filter(!is.na(chgconsspec))
+
+  # Combined consent
+  cons_init <- st1_consent |>
+    rename(cons_date = initconsdat, cons_spec = initconsspec) |>
+    mutate(cons_type = "Initial")
+  cons_change <- st1_consent_chg |>
+    filter(chgconsyn == "Yes") |>
+    select(medrioid, subjectid, chgconsdat, chgconsspec, chgconsnot) |>
+    rename(
+      cons_date = chgconsdat,
+      cons_spec = chgconsspec,
+      cons_note = chgconsnot
+    ) |>
+    mutate(cons_type = "Change")
+  cons_dat <- bind_rows(cons_init, cons_change) |>
+    arrange(subjectid, cons_date) |>
+    mutate(cons_seq = row_number(), .by = subjectid, .before = cons_date) |>
+    rename(record_id = medrioid) |>
+    select(-subjectid)
+
+  cons_dat
+}
+
 combine_demographics <- function() {
   st2_demo <- extract_tibble(st2_data, "demographics") |>
     select(
@@ -2561,6 +2628,7 @@ writeLines("Processing forms...", stdout())
 dat_rand <- combine_randomisation()
 dat_st <- combine_study_termination()
 dat_pass <- combine_participant_assessment()
+dat_consent <- combine_consent()
 dat_demo <- combine_demographics()
 dat_bh <- combine_birth_history()
 dat_mh <- combine_medical_history()
@@ -2584,13 +2652,14 @@ dat_trt <- combine_treatment_lists()
 optimum_data <- list(
   "randomisation" = dat_rand,
   "allocations" = dat_trt,
+  "consent" = dat_consent,
   "demographics" = dat_demo,
   "birth_history" = dat_bh,
   "medical_history" = dat_mh,
   "vaccine_administration_v1" = dat_vax_v1,
   "vaccine_administration_v3" = dat_vax_v3,
   # "nonstudy_vaccination_log" = combine_nonstudy_vaccination_log(),
-  "skin_prick_test" <- dat_spt,
+  "skin_prick_test" = dat_spt,
   "other_immunological" = dat_oth_imm,
   "food_challenge" = dat_fc,
   "adverse_events" = dat_ae,
