@@ -87,7 +87,6 @@ combine_consent <- function() {
     rename_with(tolower) |>
     select(
       medrioid,
-      subjectid,
       initconsdat,
       initconsspec
     ) |>
@@ -103,7 +102,6 @@ combine_consent <- function() {
     rename_with(tolower) |>
     select(
       medrioid,
-      subjectid,
       chgconsyn,
       vargroup1row,
       chgconsdat,
@@ -124,26 +122,46 @@ combine_consent <- function() {
     rename(chgseq = vargroup1row) |>
     filter(!is.na(chgconsspec))
 
+  # Fix error
+  st1_consent_chg <- st1_consent_chg |>
+    mutate(
+      chgconsdat = replace_when(
+        chgconsdat,
+        medrioid == 126 & chgconsdat == as_date("2019-10-21") ~ date("2020-10-21"),
+        medrioid == 130 & chgconsdat == as_date("2020-09-22") ~ date("2021-09-22")
+      )
+    )
+
   # Combined consent
   cons_init <- st1_consent |>
-    rename(cons_date = initconsdat, cons_spec = initconsspec) |>
-    mutate(cons_type = "Initial")
+    rename(cons_date = initconsdat, cons_spec = initconsspec)
   cons_change <- st1_consent_chg |>
     filter(chgconsyn == "Yes") |>
-    select(medrioid, subjectid, chgconsdat, chgconsspec, chgconsnot) |>
+    select(medrioid, chgconsdat, chgconsspec, chgconsnot) |>
     rename(
       cons_date = chgconsdat,
       cons_spec = chgconsspec,
       cons_note = chgconsnot
     ) |>
-    mutate(cons_type = "Change")
+    select(-cons_note)
   cons_dat <- bind_rows(cons_init, cons_change) |>
-    arrange(subjectid, cons_date) |>
-    mutate(cons_seq = row_number(), .by = subjectid, .before = cons_date) |>
-    rename(record_id = medrioid) |>
-    select(-subjectid)
+    arrange(medrioid, cons_date)
 
-  cons_dat
+  # Keep only records where consent level actually changes
+  cons_dat_sub <- cons_dat |>
+    filter(row_number() == 1 | (lag(cons_spec) != cons_spec), .by = medrioid) |>
+    rename(record_id = medrioid) |>
+    mutate(
+      record_id = as.character(record_id)
+    ) |>
+    mutate(
+      cons_seq = row_number(),
+      cons_type = if_else(row_number() == 1, "Initial", "Change"),
+      .by = record_id,
+      .after = record_id
+    )
+
+  cons_dat_sub
 }
 
 combine_demographics <- function() {
@@ -1058,6 +1076,7 @@ combine_food_household <- function() {
       visit_age,
       fecurr,
       febfever,
+      febfstill,
       febfform,
       fethickyn,
       fesolyn,
