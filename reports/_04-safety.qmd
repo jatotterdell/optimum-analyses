@@ -11,6 +11,7 @@ dat_ae <- dat_raw |>
   mutate(
     aerel = str_to_sentence(aerel)
   )
+dat_ae <- dat_ae |> filter_out(aetype == "AESI", aecode1 == "Dry skin")
 
 # We want to exclude any AESI which were eczema or food allergy as these became outcomes
 dat_ae <- dat_ae |>

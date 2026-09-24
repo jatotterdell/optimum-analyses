@@ -914,6 +914,82 @@ dat_grid_fhq |>
   cat()
 ```
 
+```{r}
+#| label: tbl-food-status-combined
+#| tbl-cap: |
+#|   Number and percentage of infants who consume egg, cow's milk, and peanut by treatment group and visit age, stage 2 participants.
+#| tbl-pos: "H"
+#| results: asis
+# dat_grid_fhq |>
+#   filter(!(visit_age %in% c("6-week", "4-month"))) |>
+#   droplevels() |>
+#   tbl_strata2(
+#     strata = "trt",
+#     .tbl_fun = ~ .x |>
+#       tbl_summary(
+#         include = c(feeggyn, femilyn, fenutyn),
+#         label = list(
+#           feeggyn ~ "Currently eats egg",
+#           femilyn ~ "Currently eats/drinks cow's milk",
+#           fenutyn ~ "Currently eat peanuts/other nuts"
+#         ),
+#         by = visit_age,
+#         type = list(feeggyn ~ "dichotomous"),
+#         value = list(feeggyn ~ "Yes"),
+#         statistic = all_dichotomous() ~ "{n}/{N} ({p})",
+#         missing = "no"
+#       ),
+#     .combine_with = "tbl_stack"
+#   ) |>
+#   modify_header(label = "**Treatment group and item**") |>
+#   modify_header(
+#     all_stat_cols() ~
+#       paste0(
+#         "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+#         "N = {formatC(n, format='d', big.mark=',')}}}"
+#       )
+#   ) |>
+#   as_gt() |>
+#   tab_options(table.font.size = px(8)) |>
+#   as_latex() |>
+#   latex_unescape() |>
+#   fix_footnote() |>
+#   cat()
+
+dat_grid_fhq |>
+  filter(visit_age %in% c("6-month", "9-month", "12-month", "15-month", "18-month")) |>
+  droplevels() |>
+  select(record_id, visit_age, trt, feeggyn, femilyn, fenutyn) |>
+  pivot_longer(feeggyn:fenutyn) |>
+  mutate(name = factor(name, levels = c("feeggyn", "femilyn", "fenutyn"), labels = c("Egg", "Milk", "Peanut"))) |>
+  pivot_wider(names_from = visit_age, values_from = value) |>
+  tbl_strata2(
+    strata = "name",
+    .tbl_fun = ~ .x |>
+      tbl_summary(
+        include = `6-month`:`18-month`,
+        by = trt,
+        statistic = all_dichotomous() ~ "{n}/{N} ({p})",
+        missing = "no"
+      ),
+    .combine_with = "tbl_stack"
+  ) |>
+  modify_header(label = "**Treatment group and item**") |>
+  modify_header(
+    all_stat_cols() ~
+      paste0(
+        "\\makecell{{\\textbf{{{level}}} \\\\\\\\ ",
+        "N = {formatC(n, format='d', big.mark=',')}}}"
+      )
+  ) |>
+  as_gt() |>
+  tab_options(table.font.size = px(8)) |>
+  as_latex() |>
+  latex_unescape() |>
+  fix_footnote() |>
+  cat()
+```
+
 ### First time foods
 
 Parent's were subsequently asked whether any of the specified foods had been introduced since the previous visit, and if so, when they were introduced and what quantity was given. In stage 1, rather than a date of introduction, the survey collected the *age* of introduction in days. In stage 2, only the *date* of introduction was elicited. For stage 1 responses, the reported age in days was used unless no record of introduction existed, in which case the response was treated as right-censored at the date of the last completed food and household questionnaire.
