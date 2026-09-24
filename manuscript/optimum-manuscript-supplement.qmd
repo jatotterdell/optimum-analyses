@@ -31,6 +31,48 @@ crossref:
 \renewcommand{\thesection}{\Alph{section}}
 ```
 
+![Allergy flowchart.](../manuscript/allergy-flow.pdf)
+
+\clearpage
+
+```{=latex}
+\begin{table}[H]
+\caption{\label{tbl-food-status-combined}Number and percentage of infants who consume egg, cow's milk, and peanut by study group and survey age.}
+\centering{
+\fontsize{6.0pt}{7.0pt}\selectfont
+\begin{tabular*}{6cm}{@{\extracolsep{\fill}}lcc}
+\toprule
+\makecell{Food and\\survey age} & \makecell{\textbf{aP} \\ N = 486 }& \makecell{\textbf{wP} \\ N = 486 }\\ 
+\midrule\addlinespace[2.5pt]
+\multicolumn{3}{l}{Egg} \\[2.5pt] 
+\midrule\addlinespace[2.5pt]
+6-month & 166/476 (35) & 159/480 (33) \\ 
+9-month & 406/474 (86) & 409/480 (85) \\ 
+12-month & 436/477 (91) & 430/478 (90) \\ 
+15-month & 427/454 (94) & 446/467 (96) \\ 
+18-month & 447/471 (95) & 441/472 (93) \\ 
+\midrule\addlinespace[2.5pt]
+\multicolumn{3}{l}{Milk} \\[2.5pt] 
+\midrule\addlinespace[2.5pt]
+6-month & 135/476 (28) & 139/480 (29) \\ 
+9-month & 319/474 (67) & 328/480 (68) \\ 
+12-month & 400/477 (84) & 392/478 (82) \\ 
+15-month & 412/454 (91) & 423/467 (91) \\ 
+18-month & 434/471 (92) & 430/472 (91) \\ 
+\midrule\addlinespace[2.5pt]
+\multicolumn{3}{l}{Peanut} \\[2.5pt] 
+\midrule\addlinespace[2.5pt]
+6-month & 141/476 (30) & 132/480 (28) \\ 
+9-month & 397/474 (84) & 395/480 (82) \\ 
+12-month & 435/477 (91) & 430/478 (90) \\ 
+15-month & 439/454 (97) & 447/467 (96) \\ 
+18-month & 452/471 (96) & 447/472 (95) \\ 
+\bottomrule
+\end{tabular*}
+}
+\end{table}
+```
+
 ![Age (days) at food introduction by type of food and assigned study group. Censored observations are marked by a cross.](../reports/clinical-trial-report_files/figure-pdf/fig-kaplan-meier-food-intro-both-1.pdf)
 
 \clearpage
@@ -56,6 +98,8 @@ Adjusted & 26/486 (5.3\%) & 5.4 (3.7, 7.6) & 31/486 (6.4\%) & 6.4 (4.5, 8.7) & 1
 ```
 
 ![Posterior density for difference in risk of IgE-mediated food allergy by model. Unadjusted model was the primary Beta-Binomial model and adjusted model was logistic regression with terms for the specified baseline factors. For the adjusted model, the posterior risk difference was standardised to the trial sample.](../reports/clinical-trial-report_files/figure-pdf/fig-posterior-difference-primary-unadjusted-adjusted-1.pdf)
+
+![Subgroup specific estimates of difference in risk (percentage point) of food allergy, wP versus aP. Estimtes were derived from logistic regression models with terms for treatment, grouping factor, and their interaction. Diffuse priors were used on all terms.]("../output/figure/fp.pdf")
 
 \clearpage
 
