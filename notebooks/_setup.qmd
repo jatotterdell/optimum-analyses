@@ -4,7 +4,7 @@
 suppressPackageStartupMessages({
   # Data
   library(here)
-  library(qs)
+  library(qs2)
   library(dplyr)
   library(tidyr)
   library(forcats)
@@ -18,7 +18,7 @@ suppressPackageStartupMessages({
 
   # Tables
   library(reactable)
-  library(reactablefmtr)
+  # library(reactablefmtr)
   library(gt)
   library(gtsummary)
 })
@@ -52,7 +52,7 @@ st2_file <- file.path(
 )
 com_file <- file.path(Sys.getenv("RDS_PATH"), config::get("combined_data_file"))
 
-dat_raw <- qread(com_file)
+dat_raw <- qd_read(com_file)
 dat_base <- get_baseline_data(dat_raw, TRUE)
 dat_ran <- select(dat_base, record_id, trt, randdat)
 ```

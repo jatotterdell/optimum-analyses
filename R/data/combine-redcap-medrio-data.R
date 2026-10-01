@@ -2677,7 +2677,7 @@ optimum_data <- list(
   "medical_history" = dat_mh,
   "vaccine_administration_v1" = dat_vax_v1,
   "vaccine_administration_v3" = dat_vax_v3,
-  # "nonstudy_vaccination_log" = combine_nonstudy_vaccination_log(),
+  "nonstudy_vaccination_log" = combine_nonstudy_vaccination_log(),
   "skin_prick_test" = dat_spt,
   "other_immunological" = dat_oth_imm,
   "food_challenge" = dat_fc,

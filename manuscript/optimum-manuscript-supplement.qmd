@@ -37,7 +37,7 @@ crossref:
 
 ```{=latex}
 \begin{table}[H]
-\caption{\label{tbl-food-status-combined}Number and percentage of infants who consume egg, cow's milk, and peanut by study group and survey age.}
+\caption{\label{tbl-food-status-combined}Number and percentage of infants who currently eat egg, cow's milk, and peanut by study group and survey age.}
 \centering{
 \fontsize{6.0pt}{7.0pt}\selectfont
 \begin{tabular*}{6cm}{@{\extracolsep{\fill}}lcc}
@@ -99,7 +99,27 @@ Adjusted & 26/486 (5.3\%) & 5.4 (3.7, 7.6) & 31/486 (6.4\%) & 6.4 (4.5, 8.7) & 1
 
 ![Posterior density for difference in risk of IgE-mediated food allergy by model. Unadjusted model was the primary Beta-Binomial model and adjusted model was logistic regression with terms for the specified baseline factors. For the adjusted model, the posterior risk difference was standardised to the trial sample.](../reports/clinical-trial-report_files/figure-pdf/fig-posterior-difference-primary-unadjusted-adjusted-1.pdf)
 
-![Subgroup specific estimates of difference in risk (percentage point) of food allergy, wP versus aP. Estimtes were derived from logistic regression models with terms for treatment, grouping factor, and their interaction. Diffuse priors were used on all terms.]("../output/figure/fp.pdf")
+\clearpage
+
+```{=latex}
+\begin{table}[H]
+\caption{\label{tbl-posterior-primary-spt}Posterior summaries for risk and
+difference in risk of IgE-mediated food allergy amongst participants with an SPT result.}
+\fontsize{7.0pt}{8.0pt}\selectfont
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}l|rrrrr}
+\toprule
+ & \multicolumn{2}{c}{{aP}} & \multicolumn{2}{c}{{wP}} & \multicolumn{1}{c}{{Difference}} \\ 
+\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-6}
+ & y/n (\%) & Median (95\% CrI) & y/n (\%) & Median (95\% CrI) & Median (95\% CrI), Pr(<0) \\ 
+\midrule\addlinespace[2.5pt]
+Unadjusted & 26/473 (5.5\%) & 5.6 (3.8, 7.9) & 31/471 (6.6\%) & 6.7 (4.7, 9.2) & 1.1 (-2.0, 4.2), 0.24 \\ 
+Adjusted & 26/473 (5.5\%) & 5.6 (3.7, 7.9) & 31/471 (6.6\%) & 6.6 (4.6, 9.0) & 1.0 (-2.0, 4.0), 0.26 \\ 
+\bottomrule
+\end{tabular*}
+\end{table}
+```
+
+![Posterior density for difference in risk of IgE-mediated food allergy by model amongst participants with an SPT result. Unadjusted model was the primary Beta-Binomial model and adjusted model was logistic regression with terms for the specified baseline factors. For the adjusted model, the posterior risk difference was standardised to the trial sample.](../reports/clinical-trial-report_files/figure-pdf/fig-posterior-difference-primary-unadjusted-adjusted-spt-sch-1.pdf)
 
 \clearpage
 
@@ -170,3 +190,8 @@ $\geq$3mm vs ctrl. & 58/473 (12\%) & 12.4 (9.7, 15.5) & 61/471 (13\%) & 12.9 (10
 ![Wheal diameter size amongst participants with an SPT reaction (diameter >0mm) by tested allergen and assigned study group.](../reports/clinical-trial-report_files/figure-pdf/fig-spt-magnitude-1.pdf)
 
 ![Distribution of total and allergen-specific IgE concentrations (kU/L) by assigned study group. Vertical dotted lines indicate 0.01 and 0.1 kU/L](../reports/clinical-trial-report_files/figure-pdf/fig-ige-19month-1.pdf)
+
+\clearpage
+
+
+![Subgroup specific estimates of difference in risk (percentage point) of food allergy, wP versus aP. Estimtes were derived from logistic regression models with terms for treatment, grouping factor, and their interaction. Diffuse priors were used on all terms.]("../output/figure/fp.pdf")
