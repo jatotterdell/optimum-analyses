@@ -195,3 +195,36 @@ $\geq$3mm vs ctrl. & 58/473 (12\%) & 12.4 (9.7, 15.5) & 61/471 (13\%) & 12.9 (10
 
 
 ![Subgroup specific estimates of difference in risk (percentage point) of food allergy, wP versus aP. Estimtes were derived from logistic regression models with terms for treatment, grouping factor, and their interaction. Diffuse priors were used on all terms.]("../output/figure/fp.pdf")
+
+\clearpage
+
+```{=latex}
+\begin{table}[t]
+\caption{\label{tbl-listing-sae}Listing of serious adverse events.}
+\fontsize{6.0pt}{7.0pt}\selectfont
+\begin{tabular*}{1\linewidth}{@{\extracolsep{\fill}}>{\raggedleft\arraybackslash}p{\dimexpr 52.50pt -2\tabcolsep-1.5\arrayrulewidth}>{\raggedright\arraybackslash}p{\dimexpr 52.50pt -2\tabcolsep-1.5\arrayrulewidth}ll>{\raggedright\arraybackslash}p{\dimexpr 75.00pt -2\tabcolsep-1.5\arrayrulewidth}>{\raggedright\arraybackslash}p{\dimexpr 67.50pt -2\tabcolsep-1.5\arrayrulewidth}>{\raggedleft\arraybackslash}p{\dimexpr 52.50pt -2\tabcolsep-1.5\arrayrulewidth}}
+\toprule
+Participant SAE ID & Treatment & MedDRA code & Severity & Type of medical advice sought & Relationship to study vaccine? & Study day \\ 
+\midrule\addlinespace[2.5pt]
+1 & wP & Bronchiolitis & Mild & Hospitalisation & Not Related & 144 \\ 
+2 & wP & Escherichia urinary tract infection & Moderate & Hospitalisation & Not Related & 43 \\ 
+2 & wP & Hospitalisation & Mild & Hospitalisation & Not Related & 95 \\ 
+2 & wP & Investigation & Mild & Hospitalisation & Not Related & 190 \\ 
+3 & wP & Bronchiolitis & Moderate & Hospitalisation & Not Related & 49 \\ 
+4 & aP & Hospitalisation & Mild & Hospitalisation & Not Related & 7 \\ 
+5 & wP & Rectal haemorrhage & Moderate & Hospitalisation & Not Related & 7 \\ 
+6 & aP & Ileocolic intussusception & Severe & Hospitalisation & Not Related & 189 \\ 
+7 & aP & Laryngomalacia & Mild & Hospitalisation & Not Related & 48 \\ 
+8 & aP & Urinary tract infection & Moderate & Hospitalisation & Not Related & 46 \\ 
+9 & aP & Gastroenteritis NOS & Moderate & Hospitalisation & Not Related & 19 \\ 
+10 & wP & Irritability postvaccinal & Moderate & Hospitalisation & Related & 0 \\ 
+11 & wP & Bronchiolitis & Moderate & Hospitalisation & Not Related & 191 \\ 
+11 & wP & Bronchiolitis & Moderate & Hospitalisation & Not Related & 209 \\ 
+12 & wP & Benign rolandic epilepsy & Moderate & Hospitalisation & Not Related & 154 \\ 
+13 & wP & Gastrooesophageal reflux & Severe & Hospitalisation & Not Related & 3 \\ 
+14 & aP & Herniotomy & Moderate & Hospitalisation & Not Related & 29 \\ 
+15 & wP & Acute bronchiolitis & Severe & Hospitalisation & Not Related & 42 \\ 
+\bottomrule
+\end{tabular*}
+\end{table}
+```

@@ -460,19 +460,21 @@ dat_saes <- full_join(dat_sae, dat_ae_sae, join_by(record_id, saestdat)) |>
   left_join(select(dat_base, record_id, trt), join_by(record_id)) |>
   relocate(trt, .after = record_id)
 
-dat_saes |>
+tbl <- dat_saes |>
   left_join(select(dat_base, record_id, visdat1)) |>
-  mutate(aeday = interval(visdat1, saestdat) %/% days(1)) |>
+  mutate(aeday = time_length(interval(visdat1, saestdat), "days")) |>
   select(-visdat1, -saestdat, -aeenddat, -aecode1) |>
   gt() |>
   cols_label(
     trt ~ "Treatment",
     saemeddra ~ "MedDRA code",
-    aeday ~ "Days after visit 1"
+    aeday ~ "Study day"
   ) |>
   sub_missing() |>
   tab_options(table.font.size = px(8), table.width = pct(100)) |>
-  cols_width(c(aerel, aetymead) ~ px(100))
+  cols_width(c(record_id, trt, aeday) ~ px(70), aetymead ~ px(100), aerel ~ px(90))
+
+tbl
 ```
 
 \clearpage
