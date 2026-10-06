@@ -207,12 +207,12 @@ data_dictionary <- tribble(
   "cons_spec"       , "Consent specification"                                                                                  ,
   "cons_age_weeks"  , "Age at consent (weeks)"                                                                                 ,
   "cons_age_months" , "Age at consent (months)"                                                                                ,
-  "cons_ranseq"     , "Consent for RNAseq"                                                                                     ,
+  "cons_rnaseq"     , "Consent for RNAseq ('including gene expression studies')"                                               ,
   "cons_cellular"   , "Consent for cellular analysis"                                                                          ,
   "visage"          , "Scheduled visit age"                                                                                    ,
   "lbipvst"         , "Has a Blood Sample been obtained?"                                                                      ,
   "lbncireas"       , "Reason not collected"                                                                                   ,
-  "lbvol"           , " Volume obtained (mL)"                                                                                  ,
+  "lbvol"           , "Volume obtained (mL)"                                                                                   ,
   "lbsite"          , "Collection site"                                                                                        ,
   "bc_age_months"   , "Age at blood collection (months)"                                                                       ,
   "antigen"         , "Antigen type"                                                                                           ,
@@ -223,6 +223,11 @@ data_dictionary <- tribble(
 datasets <- list(
   "consent" = select(consent, -cons_date),
   "baseline" = select(baseline, -birthdat),
-  "igg" = select(igg, -c(birthdat, lbipdat, cons_date)),
+  "igg" = select(igg, -c(birthdat, lbipdat, cons_age_weeks, cons_date)),
   "dictionary" = data_dictionary
 )
+
+dir.create(file.path("output", "data", "sonia"), recursive = TRUE)
+for (i in seq_along(datasets)) {
+  write_csv(datasets[[i]], file.path("output", "data", "sonia", paste0(names(datasets)[i], ".csv")))
+}
