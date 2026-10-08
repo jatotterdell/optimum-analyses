@@ -611,6 +611,33 @@ combine_phsyical_exam_other <- function() {
 }
 
 combine_nonstudy_vaccination_log <- function() {
+  st1_nsv <- read_delim(
+    file.path(st1_path, "IPNSVL.txt"),
+    show_col_types = FALSE
+  ) |>
+    rename_with(tolower) |>
+    select(
+      -ends_with("_coded"),
+      -subjectvisitformid,
+      -site,
+      -subjectstatus,
+      -visit,
+      -form,
+      -formentrydate,
+      -ipnstvacdat_p
+    ) |>
+    mutate(ipnstvacdat = as_date(ipnstvacdat, format = "%d-%b-%Y"))
+  st1_nsv_base <- st1_nsv |>
+    filter(row_number() == 1, .by = medrioid) |>
+    select(medrioid, instvacyn)
+  st1_nsv_vax <- st1_nsv |>
+    filter(row_number() > 1, .by = medrioid) |>
+    select(-subjectid, -instvacyn) |>
+    rename(vac_num = vargroup1row)
+  st1_nsv <- left_join(st1_nsv_base, st1_nsv_vax, join_by(medrioid)) |>
+    rename(record_id = medrioid) |>
+    mutate(record_id = as.character(record_id))
+
   st2_nsv <- extract_tibble(st2_data, "nonstudy_vaccination_log") |>
     select(-redcap_event, -redcap_data_access_group, -form_status_complete, -instvacyn) |>
     filter(!is.na(ipvac1)) |>
@@ -618,8 +645,10 @@ combine_nonstudy_vaccination_log <- function() {
       ipvac1:ipnstvacdat6,
       names_pattern = "(ipvac|vacothspec|ipnstvacdat|vacaddyn)([1-6])",
       names_to = c(".value", "vac_num")
-    )
-  st2_nsv
+    ) |>
+    mutate(vac_num = as.numeric(vac_num))
+
+  bind_rows(st1_nsv, st2_nsv)
 }
 
 combine_vax_admin_v1 <- function() {
