@@ -648,7 +648,8 @@ combine_nonstudy_vaccination_log <- function() {
     ) |>
     mutate(vac_num = as.numeric(vac_num))
 
-  bind_rows(st1_nsv, st2_nsv)
+  bind_rows(st1_nsv, st2_nsv) |>
+    filter(!is.na(ipvac)) # Drop non-records
 }
 
 combine_vax_admin_v1 <- function() {
