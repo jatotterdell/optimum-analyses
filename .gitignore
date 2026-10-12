@@ -19,6 +19,7 @@ _reports
 _site
 _freeze
 /data/
+/output/
 **/*.quarto_ipynb
 
 *_cache
