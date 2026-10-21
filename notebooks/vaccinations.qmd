@@ -115,6 +115,12 @@ filter_polio <- function(dat) {
     )
 }
 
+dat_ref_nstv_polio_dat <- dat_ref_nstv |>
+  filter(
+    (grepl(polio_str_2, tolower(ipvac)) |
+      grepl(polio_str_2, tolower(vacothspec)))
+  )
+
 dat_ref_nstv_polio <- dat_ref_nstv |>
   summarise(
     polio_nstv_count = sum(
@@ -138,7 +144,7 @@ dat_ref_vax_total |>
   print(n = Inf)
 
 dat_ref_vax_total |>
-  filter(grepl("8644", record_id)) |>
+  filter(grepl("8644-28", record_id)) |>
   print(n = Inf)
 
 

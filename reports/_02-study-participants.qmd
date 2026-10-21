@@ -82,7 +82,10 @@ tbl_study_termination <- function(dat) {
 tbl_study_termination(dat_base) |>
   tab_footnote(
     footnote = "In most cases, this was due to no blood collection at visit 3 resulting in no visit 4. Only applicable at PCH.",
-    location = cells_body(columns = stetrreas, rows = stetrreas == "Protocol violation/deviation")
+    location = cells_body(
+      columns = stetrreas,
+      rows = stetrreas == "Protocol violation/deviation"
+    )
   ) |>
   as_latex() |>
   latex_unescape() |>
@@ -141,7 +144,10 @@ tbl_study_termination_by <- function(dat, by = rand_site) {
 tbl_study_termination_by(dat_base) |>
   tab_footnote(
     footnote = "In most cases, this was due to no blood collection at visit 3 resulting in no visit 4",
-    location = cells_body(columns = stetrreas, rows = stetrreas == "Protocol violation/deviation")
+    location = cells_body(
+      columns = stetrreas,
+      rows = stetrreas == "Protocol violation/deviation"
+    )
   ) |>
   as_latex() |>
   latex_unescape() |>
@@ -475,7 +481,183 @@ left_join(fhq_by_trt, fhq_ovr) |>
   cat()
 ```
 
+```{=latex}
 \clearpage
+```
+
+### Non-study vaccines
+
+```{r}
+#| label: vaccine-schedule
+#| description: |
+#|   Attempt to derive the actual DTaP schedule participants received.
+#|   This is messy.
+#| include: false
+dat_nsv <- select_form(dat_raw, "nonstudy_vaccination_log")
+dat_base_nstv <- dat_base |>
+  select(record_id, subjid, trt, birthdat) |>
+  left_join(dat_nsv, join_by(record_id)) |>
+  mutate(nstv_age = interval(birthdat, ipnstvacdat) %/% months(1))
+
+# Identify age issues
+dat_base_nstv |>
+  filter(nstv_age < 0) |>
+  arrange(nstv_age)
+dat_base_nstv |>
+  filter(nstv_age > 20)
+
+# Fixe cases that matter
+dat_base_nsv <- dat_base_nstv |>
+  mutate(
+    ipnstvacdat = replace_when(
+      ipnstvacdat,
+      record_id == "5785-431" & ipnstvacdat == date("2023-02-28") ~ date(
+        "2024-02-28"
+      ),
+      record_id == "4629-227" & ipnstvacdat == date("2023-02-09") ~ date(
+        "2024-02-09"
+      ),
+      record_id == "5785-164" & ipnstvacdat == date("2022-01-19") ~ date(
+        "2023-01-19"
+      ),
+      record_id == "5785-255" & ipnstvacdat == date("2022-07-19") ~ date(
+        "2023-07-19"
+      ),
+      record_id == "5785-255" & ipnstvacdat == date("2022-09-12") ~ date(
+        "2023-09-12"
+      ),
+      record_id == "5785-284" & ipnstvacdat == date("2023-04-07") ~ date(
+        "2023-08-07"
+      )
+    )
+  ) |>
+  mutate(nstv_age = interval(birthdat, ipnstvacdat) %/% months(1))
+
+dat_vaxelis <- dat_base_nsv |>
+  filter(
+    when_any(ipvac == "Vaxelis", grepl("vaxelis", tolower(vacothspec)))
+  )
+dat_hexa <- dat_base_nsv |>
+  filter(
+    when_any(ipvac == "Infanrix Hexa", grepl("hexa", tolower(vacothspec)))
+  )
+dat_ipv <- dat_base_nsv |>
+  filter(
+    when_any(ipvac == "Infanrix IPV", grepl("ipv", tolower(vacothspec)))
+  )
+dat_other <- dat_base_nsv |>
+  filter(
+    when_any(grepl("quadracel|dtp|tripacel", tolower(vacothspec)))
+  )
+
+dd <- dat_base_nsv |>
+  select(-redcap_form_instance, -vacaddyn, -vac_num) |>
+  distinct() |>
+  filter(
+    when_any(
+      ipvac == "Vaxelis",
+      ipvac == "Infanrix Hexa",
+      ipvac == "Infanrix IPV",
+      grepl("vaxelis", tolower(vacothspec)),
+      grepl("hexa", tolower(vacothspec)),
+      grepl("ipv", tolower(vacothspec)),
+      grepl("quadracel|dtp|tripacel", tolower(vacothspec))
+    )
+  ) |>
+  arrange(subjid, nstv_age) |>
+  filter(nchar(record_id) > 3) |>
+  filter_out(
+    when_any(
+      record_id == "5785-2" & nstv_age == 5,
+      record_id == "5785-276" & nstv_age == 6,
+      record_id == "5785-381" & trimws(vacothspec) == "VAXELIS"
+    )
+  ) |>
+  # Interested in 4 and 6 month vaccinations
+  filter(between(nstv_age, 4, 10)) |>
+  filter_out(
+    when_any(
+      record_id == "5785-96" & date(ipnstvacdat) == date("2022-08-17"),
+      record_id == "8644-23" & ipvac == "Other"
+    )
+  ) |>
+  mutate(
+    ap_id = row_number(),
+    ap_type = case_when(
+      ipvac == "Infanrix Hexa" | grepl("hexa", tolower(vacothspec)) ~ "aP3",
+      ipvac == "Infanrix IPV" | grepl("ipv", tolower(vacothspec)) ~ "aP3",
+      grepl("dtp", tolower(vacothspec)) ~ "aP3",
+      ipvac == "Vaxelis" | grepl("vaxelis", tolower(vacothspec)) ~ "aP5",
+      grepl("quadracel|tripacel", tolower(vacothspec)) ~ "aP5"
+    ),
+    .by = record_id
+  )
+
+aa <- dd |>
+  arrange(subjid, ipnstvacdat) |>
+  filter(between(nstv_age, 4, 10)) |>
+  filter(ap_id < 3) |>
+  mutate(
+    ipvac = if_else(ipvac == "Other", vacothspec, ipvac),
+    ap_age = case_when(
+      nstv_age == 4 ~ 4,
+      nstv_age == 5 & lead(nstv_age) > 5 ~ 4,
+      nstv_age == 6 & lead(nstv_age) > 6 ~ 4,
+      nstv_age == 7 & lead(nstv_age) > 7 ~ 4,
+      nstv_age == 5 & lag(nstv_age) < 5 ~ 6,
+      nstv_age == 6 & lag(nstv_age) < 6 ~ 6,
+      nstv_age == 7 & lag(nstv_age) < 7 ~ 6,
+      nstv_age == 8 & lag(nstv_age) < 8 ~ 6,
+      nstv_age == 9 & lag(nstv_age) < 9 ~ 6,
+      nstv_age == 10 & lag(nstv_age) < 10 ~ 6,
+      nstv_age == 5 ~ 4,
+      nstv_age == 6 ~ 6,
+      nstv_age == 7 ~ 6,
+      nstv_age == 8 ~ 6,
+      nstv_age == 10 ~ 6
+    ),
+    .by = subjid
+  ) |>
+  select(-ipnstvacdat, -vacothspec, -ap_id) |>
+  pivot_wider(
+    names_from = ap_age,
+    values_from = c(ap_type, nstv_age, ipvac)
+  ) |>
+  mutate(ap_type_4 = replace_when(ap_type_4, is.na(ap_type_4) ~ "-")) |>
+  mutate(ap_type_6 = replace_when(ap_type_6, is.na(ap_type_6) ~ "-")) |>
+  unite("ap_sch", c(ap_type_4, ap_type_6), sep = "/", remove = FALSE)
+
+d_part_1 <- dat_base_nsv |>
+  select(record_id, subjid) |>
+  filter(nchar(record_id) <= 3) |>
+  distinct() |>
+  mutate(ap_sch = "aP3/aP3")
+d_part_2 <- dat_base_nsv |>
+  select(record_id, subjid) |>
+  filter(nchar(record_id) > 3) |>
+  distinct()
+
+aa <- bind_rows(
+  d_part_1,
+  left_join(d_part_2, aa, join_by(record_id, subjid))
+) |>
+  mutate(
+    ap_sch = fct_infreq(paste0(
+      "aP3/",
+      replace_when(ap_sch, is.na(ap_sch) ~ "-/-")
+    ))
+  )
+
+tbl_summary(
+  aa,
+  include = ap_sch,
+  label = ap_sch ~ "Vaccine schedule (6-week/4-month/6-month)"
+)
+```
+
+```{=latex}
+\clearpage
+```
 
 ## Baseline characteristics
 
@@ -601,9 +783,18 @@ tbl <- dat_base |>
   ) |>
   add_n() |>
   add_overall(last = TRUE) |>
-  add_variable_group_header(header = "Mother's ethnicity", variables = starts_with("etomthr")) |>
-  add_variable_group_header(header = "Father's ethnicity", variables = starts_with("etofthr")) |>
-  add_variable_group_header(header = "Infant's ethnicity", variables = starts_with("etoinf")) |>
+  add_variable_group_header(
+    header = "Mother's ethnicity",
+    variables = starts_with("etomthr")
+  ) |>
+  add_variable_group_header(
+    header = "Father's ethnicity",
+    variables = starts_with("etofthr")
+  ) |>
+  add_variable_group_header(
+    header = "Infant's ethnicity",
+    variables = starts_with("etoinf")
+  ) |>
   modify_column_alignment(all_stat_cols(), "right") |>
   modify_header(
     all_stat_cols() ~
@@ -626,7 +817,8 @@ tbl |>
     style = cell_text(weight = "bold"),
     locations = cells_body(
       columns = label,
-      rows = (row_type == "label" | row_type == "variable_group") & !grepl("___", variable)
+      rows = (row_type == "label" | row_type == "variable_group") &
+        !grepl("___", variable)
     )
   ) |>
   tab_options(
@@ -771,9 +963,18 @@ tbl <- dat_base |>
   ) |>
   add_n() |>
   add_overall(last = TRUE) |>
-  add_variable_group_header(header = "Mother's ethnicity", variables = starts_with("etomthr")) |>
-  add_variable_group_header(header = "Father's ethnicity", variables = starts_with("etofthr")) |>
-  add_variable_group_header(header = "Infant's ethnicity", variables = starts_with("etoinf")) |>
+  add_variable_group_header(
+    header = "Mother's ethnicity",
+    variables = starts_with("etomthr")
+  ) |>
+  add_variable_group_header(
+    header = "Father's ethnicity",
+    variables = starts_with("etofthr")
+  ) |>
+  add_variable_group_header(
+    header = "Infant's ethnicity",
+    variables = starts_with("etoinf")
+  ) |>
   modify_column_alignment(all_stat_cols(), "right") |>
   modify_header(
     all_stat_cols() ~
@@ -796,7 +997,8 @@ tbl |>
     style = cell_text(weight = "bold"),
     locations = cells_body(
       columns = label,
-      rows = (row_type == "label" | row_type == "variable_group") & !grepl("___", variable)
+      rows = (row_type == "label" | row_type == "variable_group") &
+        !grepl("___", variable)
     )
   ) |>
   tab_options(
@@ -957,11 +1159,19 @@ dat_grid_fhq |>
 #   cat()
 
 dat_grid_fhq |>
-  filter(visit_age %in% c("6-month", "9-month", "12-month", "15-month", "18-month")) |>
+  filter(
+    visit_age %in% c("6-month", "9-month", "12-month", "15-month", "18-month")
+  ) |>
   droplevels() |>
   select(record_id, visit_age, trt, feeggyn, femilyn, fenutyn) |>
   pivot_longer(feeggyn:fenutyn) |>
-  mutate(name = factor(name, levels = c("feeggyn", "femilyn", "fenutyn"), labels = c("Egg", "Milk", "Peanut"))) |>
+  mutate(
+    name = factor(
+      name,
+      levels = c("feeggyn", "femilyn", "fenutyn"),
+      labels = c("Egg", "Milk", "Peanut")
+    )
+  ) |>
   pivot_wider(names_from = visit_age, values_from = value) |>
   tbl_strata2(
     strata = "name",
@@ -1047,7 +1257,11 @@ make_km_plot <- function(dat, time_var, event_var, trt_var, lab = "") {
     scale_fill_manual("Treatment group", values = c("black", "orange")) +
     labs(title = lab) +
     scale_ggsurvfit(
-      x_scales = list(name = "Age (days)", breaks = seq(0, 630, 90), limits = c(0, 651)),
+      x_scales = list(
+        name = "Age (days)",
+        breaks = seq(0, 630, 90),
+        limits = c(0, 651)
+      ),
       y_scales = list(name = "Percentage introduced to food", limits = c(0, 1))
     ) +
     guides(colour = guide_legend(override.aes = list(shape = NA))) +
@@ -1064,7 +1278,15 @@ plot_food_introduction_stage1 <- function(
   # If they don't we want the last response
   food_obs <- dat_grid_fhq |>
     filter(rand_stage == 1) |>
-    select(record_id, birthdat, {{ trt_var }}, fedat, visit_age, {{ food_var }}, {{ age_var }}) |>
+    select(
+      record_id,
+      birthdat,
+      {{ trt_var }},
+      fedat,
+      visit_age,
+      {{ food_var }},
+      {{ age_var }}
+    ) |>
     filter({{ food_var }} == "Yes") |>
     # Some have multiple, take the first
     filter(row_number() == 1, .by = record_id) |>
@@ -1075,7 +1297,16 @@ plot_food_introduction_stage1 <- function(
     mutate(y = pmin(fedat_age, {{ age_var }}), event = 1)
   food_cens <- dat_grid_fhq |>
     filter(rand_stage == 1, !(record_id %in% food_obs$record_id)) |>
-    select(record_id, birthdat, {{ trt_var }}, visit_age, fedat, fecurr, {{ food_var }}, {{ age_var }}) |>
+    select(
+      record_id,
+      birthdat,
+      {{ trt_var }},
+      visit_age,
+      fedat,
+      fecurr,
+      {{ food_var }},
+      {{ age_var }}
+    ) |>
     filter(!is.na(fedat)) |>
     filter(row_number() == n(), .by = record_id) |>
     mutate(
@@ -1096,7 +1327,15 @@ plot_food_introduction_stage2 <- function(
 ) {
   food_obs <- dat_grid_fhq |>
     filter(rand_stage == 2) |>
-    select(record_id, birthdat, {{ trt_var }}, fedat, visit_age, {{ food_var }}, {{ food_date }}) |>
+    select(
+      record_id,
+      birthdat,
+      {{ trt_var }},
+      fedat,
+      visit_age,
+      {{ food_var }},
+      {{ food_date }}
+    ) |>
     filter({{ food_var }} == "Yes") |>
     filter(row_number() == 1, .by = record_id) |>
     mutate(
@@ -1110,7 +1349,15 @@ plot_food_introduction_stage2 <- function(
     )
   food_cens <- dat_grid_fhq |>
     filter(rand_stage == 2, !(record_id %in% food_obs$record_id)) |>
-    select(record_id, birthdat, {{ trt_var }}, fedat, visit_age, {{ food_var }}, {{ food_date }}) |>
+    select(
+      record_id,
+      birthdat,
+      {{ trt_var }},
+      fedat,
+      visit_age,
+      {{ food_var }},
+      {{ food_date }}
+    ) |>
     filter(!is.na(fedat)) |>
     filter(row_number() == n(), .by = record_id) |>
     mutate(
@@ -1130,32 +1377,61 @@ plot_food_introduction_stage2 <- function(
 dat_grid_fhq <- dat_grid_fhq |>
   mutate(
     fefooddat1 = case_when(
-      record_id == "4629-223" & fefooddat1 == date("2023-01-23") ~ date("2024-01-23"),
-      record_id == "4629-263" & fefooddat1 == date("2023-03-30") ~ date("2024-03-30"),
-      record_id == "5785-133" & fefooddat1 == date("2022-02-01") ~ date("2023-02-01"),
+      record_id == "4629-223" & fefooddat1 == date("2023-01-23") ~ date(
+        "2024-01-23"
+      ),
+      record_id == "4629-263" & fefooddat1 == date("2023-03-30") ~ date(
+        "2024-03-30"
+      ),
+      record_id == "5785-133" & fefooddat1 == date("2022-02-01") ~ date(
+        "2023-02-01"
+      ),
       .default = fefooddat1
     ),
     fefooddat2 = case_when(
-      record_id == "4629-230" & fefooddat2 == date("2023-01-04") ~ date("2024-01-04"),
-      record_id == "5785-101" & fefooddat2 == date("2021-10-23") ~ date("2022-10-23"),
+      record_id == "4629-230" & fefooddat2 == date("2023-01-04") ~ date(
+        "2024-01-04"
+      ),
+      record_id == "5785-101" & fefooddat2 == date("2021-10-23") ~ date(
+        "2022-10-23"
+      ),
       .default = as_date(fefooddat2, format = "%Y-%m-%d")
     ),
-    fefooddat2 = replace_values(fefooddat2, date("2010-08-01") ~ date("2020-08-01")),
+    fefooddat2 = replace_values(
+      fefooddat2,
+      date("2010-08-01") ~ date("2020-08-01")
+    ),
     fefooddat4 = case_when(
-      record_id == "5785-174" & fefooddat4 == date("2022-01-29") ~ date("2023-01-29"),
+      record_id == "5785-174" & fefooddat4 == date("2022-01-29") ~ date(
+        "2023-01-29"
+      ),
       .default = fefooddat4
     ),
     fefooddat6 = case_when(
-      record_id == "5785-88" & fefooddat6 == ymd("2021-03-10") ~ ymd("2023-03-10"),
-      record_id == "5785-126" & fefooddat6 == ymd("2022-02-10") ~ ymd("2023-02-10"),
-      record_id == "5785-270" & fefooddat6 == ymd("2023-01-22") ~ ymd("2024-01-22"),
+      record_id == "5785-88" & fefooddat6 == ymd("2021-03-10") ~ ymd(
+        "2023-03-10"
+      ),
+      record_id == "5785-126" & fefooddat6 == ymd("2022-02-10") ~ ymd(
+        "2023-02-10"
+      ),
+      record_id == "5785-270" & fefooddat6 == ymd("2023-01-22") ~ ymd(
+        "2024-01-22"
+      ),
       .default = fefooddat6
     ),
     fefooddat8 = case_when(
-      record_id == "4629-27" & fefooddat8 == ymd("2020-01-11") ~ ymd("2021-01-11"),
-      record_id == "4629-141" & fefooddat8 == date("423-05-02") ~ ymd("2023-05-02"),
-      record_id == "5785-124" & fefooddat8 == ymd("2022-03-30") ~ ymd("2023-03-30"),
-      record_id == "5785-394" & fefooddat8 == ymd("2023-02-10") ~ ymd("2024-02-10"),
+      record_id == "4629-27" & fefooddat8 == ymd("2020-01-11") ~ ymd(
+        "2021-01-11"
+      ),
+      record_id == "4629-141" & fefooddat8 == date("423-05-02") ~ ymd(
+        "2023-05-02"
+      ),
+      record_id == "5785-124" & fefooddat8 == ymd("2022-03-30") ~ ymd(
+        "2023-03-30"
+      ),
+      record_id == "5785-394" & fefooddat8 == ymd("2023-02-10") ~ ymd(
+        "2024-02-10"
+      ),
       .default = fefooddat8
     )
   )
