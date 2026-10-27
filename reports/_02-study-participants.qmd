@@ -628,31 +628,32 @@ aa <- dd |>
   unite("ap_sch", c(ap_type_4, ap_type_6), sep = "/", remove = FALSE)
 
 d_part_1 <- dat_base_nsv |>
-  select(record_id, subjid) |>
+  select(record_id, subjid, trt) |>
   filter(nchar(record_id) <= 3) |>
   distinct() |>
   mutate(ap_sch = "aP3/aP3")
 d_part_2 <- dat_base_nsv |>
-  select(record_id, subjid) |>
+  select(record_id, subjid, trt) |>
   filter(nchar(record_id) > 3) |>
   distinct()
 
 aa <- bind_rows(
   d_part_1,
-  left_join(d_part_2, aa, join_by(record_id, subjid))
+  left_join(d_part_2, aa, join_by(record_id, subjid, trt))
 ) |>
   mutate(
-    ap_sch = fct_infreq(paste0(
-      "aP3/",
+    ap_sch = fct_infreq(
       replace_when(ap_sch, is.na(ap_sch) ~ "-/-")
-    ))
+    )
   )
 
 tbl_summary(
   aa,
+  by = trt,
   include = ap_sch,
-  label = ap_sch ~ "Vaccine schedule (6-week/4-month/6-month)"
-)
+  label = ap_sch ~ "Vaccine schedule (4-month/6-month)"
+) |>
+  remove_footnote_header()
 ```
 
 ```{=latex}
