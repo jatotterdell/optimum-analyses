@@ -36,6 +36,34 @@ crossref:
 \clearpage
 
 ```{=latex}
+\begin{table}[t]
+\caption{\label{tbl-vax-schedule}Vaccination schedule (4-month/6-month vaccines) received by assigned treatment group. '-' indicates unknown vaccine type.}
+\centering{
+\fontsize{8.0pt}{9.0pt}\selectfont
+\begin{tabular*}{6cm}{@{\extracolsep{\fill}}lrr}
+\toprule
+\textbf{Vaccine schedule} & \makecell{\textbf{aP}\\
+N = 486} & \makecell{\textbf{wP}\\
+N = 486} \\ 
+\midrule\addlinespace[2.5pt]
+    aP3/aP3 & 376 (77\%) & 360 (74\%) \\ 
+    -/aP3 & 33 (6.8\%) & 44 (9.1\%) \\ 
+    aP5/aP5 & 17 (3.5\%) & 27 (5.6\%) \\ 
+    aP3/aP5 & 21 (4.3\%) & 16 (3.3\%) \\ 
+    aP3/- & 15 (3.1\%) & 18 (3.7\%) \\ 
+    aP5/aP3 & 12 (2.5\%) & 11 (2.3\%) \\ 
+    -/- & 5 (1.0\%) & 8 (1.6\%) \\ 
+    -/aP5 & 4 (0.8\%) & 1 (0.2\%) \\ 
+    aP5/- & 3 (0.6\%) & 1 (0.2\%) \\ 
+\bottomrule
+\end{tabular*}
+}
+\end{table}
+```
+
+\clearpage
+
+```{=latex}
 \begin{table}[H]
 \caption{\label{tbl-food-status-combined}Number and percentage of infants who currently eat egg, cow's milk, and peanut by study group and survey age.}
 \centering{
@@ -192,7 +220,6 @@ $\geq$3mm vs ctrl. & 58/473 (12\%) & 12.4 (9.7, 15.5) & 61/471 (13\%) & 12.9 (10
 ![Distribution of total and allergen-specific IgE concentrations (kU/L) by assigned study group. Vertical dotted lines indicate 0.01 and 0.1 kU/L](../reports/clinical-trial-report_files/figure-pdf/fig-ige-19month-1.pdf)
 
 \clearpage
-
 
 ![Subgroup specific estimates of difference in risk (percentage point) of food allergy, wP versus aP. Estimtes were derived from logistic regression models with terms for treatment, grouping factor, and their interaction. Diffuse priors were used on all terms.]("../output/figure/fp.pdf")
 

@@ -647,13 +647,15 @@ aa <- bind_rows(
     )
   )
 
-tbl_summary(
+tbl <- tbl_summary(
   aa,
   by = trt,
   include = ap_sch,
   label = ap_sch ~ "Vaccine schedule (4-month/6-month)"
 ) |>
   remove_footnote_header()
+
+tbl
 ```
 
 ```{=latex}
